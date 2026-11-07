@@ -1019,7 +1019,9 @@ fun StoreScreen(uid: String, wallet: Wallet, onOpenVip: () -> Unit, onBack: () -
                 val mineAll = wallet.inv.filter { it.value > now }
                     .mapNotNull { (id, exp) -> findItem(id)?.let { it to exp } }
                     .filter { it.first.slot != "medal" && it.first.slot != "title" }
-                    .filter { val a = it.first.asset; a != null && (a.url.isNotBlank() || a.hasData) }
+                    // Item kiriman panel (sx_) selalu tampil. Item bawaan yang belum punya
+                // gambar tetap disembunyikan supaya tidak muncul ikon kosong.
+                .filter { it.first.id.startsWith("sx_") || run { val a = it.first.asset; a != null && (a.url.isNotBlank() || a.hasData) } }
                 val bagCats = STORE_CATS.filter { it.first != "medal" }
                 val mineCat = mineAll.filter { it.first.slot == cat }
                     .sortedWith(compareBy<Pair<StoreItem, Long>>({ it.first.id }))

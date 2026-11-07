@@ -709,6 +709,14 @@ label{font-size:12px;color:var(--mut)}
   </div>
 
   <div class="card">
+    <h2>Cek item Store</h2>
+    <p class="muted">Menampilkan semua item yang tersimpan sebagai item Store di panel, beserta alasannya kalau tidak muncul di aplikasi.</p>
+    <button class="btn out" id="ckStore">Periksa item Store</button>
+    <div class="muted" id="ckInfo" style="margin-top:10px;line-height:1.5"></div>
+    <div id="ckList" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card">
     <h2>Ganti tautan lama (repo lama)</h2>
     <p class="muted">Memeriksa data di Realtime Database: item Store, emote, banner, dan pengaturan yang masih memakai alamat repo lama <b>voice-chat-room-real-time</b>. Tautan lama diganti ke <b>rezo-star-voice-chat-room</b> supaya gambar dan file tetap tampil.</p>
     <button class="btn out" id="lkPindai">1. Pindai tautan lama</button>
@@ -1670,6 +1678,7 @@ function lencanaStart(){
       logAction({ type: "fixUidCantik", akun: akun, cantik: cantik });
     } catch (e) { st.textContent = "Gagal: " + (e.message || e); }
   };
+  $("ckStore").onclick = ckStorePeriksa;
   $("lkPindai").onclick = lkPindai;
   $("lkGanti").onclick = lkGanti;
   $("clScan").onclick = clPindai;
@@ -1839,6 +1848,38 @@ async function clHapus(){
   logAction({ type: "bersihAset", jumlah: ok });
   toast("Aset dibersihkan \u2705");
   btn.disabled = false;
+}
+
+async function ckStorePeriksa() {
+  const info = $("ckInfo"), box = $("ckList"), btn = $("ckStore");
+  btn.disabled = true; info.textContent = "Membaca item Store\u2026"; box.innerHTML = "";
+  try {
+    const snap = await rtdb.ref("vipCfg").get();
+    const val = snap.val() || {};
+    const rows = [];
+    for (const k of Object.keys(val)) {
+      const v = val[k];
+      if (!v || typeof v !== "object") continue;
+      if (v.store !== true) continue;
+      const alasan = [];
+      if (!v.slot) alasan.push("slot kosong");
+      if (!v.name) alasan.push("nama kosong");
+      if (!v.url && !v.hasData) alasan.push("belum ada gambar/URL");
+      if (v.targetUid) alasan.push("dikunci ke akun " + v.targetUid + " (akun lain tidak melihat)");
+      rows.push({ k: k, slot: v.slot || "-", name: v.name || "-", harga: v.price || 0, alasan: alasan });
+    }
+    if (!rows.length) { info.textContent = "Tidak ada item Store sama sekali di vipCfg."; return; }
+    const per = {};
+    rows.forEach(r => { per[r.slot] = (per[r.slot] || 0) + 1; });
+    info.textContent = rows.length + " item Store ditemukan. " + Object.keys(per).map(k => k + ": " + per[k]).join(", ");
+    box.innerHTML = rows.map(r =>
+      '<div style="padding:8px;border:1px solid var(--line);border-radius:10px;margin-bottom:6px;font-size:12px;color:#eee;word-break:break-all">'
+      + '<b>' + r.name + '</b> \u00b7 ' + r.slot + ' \u00b7 ' + r.harga + '<br><span class="muted">' + r.k
+      + (r.alasan.length ? '<br>\u26a0 ' + r.alasan.join("; ") : '<br>\u2713 siap tampil')
+      + '</span></div>').join("");
+  } catch (e) {
+    info.textContent = "Gagal membaca: " + (e.message || e);
+  } finally { btn.disabled = false; }
 }
 
 /* ---------- Ganti tautan repo lama di Realtime Database ---------- */
