@@ -56,10 +56,10 @@ import java.net.URL
  * periksa sidik jari, lalu pasang. Gagal di tengah jalan -> unduh APK penuh.
  */
 object AppUpdate {
-    private const val INFO_URL = "https://exbottod.github.io/voice-chat-room-real-time/build-info.json"
-    private const val NOTE_URL = "https://exbottod.github.io/voice-chat-room-real-time/update-note.txt"
-    private const val REL = "https://github.com/exbottod/voice-chat-room-real-time/releases/download/terbaru/"
-    private const val PATCH_URL = "https://exbottod.github.io/voice-chat-room-real-time/patch-info.json"
+    private const val INFO_URL = "https://exbottod.github.io/rezo-star-voice-chat-room/build-info.json"
+    private const val NOTE_URL = "https://exbottod.github.io/rezo-star-voice-chat-room/update-note.txt"
+    private const val REL = "https://github.com/exbottod/rezo-star-voice-chat-room/releases/download/terbaru/"
+    private const val PATCH_URL = "https://exbottod.github.io/rezo-star-voice-chat-room/patch-info.json"
 
     class Info(val version: String, val notes: String, val url: String, val patch: Patch? = null)
 

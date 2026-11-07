@@ -3,7 +3,7 @@
 set -e
 VER="1.13.11"
 DOMAIN="43-156-99-4.sslip.io"
-RAW="https://raw.githubusercontent.com/exbottod/voice-chat-room-real-time/main"
+RAW="https://raw.githubusercontent.com/exbottod/rezo-star-voice-chat-room/main"
 DIR=/opt/rezo-livekit
 mkdir -p $DIR
 

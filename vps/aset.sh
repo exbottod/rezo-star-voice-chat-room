@@ -3,7 +3,7 @@
 # Agora (sertifikat lama dipertahankan). Yang ditambahkan hanya email admin dan
 # token GitHub, sekaligus memasang rumus token suara terbaru (4 izin).
 set -uo pipefail
-REPO="exbottod/voice-chat-room-real-time"
+REPO="exbottod/rezo-star-voice-chat-room"
 RAW="https://raw.githubusercontent.com/$REPO/main"
 UNIT=/etc/systemd/system/rezo-agora.service
 DIR=/opt/rezo-agora

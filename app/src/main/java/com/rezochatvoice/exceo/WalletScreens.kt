@@ -33,7 +33,7 @@ import kotlinx.coroutines.tasks.await
 // QR DANA milik admin (hasil baca QR terima uang). Tombol di dialog topup
 // membuka tautan ini supaya aplikasi DANA langsung terbuka.
 const val DANA_LINK = "https://link.dana.id/minta?full_url=https://qr.dana.id/v1/281012012023020637707267"
-const val DANA_QR_IMG = "https://exbottod.github.io/voice-chat-room-real-time/dana-qr.png"
+const val DANA_QR_IMG = "https://exbottod.github.io/rezo-star-voice-chat-room/dana-qr.png"
 
 private fun openDana(ctx: android.content.Context) {
     try {

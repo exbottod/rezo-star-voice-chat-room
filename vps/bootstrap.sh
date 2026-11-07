@@ -4,7 +4,7 @@
 # Yang dipasang: Node 22, API dompet (kode sama dengan Cloudflare), Caddy HTTPS.
 set -euo pipefail
 
-REPO_RAW="${REPO_RAW:-https://raw.githubusercontent.com/exbottod/voice-chat-room-real-time/main}"
+REPO_RAW="${REPO_RAW:-https://raw.githubusercontent.com/exbottod/rezo-star-voice-chat-room/main}"
 TURSO_URL_DEFAULT="https://rezo-voice-chat-officialex.aws-ap-southeast-1.turso.io"
 DIR=/opt/rezo-api
 APP_USER=rezo

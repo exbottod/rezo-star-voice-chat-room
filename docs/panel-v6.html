@@ -2298,7 +2298,7 @@ let upNoteVer = "";
 async function upNoteVersi(){
   if (upNoteVer) return upNoteVer;
   try {
-    const r = await fetch("/voice-chat-room-real-time/build-info.json?t=" + Date.now(), { cache: "no-store" });
+    const r = await fetch("/rezo-star-voice-chat-room/build-info.json?t=" + Date.now(), { cache: "no-store" });
     const j = await r.json();
     upNoteVer = upNoteKey(j.versi);
   } catch (e) { }
@@ -3383,7 +3383,7 @@ async function walletAdmin(p){
 /* ---------- Unggah aset langsung ke GitHub (tanpa server perantara) ---------- */
 /* Token disimpan hanya di HP ini (localStorage), tidak dikirim ke mana pun
    selain api.github.com. Folder docs/aset tidak memicu build APK. */
-const GH_REPO = "exbottod/voice-chat-room-real-time";
+const GH_REPO = "exbottod/rezo-star-voice-chat-room";
 const GH_BRANCH = "main";
 function ghToken(paksa){
   let t = localStorage.getItem("ghToken") || "";
@@ -3442,7 +3442,7 @@ function dbHelp(e){
   const m = String((e && (e.message || e.code)) || e);
   if (m.indexOf("PERMISSION_DENIED") >= 0 || m.toLowerCase().indexOf("permission denied") >= 0) {
     return m + " \u2192 aturan Realtime Database belum diperbarui. Tempel aturan terbaru dari " +
-      "https://exbottod.github.io/voice-chat-room-real-time/db-rules.json lalu coba simpan lagi.";
+      "https://exbottod.github.io/rezo-star-voice-chat-room/db-rules.json lalu coba simpan lagi.";
   }
   return m;
 }

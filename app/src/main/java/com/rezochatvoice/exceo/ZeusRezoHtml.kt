@@ -34,7 +34,7 @@ import java.security.MessageDigest
 object ZeusRezo {
     private const val SALT = "rezo-game-2026"
     private const val ALAMAT =
-        "https://cdn.jsdelivr.net/gh/exbottod/voice-chat-room-real-time@main/games/zeus/index.html"
+        "https://cdn.jsdelivr.net/gh/exbottod/rezo-star-voice-chat-room@main/games/zeus/index.html"
 
     private fun md5(s: String): String {
         val d = MessageDigest.getInstance("MD5").digest(s.toByteArray(Charsets.UTF_8))

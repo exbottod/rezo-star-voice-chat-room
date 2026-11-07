@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Sambungkan dompet VPS ke gateway WhatsApp OTP.
-# Pakai: sudo bash <(curl -fsSL https://raw.githubusercontent.com/exbottod/voice-chat-room-real-time/main/vps/pasang-otp-dompet.sh)
+# Pakai: sudo bash <(curl -fsSL https://raw.githubusercontent.com/exbottod/rezo-star-voice-chat-room/main/vps/pasang-otp-dompet.sh)
 set -e
 [ "$(id -u)" = "0" ] || { echo "Jalankan dengan sudo"; exit 1; }
-RAW="${REPO_RAW:-https://raw.githubusercontent.com/exbottod/voice-chat-room-real-time/main}"
+RAW="${REPO_RAW:-https://raw.githubusercontent.com/exbottod/rezo-star-voice-chat-room/main}"
 DIR=/opt/rezo-api
 
 SECRET=$(grep -oP 'WA_OTP_SECRET=\K.*' /etc/systemd/system/wa-otp.service | head -1)

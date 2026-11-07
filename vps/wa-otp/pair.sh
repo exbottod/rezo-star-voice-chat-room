@@ -3,7 +3,7 @@
 set -e
 NOMOR="${1:-}"
 DIR=/opt/wa-otp
-RAW="${REPO_RAW:-https://raw.githubusercontent.com/exbottod/voice-chat-room-real-time/main/vps/wa-otp}"
+RAW="${REPO_RAW:-https://raw.githubusercontent.com/exbottod/rezo-star-voice-chat-room/main/vps/wa-otp}"
 [ "$(id -u)" = "0" ] || { echo "Jalankan dengan sudo"; exit 1; }
 NOMOR=$(printf '%s' "$NOMOR" | tr -cd '0-9')
 [ -n "$NOMOR" ] || { echo "Sertakan nomor: sudo bash pair.sh 628xxxxxxxxxx"; exit 1; }

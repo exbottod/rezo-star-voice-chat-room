@@ -35,7 +35,7 @@ build	Build release APK	2026-10-20T13:56:07.6778900Z > Task :app:createReleaseCo
 build	Build release APK	2026-10-20T13:56:07.6808822Z > Task :app:extractDeepLinksRelease
 build	Build release APK	2026-10-20T13:56:07.8755467Z > Task :app:mergeReleaseResources
 build	Build release APK	2026-10-20T13:56:07.8778483Z > Task :app:parseReleaseLocalResources
-build	Build release APK	2026-10-20T13:56:08.0739023Z /home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/AndroidManifest.xml:8:9-36 Error:
+build	Build release APK	2026-10-20T13:56:08.0739023Z /home/runner/work/rezo-star-voice-chat-room/rezo-star-voice-chat-room/app/src/main/AndroidManifest.xml:8:9-36 Error:
 build	Build release APK	2026-10-20T13:56:08.0739904Z 
 build	Build release APK	2026-10-20T13:56:08.0768966Z 	Attribute application@allowBackup value=(false) from AndroidManifest.xml:8:9-36
 build	Build release APK	2026-10-20T13:56:08.0769898Z > Task :app:processReleaseMainManifest FAILED

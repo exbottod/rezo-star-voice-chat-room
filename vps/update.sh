@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Perbarui kode dompet di VPS lalu jalankan ulang layanannya.
-# Pakai: bash <(curl -fsSL https://raw.githubusercontent.com/exbottod/voice-chat-room-real-time/main/vps/update.sh)
+# Pakai: bash <(curl -fsSL https://raw.githubusercontent.com/exbottod/rezo-star-voice-chat-room/main/vps/update.sh)
 set -euo pipefail
 DIR="${DIR:-/opt/rezo-api}"
-RAW="${REPO_RAW:-https://raw.githubusercontent.com/exbottod/voice-chat-room-real-time/main}"
+RAW="${REPO_RAW:-https://raw.githubusercontent.com/exbottod/rezo-star-voice-chat-room/main}"
 [ "$(id -u)" = "0" ] || { echo "Jalankan sebagai root"; exit 1; }
 echo "Mengunduh kode dompet terbaru..."
 curl -fsSL "$RAW/workers/wallet/src/index.js" -o "$DIR/index.js"

@@ -7,13 +7,13 @@ CERT="${CERT:-}"
 APPID="${APPID:-a64c0421b7814ded8f0b2806f00e1a90}"
 CLD_CLOUD="${CLD_CLOUD:-}"; CLD_KEY="${CLD_KEY:-}"; CLD_SECRET="${CLD_SECRET:-}"
 ADMIN_EMAIL_IN="${ADMIN_EMAIL:-}"
-GH_TOKEN="${GH_TOKEN:-}"; GH_REPO="${GH_REPO:-exbottod/voice-chat-room-real-time}"; GH_BRANCH="${GH_BRANCH:-main}"
+GH_TOKEN="${GH_TOKEN:-}"; GH_REPO="${GH_REPO:-exbottod/rezo-star-voice-chat-room}"; GH_BRANCH="${GH_BRANCH:-main}"
 if [ -z "$CERT" ]; then echo "CERT (App Certificate Agora) belum diisi"; exit 1; fi
 
 echo "== Menyiapkan folder"
 sudo mkdir -p /opt/rezo-agora
-sudo curl -fsSL "https://raw.githubusercontent.com/exbottod/voice-chat-room-real-time/main/token-worker/worker-standalone.js" -o /opt/rezo-agora/worker.js
-sudo curl -fsSL "https://raw.githubusercontent.com/exbottod/voice-chat-room-real-time/main/token-worker/package.json" -o /opt/rezo-agora/package.json 2>/dev/null || true
+sudo curl -fsSL "https://raw.githubusercontent.com/exbottod/rezo-star-voice-chat-room/main/token-worker/worker-standalone.js" -o /opt/rezo-agora/worker.js
+sudo curl -fsSL "https://raw.githubusercontent.com/exbottod/rezo-star-voice-chat-room/main/token-worker/package.json" -o /opt/rezo-agora/package.json 2>/dev/null || true
 sudo sed -i 's/"type": *"module"/"type": "module"/' /opt/rezo-agora/package.json 2>/dev/null || true
 printf '{"type":"module"}\n' | sudo tee /opt/rezo-agora/package.json >/dev/null
 

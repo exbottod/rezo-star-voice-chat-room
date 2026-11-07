@@ -653,7 +653,7 @@ async function xenditTopup(uid: string, coins: string, amount: number, name: str
   });
   if (!ins.ok) return json({ ok: 0, e: "Gagal membuat pesanan" }, 200);
 
-  const site = "https://exbottod.github.io/voice-chat-room-real-time/";
+  const site = "https://exbottod.github.io/rezo-star-voice-chat-room/";
   const payload = {
     external_id: orderId,
     amount,

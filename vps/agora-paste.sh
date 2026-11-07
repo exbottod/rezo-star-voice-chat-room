@@ -14,6 +14,6 @@ CERT="$(printf '%s' "$CERT" | tr -d '[:space:]")"
 if [ -z "$CERT" ]; then echo "Sertifikat kosong, dibatalkan."; exit 1; fi
 if [ "${#CERT}" -ne 32 ]; then echo "Panjang ${#CERT} karakter, seharusnya 32. Salin ulang."; exit 1; fi
 export CERT
-BASE="https://raw.githubusercontent.com/exbottod/voice-chat-room-real-time/main/vps"
+BASE="https://raw.githubusercontent.com/exbottod/rezo-star-voice-chat-room/main/vps"
 curl -fsSL "$BASE/agora.sh" -o /tmp/agora.sh
 exec bash /tmp/agora.sh

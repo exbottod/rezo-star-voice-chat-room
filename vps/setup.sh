@@ -34,4 +34,4 @@ tanya "Token GitHub (github_pat_...)" '^(github_pat_[A-Za-z0-9_]{20,}|ghp_[A-Za-
 
 echo "== Menjalankan pemasangan..."
 ADMIN_EMAIL="$EMAIL_IN" CERT="$CERT_IN" GH_TOKEN="$GH_IN" \
-  bash <(curl -fsSL https://raw.githubusercontent.com/exbottod/voice-chat-room-real-time/main/vps/agora.sh)
+  bash <(curl -fsSL https://raw.githubusercontent.com/exbottod/rezo-star-voice-chat-room/main/vps/agora.sh)
