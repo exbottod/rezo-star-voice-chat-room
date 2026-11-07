@@ -3148,6 +3148,14 @@ async function ghUpload(file, name){
   if (!res.ok) throw new Error("GitHub: " + ((out && out.message) || res.status));
   return "https://cdn.jsdelivr.net/gh/" + GH_REPO + "@" + GH_BRANCH + "/" + path;
 }
+/** Tautan Cloudinary sekarang dijawab 401 (akun diblokir), jadi jangan pernah disimpan. */
+function tolakAsetMati(u){
+  const s = String(u || "");
+  if (s.indexOf("res.cloudinary.com") >= 0 || s.indexOf("cloudinary.com") >= 0) {
+    throw new Error("Tautan Cloudinary sudah mati (401). Upload filenya lewat panel ini supaya tersimpan di GitHub/jsDelivr.");
+  }
+  return u;
+}
 async function cldUpload(file, name){
   const u = auth.currentUser;
   if (!u) throw new Error("Belum login");
@@ -3159,7 +3167,7 @@ async function cldUpload(file, name){
   // HANYA GitHub/jsDelivr. Cloudinary tidak dipakai lagi: akun v6ttvgah diblokir
   // dan semua tautannya menjawab 401, jadi aset yang diunggah ke sana pasti mati.
   try {
-    return await ghUpload(file, name);
+    return tolakAsetMati(await ghUpload(file, name));
   } catch (e) {
     throw new Error("Upload ke GitHub gagal (" + String((e && e.message) || e) +
       "). Tempel token GitHub yang baru lalu ulangi. Jangan pakai Cloudinary: akunnya diblokir, semua tautan 401.");
@@ -3349,6 +3357,7 @@ async function vipSave(slot){
     }
     {
       if (!/^https?:\/\//i.test(finalUrl)) { toast("URL harus diawali http:// atau https://"); return; }
+      try { tolakAsetMati(finalUrl); } catch (e) { toast(e.message); return; }
       if (!vipExtOk(slot, finalUrl)) { toast("Format URL harus " + slot.hint); return; }
       // ASET TERSIMPAN DI REALTIME DATABASE (kuota terpisah); file di Cloudinary.
       await rtSet("vipCfg/" + id, { meta: true, n: n, slot: slot.k, kind: vipKind(finalUrl), url: finalUrl, hasData: false, chunks: 0, updatedAt: Date.now() });
@@ -3540,6 +3549,7 @@ async function storeSave(c, el, btn){
     }
     if (finalUrl) {
       if (!/^https?:\/\//i.test(finalUrl)) { toast("URL harus diawali http:// atau https://"); return; }
+      try { tolakAsetMati(finalUrl); } catch (e) { toast(e.message); return; }
       const e = vipExt(finalUrl);
       if (e && !sl.accept.includes("." + e)) { toast("Format URL harus " + sl.accept.join(" ")); return; }
       // Realtime Database: kuota terpisah, tidak lagi tergantung Firestore.
@@ -3679,6 +3689,7 @@ $("emAdd").onclick = async () => {
       finalUrl = await cldUpload(f, "emote_" + Date.now().toString(36));
     }
     if (!/^https?:\/\//i.test(finalUrl)) return toast("URL harus diawali http:// atau https://");
+    try { tolakAsetMati(finalUrl); } catch (e) { return toast(e.message); }
     const e2 = vipExt(finalUrl);
     if (e2 && !EMOTE_ACCEPT.includes("." + e2)) return toast("Format URL harus gif, png, atau jpg");
     const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
