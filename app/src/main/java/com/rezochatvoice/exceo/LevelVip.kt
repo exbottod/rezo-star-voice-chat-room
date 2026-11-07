@@ -1003,9 +1003,12 @@ fun StoreScreen(uid: String, wallet: Wallet, onOpenVip: () -> Unit, onBack: () -
                 }
             } else {
                 // ===== RANSEL SAYA: kategori di kiri, grid item di kanan, play = preview penuh =====
+                // Hanya item yang masih aktif DAN punya gambar. Item bawaan tanpa aset
+                // (tampil emoji kosong) dan item yang sudah expired tidak ditampilkan.
                 val mineAll = wallet.inv.filter { it.value > now }
                     .mapNotNull { (id, exp) -> findItem(id)?.let { it to exp } }
                     .filter { it.first.slot != "medal" && it.first.slot != "title" }
+                    .filter { val a = it.first.asset; a != null && (a.url.isNotBlank() || a.hasData) }
                 val bagCats = STORE_CATS.filter { it.first != "medal" }
                 val mineCat = mineAll.filter { it.first.slot == cat }
                     .sortedWith(compareBy<Pair<StoreItem, Long>>({ it.first.id }))
