@@ -1,7 +1,10 @@
 package com.rezochatvoice.exceo
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
@@ -50,6 +53,40 @@ object StoreCatalog {
     private val rtdbMap = HashMap<String, CatalogItem>()
     /** Sudah pernah menerima data vipCfg dari RTDB? */
     @Volatile private var rtdbSiap = false
+    /** Item yang gambarnya sudah mati (mis. file Cloudinary dihapus) -> disembunyikan. */
+    private val idMati = mutableStateMapOf<String, Boolean>()
+    @Volatile private var cekMatiJalan = false
+
+    /** Periksa sekali apakah tautan gambar item masih hidup. */
+    fun cekAsetMati() {
+        if (cekMatiJalan) return
+        cekMatiJalan = true
+        GlobalScope.launch {
+            for (it in items.values.toList()) {
+                val u = it.asset.url
+                if (u.isBlank()) {
+                    if (!it.asset.hasData) idMati[it.id] = true
+                    continue
+                }
+                if (!hidup(u)) idMati[it.id] = true
+            }
+        }
+    }
+
+    private suspend fun hidup(u: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val c = (java.net.URL(u).openConnection() as java.net.HttpURLConnection)
+            c.requestMethod = "HEAD"
+            c.instanceFollowRedirects = true
+            c.connectTimeout = 6000
+            c.readTimeout = 8000
+            val code = c.responseCode
+            c.disconnect()
+            code in 200..399
+        } catch (e: Exception) {
+            true // jaringan bermasalah: jangan sembunyikan item
+        }
+    }
 
     private fun apply() {
         val merged = HashMap<String, CatalogItem>()
@@ -158,6 +195,7 @@ object StoreCatalog {
             }
             rtdbSiap = true
             apply()
+            cekAsetMati()
         }
         // FIRESTORE (warisan lama): dimuat SEKALI per buka app, bukan listener
         // realtime, supaya hemat kuota baca harian Firestore.
@@ -210,6 +248,8 @@ object StoreCatalog {
             .filter { it.targetUid.isBlank() || it.targetUid == uidPemakai }
             // Item ID custom hilang dari Store begitu sudah dibeli akun lain.
             .filter { it.customId.isBlank() || idTerpakai[it.customId].isNullOrBlank() }
+            // Item yang gambarnya sudah mati (file dihapus di Cloudinary) tidak dijual lagi.
+            .filter { !idMati.containsKey(it.id) }
             .sortedWith(compareBy<CatalogItem>({ it.order }, { it.name }))
 
     /** Nomor ID custom sudah dipakai akun lain? */
