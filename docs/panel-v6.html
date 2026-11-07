@@ -3156,19 +3156,15 @@ async function cldUpload(file, name){
   fd.append("file", file, file.name);
   fd.append("name", name);
   toast("Mengunggah " + file.name + " (" + Math.round(file.size / 1024) + " KB)...");
-  // GitHub lebih dulu: gratis, tanpa kuota kredit. Kalau token belum ada atau
-  // ditolak, baru pakai server upload (Cloudinary) seperti sebelumnya.
-  try { return await ghUpload(file, name); }
-  catch (e) {
-    const galatGh = String((e && e.message) || e);
-    let res;
-    try { res = await fetch(UPLOAD_URL, { method: "POST", headers: { Authorization: "Bearer " + idToken }, body: fd }); }
-    catch (e2) { throw new Error(galatGh + " | server upload juga tak terjangkau"); }
-    const out = await res.json().catch(() => ({}));
-    if (!res.ok || !out.url) throw new Error(galatGh + " | " + (out.error || ("upload gagal (" + res.status + ")")));
-    return out.url;
+  // HANYA GitHub/jsDelivr. Cloudinary tidak dipakai lagi: akun v6ttvgah diblokir
+  // dan semua tautannya menjawab 401, jadi aset yang diunggah ke sana pasti mati.
+  try {
+    return await ghUpload(file, name);
+  } catch (e) {
+    throw new Error("Upload ke GitHub gagal (" + String((e && e.message) || e) +
+      "). Tempel token GitHub yang baru lalu ulangi. Jangan pakai Cloudinary: akunnya diblokir, semua tautan 401.");
   }
-  }
+}
 /* Pesan bantuan kalau database menolak (aturan belum diperbarui). */
 function dbHelp(e){
   const m = String((e && (e.message || e.code)) || e);
@@ -4743,5 +4739,68 @@ $("pstReloadStock").onclick = async () => {
   } catch (e) { toast(e.message); }
 };
 
+
+/* ---- Pemeriksa aset mati: cari aset yang tautannya masih ke Cloudinary (sekarang 401) ---- */
+(function(){
+  const b = document.createElement("button");
+  b.textContent = "Cek Aset Mati";
+  b.style.cssText = "position:fixed;right:12px;bottom:80px;z-index:99999;padding:10px 14px;border-radius:22px;" +
+    "background:#b71c1c;color:#fff;font-weight:700;border:0;box-shadow:0 3px 10px rgba(0,0,0,.4);font-size:13px";
+  document.body.appendChild(b);
+  b.onclick = async () => {
+    b.disabled = true; b.textContent = "Memeriksa...";
+    try {
+      const snap = await rtdb.ref("vipCfg").once("value");
+      const mati = [];
+      snap.forEach(c => {
+        const v = c.val() || {};
+        const u = String(v.url || v.imageUrl || "");
+        if (u.indexOf("res.cloudinary.com") >= 0) {
+          mati.push({
+            kunci: c.key,
+            jenis: v.slot || (v.banner ? "banner" : (v.emote ? "emote" : (v.tipe || "item"))),
+            vip: v.n || "",
+            nama: v.title || v.name || v.label || v.customId || "",
+            url: u,
+          });
+        }
+      });
+      const box = document.createElement("div");
+      box.style.cssText = "position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.9);color:#fff;" +
+        "padding:14px;overflow:auto;font:12px/1.5 monospace";
+      const head = document.createElement("div");
+      head.style.cssText = "font:700 15px/1.4 system-ui;margin-bottom:8px";
+      head.textContent = mati.length
+        ? mati.length + " aset masih memakai Cloudinary (semua tautannya 401 = gambar mati)"
+        : "Bagus: tidak ada aset yang memakai Cloudinary.";
+      const tip = document.createElement("div");
+      tip.style.cssText = "font:12px/1.5 system-ui;color:#ffcdd2;margin-bottom:10px";
+      tip.textContent = mati.length
+        ? "Upload ulang aset di bawah lewat panel ini (otomatis ke GitHub/jsDelivr), lalu tautannya beres. Salin daftar ini dulu."
+        : "";
+      const pre = document.createElement("pre");
+      pre.style.cssText = "white-space:pre-wrap;word-break:break-all;background:#111;padding:10px;border-radius:8px";
+      pre.textContent = mati.map(m =>
+        (m.vip ? "VIP" + m.vip + " " : "") + m.jenis + (m.nama ? " | " + m.nama : "") +
+        "\n   " + m.kunci + "\n   " + m.url
+      ).join("\n\n") || "-";
+      const row = document.createElement("div");
+      row.style.cssText = "display:flex;gap:8px;margin:10px 0 20px";
+      const cp = document.createElement("button");
+      cp.textContent = "Salin daftar"; cp.style.cssText = "padding:9px 14px;border-radius:18px;border:0;background:#2e7d32;color:#fff;font-weight:700";
+      cp.onclick = () => { pre.select?.(); navigator.clipboard?.writeText(pre.textContent); cp.textContent = "Tersalin"; };
+      const cl = document.createElement("button");
+      cl.textContent = "Tutup"; cl.style.cssText = "padding:9px 14px;border-radius:18px;border:0;background:#424242;color:#fff;font-weight:700";
+      cl.onclick = () => box.remove();
+      row.appendChild(cp); row.appendChild(cl);
+      box.appendChild(head); box.appendChild(tip); box.appendChild(row); box.appendChild(pre);
+      document.body.appendChild(box);
+    } catch (e) {
+      alert("Gagal memeriksa: " + ((e && e.message) || e));
+    } finally {
+      b.disabled = false; b.textContent = "Cek Aset Mati";
+    }
+  };
+})();
 </script>
 </body></html>
