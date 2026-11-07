@@ -1052,6 +1052,36 @@ async function handleAdmin(body: { t?: string; p?: Record<string, unknown> }): P
     return json({ ok: 1, w: (await adminWallet(target)) });
   }
 
+  // Kirim item dari panel developer (lencana, bingkai, efek masuk, banner, bubble, ID cantik).
+  // Tanpa potong koin: ini pemberian admin.
+  if (op === "send_item") {
+    const itemId = String(p.itemId ?? "").trim();
+    const days = num(p.days === undefined ? 7 : p.days);
+    if (!itemId) return json({ ok: 0, e: "itemId kosong" }, 400);
+    if (Number.isNaN(days) || days < 1) return json({ ok: 0, e: "Durasi tidak valid" }, 400);
+    const durasi = Math.min(days, 36500);
+    await sbRest("wallets?on_conflict=uid", {
+      method: "POST",
+      headers: { Prefer: "resolution=ignore-duplicates" },
+      body: JSON.stringify({ uid: target }),
+    });
+    const cur = await adminWallet(target);
+    if (!cur) return json({ ok: 0, e: "Dompet tidak ditemukan" }, 200);
+    const until = Date.now() + durasi * 86_400_000;
+    const inv = { ...((cur?.inv as Record<string, unknown>) ?? {}) };
+    inv[itemId] = until;
+    const equip = { ...((cur?.equip as Record<string, unknown>) ?? {}) };
+    const slot = String(p.equip ?? "").trim();
+    if (slot) equip[slot] = itemId;
+    const r = await sbRest(`wallets?uid=eq.${encodeURIComponent(target)}`, {
+      method: "PATCH",
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify({ inv, equip, updated_at: new Date().toISOString() }),
+    });
+    if (!r.ok) return json({ ok: 0, e: "Gagal menyimpan item" }, 200);
+    return json({ ok: 1, w: (await adminWallet(target)) });
+  }
+
   if (op === "reset") {
     const r = await sbRest(`wallets?uid=eq.${encodeURIComponent(target)}`, {
       method: "PATCH",

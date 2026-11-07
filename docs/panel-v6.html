@@ -1773,7 +1773,7 @@ async function bkKirim(){
       hasData: false, chunks: 0, updatedAt: Date.now(), targetUid: bkUid, dariPanel: "lencana",
     });
     st.textContent = "Mengirim ke ID " + bkPilih + "…";
-    await walletAdmin({ op: "send_item", uid: bkUid, itemId: "sx_" + id, days: days, equip: $("bkPakai").checked ? "badge" : "" });
+    await kirimItem(bkUid, "sx_" + id, days, $("bkPakai").checked ? "badge" : "");
     logAction({ type: "sendBadge", targetId: bkPilih, uid: bkUid, itemId: id, days: days });
     st.textContent = "Selesai. Lencana terkirim ke ID " + bkPilih + " selama " + days + " hari"
       + ($("bkPakai").checked ? ", dan sudah dipakai di profilnya." : ". User bisa memakainya dari My Item.");
@@ -2778,6 +2778,28 @@ function logAction(obj){
 /* ---------- Banned ---------- */
 /* Ban disimpan di server dompet (tabel panel_ban), tempat yang sama yang dicek
    aplikasi saat user membuka app. Firestore tidak lagi dipakai untuk ban. */
+/* Kirim item ke akun lewat server panel VPS. Jalur ini sama dengan yang dipakai
+   aplikasi (action "send_item"), karena wallet-api Supabase belum punya operasi itu. */
+async function kirimItem(uid, itemId, days, slot){
+  const u = auth.currentUser;
+  if (!u) throw new Error("Belum login");
+  const idToken = await u.getIdToken(true);
+  let err = "Server panel tidak terjangkau, coba lagi";
+  for (const base of BAN_API_URLS) {
+    try {
+      const res = await fetch(base + "/panel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: WALLET_KEY },
+        body: JSON.stringify({ a: "send_item", t: idToken, p: { to: uid, itemId: itemId, days: days, equip: slot || "" } })
+      });
+      const o = await res.json().catch(() => ({}));
+      if (o && o.ok) return o;
+      err = (o && o.e) || ("HTTP " + res.status);
+    } catch (e) { err = e.message || err; }
+  }
+  throw new Error(err);
+}
+
 async function banApi(aksi, p){
   const u = auth.currentUser;
   if (!u) throw new Error("Belum login");
@@ -3942,7 +3964,7 @@ async function storeSave(c, el, btn){
       try {
         // ID custom (mis. 1000) didaftarkan sebagai alias supaya bisa dicari di app.
         try { await rtSet("uidCustom/" + stUidPilih, { uid: targetUid, itemId: "sx_" + id, at: Date.now() }); } catch (e) { }
-        await walletAdmin({ op: "send_item", uid: targetUid, itemId: "sx_" + id, days: 3650, equip: slot });
+        await kirimItem(targetUid, "sx_" + id, 3650, slot);
         toast("Tersimpan ✅ dan langsung dipasang ke ID " + stUidPilih);
       } catch (e) {
         toast("Item tersimpan, tapi gagal dipasang ke ID " + stUidPilih + ": " + (e.message || e));
