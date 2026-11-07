@@ -376,14 +376,15 @@
     },
     "uidCustom": {
       ".read": "auth != null",
-      "$cid": {
-        ".write": "auth != null && (auth.token.email === 'developerex100@gmail.com' || !data.exists() || data.child('uid').val() === auth.uid)"
+      "$nomor": {
+        ".write": "auth != null && (!data.exists() || data.child('uid').val() === auth.uid || auth.token.email === 'developerex100@gmail.com')",
+        ".validate": "newData.hasChildren(['uid'])"
       }
     },
     "uidAliasOf": {
       ".read": "auth != null",
       "$uid": {
-        ".write": "auth != null && auth.uid === $uid"
+        ".write": "auth != null && (auth.uid === $uid || auth.token.email === 'developerex100@gmail.com')"
       }
     }
   }

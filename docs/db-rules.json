@@ -436,6 +436,19 @@
       "$nomor": {
         ".write": "auth != null"
       }
+    },
+    "uidCustom": {
+      ".read": "auth != null",
+      "$nomor": {
+        ".write": "auth != null && (!data.exists() || data.child('uid').val() === auth.uid || auth.token.email === 'developerex100@gmail.com')",
+        ".validate": "newData.hasChildren(['uid'])"
+      }
+    },
+    "uidAliasOf": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "auth != null && (auth.uid === $uid || auth.token.email === 'developerex100@gmail.com')"
+      }
     }
   }
 }
