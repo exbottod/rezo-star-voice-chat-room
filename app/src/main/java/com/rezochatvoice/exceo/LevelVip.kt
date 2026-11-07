@@ -535,7 +535,8 @@ fun VipScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
     var busy by remember { mutableStateOf(false) }
     val c = vipColor(sel)
     val bgTop = lerp(Color(0xFF1C0A0C), c, 0.30f)
-    val own = wallet.inv.keys.count { id -> vipItems(sel).any { it.id == id } }
+    val tampil = listOf("title", "frame", "bubble", "entry")
+    val own = wallet.inv.keys.count { id -> vipItems(sel).any { it.id == id && it.slot in tampil } }
     val higher = active && wallet.vip > sel
     val sameTier = active && wallet.vip == sel
     val price = vipPrice(sel)
@@ -568,12 +569,14 @@ fun VipScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                 // mahkota. Gelar VIP (slot "title") tetap dipakai seperti dulu (VipTag).
                 // Kalau medal belum diupload, tetap tampil mahkota.
                 val medalA = VipAssets.get(sel, "medal")
-                if (medalA != null) {
-                    key(medalA.updatedAt) {
-                        VipMedia(medalA, Modifier.align(Alignment.TopCenter).offset(y = 22.dp).size(140.dp), loop = true, contentScale = ContentScale.Fit)
-                    }
-                } else {
-                    Text("👑", fontSize = 56.sp, modifier = Modifier.align(Alignment.TopCenter).offset(y = 22.dp))
+                key(sel) {
+                    VipMediaSafe(
+                        medalA,
+                        Modifier.align(Alignment.TopCenter).offset(y = 22.dp).size(140.dp),
+                        loop = true,
+                        contentScale = ContentScale.Fit,
+                        fallback = { Text("👑", fontSize = 56.sp, modifier = Modifier.align(Alignment.TopCenter).offset(y = 22.dp)) },
+                    )
                 }
             }
             val perks = listOf(
@@ -588,7 +591,7 @@ fun VipScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                 Text(tr("👑 Privileges ${perks.size}"), color = Color(0xFFFFE9A8), fontSize = 22.sp)
             }
             Spacer(Modifier.height(22.dp))
-            OrnTitle("Penampilan mewah $own/4", Color(0xFFE6C47A))
+            OrnTitle("Penampilan mewah $own/${tampil.size}", Color(0xFFE6C47A))
             val devVip = remember {
                 try {
                     com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.email.equals("developerex100@gmail.com", ignoreCase = true)
@@ -625,15 +628,20 @@ fun VipScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                 }
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                     Box(Modifier.size(120.dp), contentAlignment = Alignment.Center) {
-                        if (VipAssets.get(sel, "frame") == null) {
-                            Box(Modifier.size(80.dp).border(6.dp, frameBrush("vipf_$sel"), CircleShape), contentAlignment = Alignment.Center) {
-                                Text(tr("VIP$sel"), color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold)
-                            }
-                        } else {
-                            Box(Modifier.size(86.dp).clip(CircleShape).background(Color(0xFF4A3030)), contentAlignment = Alignment.Center) {
-                                Text(tr("\uD83D\uDC64"), fontSize = 34.sp)
-                            }
-                            key(sel) { VipFrame(sel, 120.dp) }
+                        Box(Modifier.size(86.dp).clip(CircleShape).background(Color(0xFF4A3030)), contentAlignment = Alignment.Center) {
+                            Text(tr("\uD83D\uDC64"), fontSize = 34.sp)
+                        }
+                        key(sel) {
+                            VipMediaSafe(
+                                VipAssets.get(sel, "frame"),
+                                Modifier.requiredSize(120.dp),
+                                loop = true,
+                                fallback = {
+                                    Box(Modifier.size(90.dp).border(6.dp, frameBrush("vipf_$sel"), CircleShape), contentAlignment = Alignment.Center) {
+                                        Text(tr("VIP$sel"), color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold)
+                                    }
+                                },
+                            )
                         }
                     }
                     Text(tr("Bingkai eksklusif"), color = Color(0xFFE6C47A), fontSize = 17.sp)
@@ -646,17 +654,11 @@ fun VipScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                         val ba = VipAssets.get(sel, "bubble")
                         Box(
                             Modifier.width(150.dp).height(64.dp).clip(RoundedCornerShape(14.dp))
-                                .then(
-                                    if (ba == null) Modifier
-                                        .background(Brush.verticalGradient(listOf(c, lerp(c, Color.Black, 0.5f))))
-                                        .border(2.dp, Color.White.copy(alpha = 0.7f), RoundedCornerShape(14.dp))
-                                    else Modifier,
-                                ),
+                                .background(Brush.verticalGradient(listOf(c, lerp(c, Color.Black, 0.5f))))
+                                .border(2.dp, Color.White.copy(alpha = 0.7f), RoundedCornerShape(14.dp)),
                             contentAlignment = Alignment.Center,
                         ) {
-                            if (ba != null) {
-                                key(sel) { VipMedia(ba, Modifier.matchParentSize(), contentScale = ContentScale.FillBounds) }
-                            }
+                            key(sel) { VipMediaSafe(ba, Modifier.matchParentSize(), contentScale = ContentScale.FillBounds) }
                             Text(tr("Halo!"), color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Medium)
                         }
                     }
@@ -668,10 +670,13 @@ fun VipScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                         contentAlignment = Alignment.Center,
                     ) {
                         val ea = VipAssets.get(sel, "entry")
-                        if (ea != null) {
-                            key(sel) { VipMedia(ea, Modifier.fillMaxSize(), loop = true) }
-                        } else {
-                            Text("\u2728", fontSize = 40.sp)
+                        key(sel) {
+                            VipMediaSafe(
+                                ea,
+                                Modifier.fillMaxSize(),
+                                loop = true,
+                                fallback = { Text("\u2728", fontSize = 40.sp) },
+                            )
                         }
                     }
                     Text(tr("Efek masuk"), color = Color(0xFFE6C47A), fontSize = 17.sp)

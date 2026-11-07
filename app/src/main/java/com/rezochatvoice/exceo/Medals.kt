@@ -121,12 +121,14 @@ fun MedalIcon(id: String, size: Dp, tagModifier: Modifier = Modifier) {
         val n = id.removePrefix("vipt_").toIntOrNull() ?: 0
         // Medal 1:1 dari panel VIP center: pakai gambarnya kalau sudah diupload.
         val medalAsset = if (n in 1..9) VipAssets.get(n, "medal") else null
-        if (medalAsset != null) {
-            androidx.compose.runtime.key(medalAsset.updatedAt) {
-                VipMedia(medalAsset, Modifier.size(size), loop = true)
-            }
-        } else if (n in 1..9) {
-            VipTag(n, tagModifier)
+        if (n !in 1..9) return
+        androidx.compose.runtime.key(n) {
+            VipMediaSafe(
+                medalAsset,
+                Modifier.size(size),
+                loop = true,
+                fallback = { VipTag(n, tagModifier) },
+            )
         }
         return
     }

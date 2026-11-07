@@ -411,6 +411,55 @@ fun VipMedia(
     }
 }
 
+/**
+ * VipMedia dengan cadangan: kalau aset tidak bisa dipakai (link mati atau data di
+ * database tidak terbaca), yang tampil adalah cadangan bawaan, bukan kotak kosong.
+ * Ini yang dulu membuat medal, gelar, bingkai, dan efek masuk jadi tidak terlihat.
+ */
+@Composable
+fun VipMediaSafe(
+    a: VipAsset?,
+    modifier: Modifier = Modifier,
+    loop: Boolean = true,
+    contentScale: ContentScale = ContentScale.Fit,
+    fallback: @Composable () -> Unit = {},
+) {
+    if (a == null || (a.url.isBlank() && !a.hasData)) {
+        fallback()
+        return
+    }
+    if (a.url.isNotBlank()) {
+        if (a.kind == "mp4" || a.kind == "svga") {
+            VipMedia(a, modifier, loop, contentScale)
+            return
+        }
+        var gagal by remember(a.n, a.slot, a.updatedAt) { mutableStateOf(false) }
+        if (gagal) {
+            fallback()
+            return
+        }
+        AsyncImage(
+            model = a.url,
+            contentDescription = null,
+            imageLoader = rememberVipLoader(),
+            modifier = modifier,
+            contentScale = contentScale,
+            filterQuality = androidx.compose.ui.graphics.FilterQuality.High,
+            onError = { gagal = true },
+        )
+        return
+    }
+    // Isi file tersimpan di database. 0 = memuat, 1 = siap, 2 = gagal.
+    val st by produceState(0, a.n, a.slot, a.updatedAt) {
+        value = if (VipAssets.bytes(a) != null) 1 else 2
+    }
+    when (st) {
+        1 -> VipMedia(a, modifier, loop, contentScale)
+        2 -> fallback()
+        else -> Unit
+    }
+}
+
 /** Gelar VIP (medal). Pakai gambar dari panel developer kalau ada, kalau tidak pakai lencana teks. */
 @Composable
 fun VipTag(n: Int, modifier: Modifier = Modifier) {
@@ -425,15 +474,20 @@ fun VipTag(n: Int, modifier: Modifier = Modifier) {
     LaunchedEffect(a.n, a.slot, a.updatedAt) {
         ratio = runCatching { measureAssetRatio(ctx, a) }.getOrNull() ?: 2.5f
     }
-    VipMedia(a, modifier.height(24.dp).width((24f * ratio).dp), loop = true)
+    VipMediaSafe(
+        a,
+        modifier.height(24.dp).width((24f * ratio).dp),
+        loop = true,
+        fallback = { VipTagText(n, modifier) },
+    )
 }
 
 /** Bingkai eksklusif VIP ditumpuk di atas avatar (tidak menangkap sentuhan). */
 @Composable
 fun VipFrame(tier: Int, size: Dp) {
     if (tier !in 1..9) return
-    val a = VipAssets.get(tier, "frame") ?: return
-    VipMedia(a, Modifier.requiredSize(size), loop = true)
+    // Kalau gambar bingkai tidak bisa dipakai, tidak ada yang digambar (avatar tetap terlihat).
+    VipMediaSafe(VipAssets.get(tier, "frame"), Modifier.requiredSize(size), loop = true)
 }
 
 /** Ic banner efek masuk VIP1-9 (drawable di dalam APK). */
