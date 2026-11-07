@@ -24,5 +24,5 @@ yes | "$SDKM" --licenses >/dev/null 2>&1 || true
 echo "sdk.dir=$ANDROID_HOME" > local.properties
 "$TOOLS/gradle-8.9/bin/gradle" assembleRelease --no-daemon --stacktrace
 mkdir -p apk
-cp app/build/outputs/apk/release/app-release.apk apk/REZO-CHAT-VOICE.apk
-echo "SELESAI: $PWD/apk/REZO-CHAT-VOICE.apk"
+cp app/build/outputs/apk/release/app-release.apk apk/REZO-STAR.apk
+echo "SELESAI: $PWD/apk/REZO-STAR.apk"

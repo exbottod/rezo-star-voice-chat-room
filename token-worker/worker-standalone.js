@@ -248,7 +248,7 @@ small{color:#757575}
 <h1>&#128293; REZO CHAT VOICE</h1>
 <p>Kamu diundang masuk room!</p>
 <a class="b open" href="rezo://room/${safe}">Buka di aplikasi</a>
-<a class="b dl" href="https://github.com/exbottod/rezo-star-voice-chat-room/releases/latest/download/REZO-CHAT-VOICE.apk">Belum punya app? Download APK</a>
+<a class="b dl" href="https://github.com/exbottod/rezo-star-voice-chat-room/releases/latest/download/REZO-STAR.apk">Belum punya app? Download APK</a>
 <small>ID room: ${safe}</small>
 </div>
 <script>setTimeout(function(){location.href='rezo://room/${safe}';},800);</script>

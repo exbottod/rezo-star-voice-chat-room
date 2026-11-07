@@ -66,13 +66,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp app/build/outputs/apk/release/app-release.apk REZO-CHAT-VOICE.apk
+          cp app/build/outputs/apk/release/app-release.apk REZO-STAR.apk
           NOTES="Build otomatis dari commit ${GITHUB_SHA::7}"
           if gh release view terbaru >/dev/null 2>&1; then
-            gh release upload terbaru REZO-CHAT-VOICE.apk --clobber
+            gh release upload terbaru REZO-STAR.apk --clobber
             gh release edit terbaru --notes "$NOTES" --latest
           else
-            gh release create terbaru REZO-CHAT-VOICE.apk --title "REZO CHAT VOICE (terbaru)" --notes "$NOTES" --latest
+            gh release create terbaru REZO-STAR.apk --title "REZO CHAT VOICE (terbaru)" --notes "$NOTES" --latest
           fi
 
       - name: Catat error kalau build gagal

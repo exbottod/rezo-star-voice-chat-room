@@ -14,7 +14,7 @@ Android voice chat room app with live voice rooms, gifts, profile items, and min
 
 Latest universal APK (works on both 64-bit and 32-bit phones):
 
-https://github.com/exbottod/rezo-star-voice-chat-room/releases/download/terbaru/REZO-CHAT-VOICE-universal.apk
+https://github.com/exbottod/rezo-star-voice-chat-room/releases/download/terbaru/REZO-STAR-universal.apk
 
 All releases: https://github.com/exbottod/rezo-star-voice-chat-room/releases
 

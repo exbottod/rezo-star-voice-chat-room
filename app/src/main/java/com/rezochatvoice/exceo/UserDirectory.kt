@@ -15,7 +15,7 @@ import kotlinx.coroutines.tasks.await
 
 /** Diisi otomatis oleh skrip dari URL repo GitHub Anda. Boleh diganti manual. */
 const val INVITE_BASE_URL = "https://exbottod.github.io/rezo-star-voice-chat-room/"
-const val APK_DOWNLOAD_URL = "https://github.com/exbottod/rezo-star-voice-chat-room/releases/latest/download/REZO-CHAT-VOICE.apk"
+const val APK_DOWNLOAD_URL = "https://github.com/exbottod/rezo-star-voice-chat-room/releases/latest/download/REZO-STAR.apk"
 const val FIRST_USER_ID = 100000L
 
 data class PublicUser(

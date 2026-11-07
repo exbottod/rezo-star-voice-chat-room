@@ -181,9 +181,9 @@ object AppUpdate {
     private fun apkName(): String {
         val abis = Build.SUPPORTED_ABIS.toList()
         return when {
-            abis.any { it == "arm64-v8a" } -> "REZO-CHAT-VOICE-arm64.apk"
-            abis.any { it == "armeabi-v7a" } -> "REZO-CHAT-VOICE-armv7.apk"
-            else -> "REZO-CHAT-VOICE-universal.apk"
+            abis.any { it == "arm64-v8a" } -> "REZO-STAR-arm64.apk"
+            abis.any { it == "armeabi-v7a" } -> "REZO-STAR-armv7.apk"
+            else -> "REZO-STAR-universal.apk"
         }
     }
 
