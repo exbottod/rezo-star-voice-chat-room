@@ -667,6 +667,47 @@ label{font-size:12px;color:var(--mut)}
     </div>
   </div>
 
+<div id="tab-lencana" class="hide">
+  <div class="card">
+    <h2>Kirim lencana ke user</h2>
+    <p class="muted">Lencana langsung masuk My Item user. Gambar dipakai apa adanya, ukuran asli tidak dipotong dan tidak dipaksa rasio.</p>
+    <label>Cari akun (ketik ID angka lengkap, mis. 100001)</label>
+    <input type="text" id="bkCari" inputmode="numeric" placeholder="ID akun">
+    <div id="bkHasil" style="margin:0 0 10px"></div>
+    <div class="muted" id="bkInfo" style="margin:0 0 12px">Belum ada akun dipilih.</div>
+
+    <label>Nama lencana (opsional)</label>
+    <input type="text" id="bkName" maxlength="40" placeholder="mis. Lencana Sultan">
+
+    <label>Link gambar (png, gif, webp, jpg)</label>
+    <input type="text" id="bkUrl" placeholder="https://...">
+
+    <label>atau pilih file dari HP/PC</label>
+    <input type="file" id="bkFile" accept=".png,.gif,.webp,.jpg,.jpeg">
+    <div class="prev" id="bkPrev" style="margin-top:10px;aspect-ratio:auto;min-height:90px">Pratinjau</div>
+
+    <label>Durasi (hari)</label>
+    <input type="number" id="bkDays" value="30" min="1" max="3650">
+
+    <label style="display:flex;gap:8px;align-items:center;margin:8px 0 12px;color:#eee;font-size:13px">
+      <input type="checkbox" id="bkPakai" checked style="width:auto;margin:0"> Langsung dipakai di profil user
+    </label>
+
+    <button class="btn" id="bkSend">Kirim lencana</button>
+    <div class="muted" id="bkStatus" style="margin-top:10px;line-height:1.5"></div>
+  </div>
+
+  <div class="card">
+    <h2>Bersihkan aset mati &amp; aset bawaan</h2>
+    <p class="muted">Memeriksa katalog Store dan emote. Aset mati: tautan Cloudinary lama yang sudah ditolak (401). Aset bawaan: item tanpa gambar sama sekali sehingga tampil kotak kosong di aplikasi.</p>
+    <button class="btn out" id="clScan">1. Pindai aset</button>
+    <div class="muted" id="clInfo" style="margin-top:10px;line-height:1.5"></div>
+    <div id="clList" style="margin-top:10px"></div>
+    <button class="btn bad" id="clDel" style="margin-top:10px" disabled>2. Hapus yang terpilih</button>
+    <div class="muted" id="clProg" style="margin-top:8px;line-height:1.5"></div>
+  </div>
+</div>
+
 <div id="tab-user" class="hide">
     <div class="card">
       <h2>Daftar user terdaftar</h2>
@@ -1377,7 +1418,7 @@ document.getElementById("betSave").onclick = async () => {
 
 let unsubBan = null, foundBan = null, foundCoin = null;
 
-const TAB_KEYS = ["banner", "ban", "coin", "user", "vip", "store", "emote", "bg", "signin", "bet", "topup", "gift", "cb", "rocket", "staff", "seller", "sstock", "ann", "room"];
+const TAB_KEYS = ["banner", "ban", "coin", "user", "vip", "store", "emote", "lencana", "bg", "signin", "bet", "topup", "gift", "cb", "rocket", "staff", "seller", "sstock", "ann", "room"];
 const TAB_INFO = [
   ["banner", "\uD83D\uDDBC\uFE0F", "Banner", "Pasang banner di aplikasi"],
   ["ban", "\uD83D\uDEAB", "Ban / Unban", "Blokir user dari room"],
@@ -1398,6 +1439,7 @@ const TAB_INFO = [
   ["sstock", "\uD83D\uDCE6", "Stok Seller", "Isi & atur stok coin seller"],
   ["ann", "\uD83D\uDCE2", "Pengumuman", "Pengumuman resmi di tab Pesan"],
   ["room", "\uD83C\uDFE0", "Room", "Sematkan, reset nama, bersihkan room"],
+  ["lencana", "\uD83C\uDF96\uFE0F", "Lencana", "Kirim lencana ke user + bersihkan aset mati"],
 ];
 
 /* ---------- Pengumuman resmi (tab Pesan aplikasi) ---------- */
@@ -1566,6 +1608,195 @@ async function jadikanPemilik(){
   }
 }
 
+/* ---------- Kirim lencana ke user (upload file / link, durasi hari) ---------- */
+const BK_ACCEPT = [".png", ".gif", ".webp", ".jpg", ".jpeg"];
+let bkUid = "", bkPilih = "", bkSiap = false;
+
+function lencanaStart(){
+  if (bkSiap) return;
+  bkSiap = true;
+  let tunda = null;
+  $("bkCari").oninput = ev => {
+    clearTimeout(tunda);
+    const v = ev.target.value;
+    tunda = setTimeout(() => bkCariAkun(v), 320);
+  };
+  $("bkFile").onchange = ev => { const f = ev.target.files[0]; if (f) vipPreviewFile($("bkPrev"), f); };
+  $("bkUrl").onchange = ev => {
+    const u = String(ev.target.value || "").trim();
+    const box = $("bkPrev");
+    if (/^https?:\/\//i.test(u)) { stopPrev(box); box.innerHTML = '<img src="' + u + '" style="max-width:100%;max-height:180px;object-fit:contain">'; }
+  };
+  $("bkSend").onclick = bkKirim;
+  $("clScan").onclick = clPindai;
+  $("clDel").onclick = clHapus;
+}
+
+async function bkCariAkun(teks){
+  const q = String(teks || "").replace(/[^0-9]/g, "");
+  const box = $("bkHasil");
+  bkUid = ""; bkPilih = "";
+  if (q.length < 3) { box.innerHTML = ""; $("bkInfo").textContent = "Belum ada akun dipilih."; return; }
+  box.innerHTML = '<div class="muted" style="font-size:12px">Mencari ID ' + q + '…</div>';
+  const tampil = async (daftar) => {
+    if (!daftar.length) {
+      box.innerHTML = '<div class="muted" style="font-size:12px">ID ' + q + ' belum terdaftar. Pastikan akun sudah pernah membuka app versi terbaru.</div>';
+      return;
+    }
+    const nama = {};
+    await Promise.all(daftar.map(async x => {
+      if (!x.uid) return;
+      try {
+        const sn = await rtdb.ref("pub/" + x.uid).get();
+        if (sn.exists()) { const v = sn.val() || {}; nama[x.id] = { n: v.name || "", p: v.photoUrl || v.avatar || "" }; }
+      } catch (e) {}
+    }));
+    box.innerHTML = daftar.map(x => {
+      const m = nama[x.id] || {};
+      const foto = m.p
+        ? '<img src="' + m.p + '" style="width:34px;height:34px;border-radius:50%;object-fit:cover">'
+        : '<div style="width:34px;height:34px;border-radius:50%;background:#222"></div>';
+      return '<div class="row-uid" data-id="' + x.id + '" data-uid="' + (x.uid || "") + '" style="display:flex;align-items:center;gap:8px;padding:8px;border:1px solid var(--line);border-radius:10px;margin-bottom:6px;cursor:pointer">'
+        + foto + '<div><b>ID ' + x.id + '</b><div class="muted" style="font-size:12px">' + (m.n || (x.uid ? x.uid.slice(0, 10) + "…" : "akun")) + '</div></div></div>';
+    }).join("");
+    box.querySelectorAll(".row-uid").forEach(el => el.onclick = () => {
+      bkPilih = el.getAttribute("data-id");
+      bkUid = el.getAttribute("data-uid") || "";
+      box.querySelectorAll(".row-uid").forEach(e2 => e2.style.background = "");
+      el.style.background = "rgba(255,215,110,.14)";
+      $("bkInfo").textContent = bkUid
+        ? ("Dipilih: ID " + bkPilih + ". Lencana akan dikirim ke akun ini.")
+        : ("ID " + bkPilih + " terdaftar tapi UID akunnya belum ada di peta ID. Buka app akun itu sekali lagi lalu cari ulang.");
+    });
+  };
+  try {
+    const tepat = await rtdb.ref("ids/i/" + q).get();
+    if (tepat.exists()) {
+      const v = tepat.val() || {};
+      const uid = (typeof v === "object" ? (v.uid || v.u || "") : String(v || ""));
+      await tampil([{ id: q, uid: uid }]);
+      return;
+    }
+    try {
+      const al = await rtdb.ref("uidCustom/" + q).get();
+      if (al.exists()) {
+        const uid = (al.val() || {}).uid || "";
+        if (uid) { await tampil([{ id: q, uid: uid }]); return; }
+      }
+    } catch (e) {}
+    await tampil([]);
+  } catch (e) {
+    box.innerHTML = '<div class="muted" style="font-size:12px">Gagal mencari: ' + (e.message || e) + '</div>';
+  }
+}
+
+async function bkKirim(){
+  const btn = $("bkSend"), st = $("bkStatus");
+  if (!bkUid) return toast("Cari lalu pilih akun dulu");
+  const name = String($("bkName").value || "").trim() || "Lencana";
+  const days = parseInt($("bkDays").value, 10);
+  if (!(days >= 1 && days <= 3650)) { st.textContent = "Durasi harus 1 sampai 3650 hari."; return; }
+  const url = String($("bkUrl").value || "").trim();
+  const f = $("bkFile").files[0];
+  if (!url && !f) { st.textContent = "Isi link gambar atau pilih file dulu."; return; }
+  btn.disabled = true;
+  try {
+    let finalUrl = url;
+    if (f) {
+      const e0 = vipExt(f.name);
+      if (e0 && !BK_ACCEPT.includes("." + e0)) { st.textContent = "Format file harus png, gif, webp, atau jpg."; return; }
+      st.textContent = "Mengunggah gambar (" + Math.round(f.size / 1024) + " KB)…";
+      finalUrl = await cldUpload(f, "badge_" + Date.now().toString(36));
+    }
+    if (!/^https?:\/\//i.test(finalUrl)) { st.textContent = "Link harus diawali http:// atau https://"; return; }
+    try { tolakAsetMati(finalUrl); } catch (e) { st.textContent = e.message; return; }
+    const ex = vipExt(finalUrl);
+    if (!ex || !BK_ACCEPT.includes("." + ex)) { st.textContent = "Link harus berakhiran png, gif, webp, atau jpg."; return; }
+    const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    st.textContent = "Menyimpan lencana…";
+    await rtSet("vipCfg/store_" + id, {
+      store: true, meta: false, id: id, slot: "badge", name: name, price: 0,
+      days: days, order: 0, kind: vipKind(finalUrl), url: finalUrl,
+      hasData: false, chunks: 0, updatedAt: Date.now(), targetUid: bkUid, dariPanel: "lencana",
+    });
+    st.textContent = "Mengirim ke ID " + bkPilih + "…";
+    await walletAdmin({ op: "send_item", uid: bkUid, itemId: "sx_" + id, days: days, equip: $("bkPakai").checked ? "badge" : "" });
+    logAction({ type: "sendBadge", targetId: bkPilih, uid: bkUid, itemId: id, days: days });
+    st.textContent = "Selesai. Lencana terkirim ke ID " + bkPilih + " selama " + days + " hari"
+      + ($("bkPakai").checked ? ", dan sudah dipakai di profilnya." : ". User bisa memakainya dari My Item.");
+    toast("Lencana terkirim \u2705");
+    $("bkName").value = ""; $("bkUrl").value = ""; $("bkFile").value = "";
+    const box = $("bkPrev"); stopPrev(box); box.textContent = "Pratinjau";
+  } catch (e) {
+    st.textContent = "Gagal: " + (e.message || e);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+/* ---------- Bersihkan aset mati & aset bawaan ---------- */
+let clRows = [];
+function asetMatiUrl(u){
+  const s = String(u || "").toLowerCase().trim();
+  if (!s) return true;
+  return s.indexOf("cloudinary.com") >= 0;
+}
+async function clPindai(){
+  const btn = $("clScan"), info = $("clInfo"), box = $("clList");
+  btn.disabled = true; info.textContent = "Memindai katalog Store dan emote…"; box.innerHTML = ""; clRows = [];
+  try {
+    const snap = await rtdb.ref("vipCfg").get();
+    const rows = [];
+    snap.forEach(c => {
+      const key = String(c.key || "");
+      if (key.indexOf("data_store_") === 0) return;
+      const v = c.val() || {};
+      const isStore = key.indexOf("store_") === 0;
+      const isEmote = key.indexOf("emote_") === 0;
+      if (!isStore && !isEmote) return;
+      const url = String(v.url || "");
+      let why = "";
+      if (!url) why = "tanpa gambar (bawaan kosong)";
+      else if (asetMatiUrl(url)) why = "aset mati (Cloudinary)";
+      if (!why) return;
+      rows.push({ key: key, id: String(v.id || key), name: String(v.name || "(tanpa nama)"), slot: String(v.slot || "emote"), url: url, why: why });
+    });
+    clRows = rows;
+    if (!rows.length) { info.textContent = "Bersih. Tidak ada aset mati atau aset kosong."; $("clDel").disabled = true; return; }
+    info.textContent = rows.length + " aset perlu dibersihkan. Semua sudah dicentang, silakan hapus yang tidak perlu.";
+    box.innerHTML = rows.map((r, i) =>
+      '<label style="display:flex;gap:8px;align-items:flex-start;padding:8px;border:1px solid var(--line);border-radius:10px;margin-bottom:6px;font-size:12px;color:#eee">'
+      + '<input type="checkbox" class="cl-chk" data-i="' + i + '" checked style="width:auto;margin-top:3px">'
+      + '<span><b>' + r.name + '</b><br><span class="muted">' + r.slot + ' · ' + r.why + '</span><br><span class="muted" style="word-break:break-all">' + (r.url || "(tanpa tautan)") + '</span></span></label>'
+    ).join("");
+    $("clDel").disabled = false;
+  } catch (e) {
+    info.textContent = "Gagal memindai: " + (e.message || e);
+  } finally { btn.disabled = false; }
+}
+async function clHapus(){
+  const pilih = [];
+  document.querySelectorAll(".cl-chk").forEach(el => { if (el.checked) pilih.push(clRows[Number(el.getAttribute("data-i"))]); });
+  if (!pilih.length) return toast("Tidak ada yang dipilih");
+  if (!confirm("Hapus " + pilih.length + " aset? Item hilang dari Store dan dari My Item semua akun.")) return;
+  const btn = $("clDel"), prog = $("clProg");
+  btn.disabled = true;
+  let ok = 0, gagal = 0;
+  for (const r of pilih) {
+    prog.textContent = "Menghapus " + (ok + gagal + 1) + "/" + pilih.length + "…";
+    try {
+      await rtDel("vipCfg/" + r.key);
+      try { await rtDel("vipCfg/data_store_" + r.id); } catch (e) {}
+      try { await rtDel("vipCfg/data_" + r.id); } catch (e) {}
+      ok++;
+    } catch (e) { gagal++; }
+  }
+  prog.textContent = "Selesai. " + ok + " aset dihapus" + (gagal ? (", " + gagal + " gagal") : "") + ". Muat ulang app untuk melihat hasilnya.";
+  logAction({ type: "bersihAset", jumlah: ok });
+  toast("Aset dibersihkan \u2705");
+  btn.disabled = false;
+}
+
 function buildHome(){
   const box = $("home"); if (!box) return;
   box.innerHTML = "";
@@ -1611,6 +1842,7 @@ function pilihTab(k){
   try { const fx = $("pstFixIds"); if (fx && !fx.onclick) fx.onclick = perbaikiSemuaId; const so = $("pstSetOwner"); if (so && !so.onclick) so.onclick = jadikanPemilik; } catch (e) {}
   if (key === "ann") annStart();
   if (key === "room") roomStart();
+  if (key === "lencana") lencanaStart();
 }
 
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => pilihTab(t.dataset.t));

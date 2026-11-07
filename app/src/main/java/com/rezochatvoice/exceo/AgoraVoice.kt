@@ -105,19 +105,28 @@ object AgoraVoice {
                 val r = room
                 if (r == null) { delay(300); continue }
                 val m = HashMap<String, Float>()
+                val deteksi = HashSet<String>()
                 try {
                     val uidSaya = r.localParticipant.identity?.value
-                    if (uidSaya != null) m[uidSaya] = r.localParticipant.audioLevel
+                    if (uidSaya != null) {
+                        val lvSaya = r.localParticipant.audioLevel
+                        m[uidSaya] = lvSaya
+                        if (lvSaya > 0.02f) deteksi.add(uidSaya)
+                    }
                     // Peserta lain: ambil dari daftar pembicara aktif LiveKit,
                     // angkanya punya nilai bawaan supaya gelombang tetap muncul.
                     val aktif = bicara
                     for ((_, p) in r.remoteParticipants) {
                         val id = p.identity?.value ?: continue
                         val lv = p.audioLevel
+                        if (lv > 0.02f) deteksi.add(id)
                         m[id] = if (lv > 0.01f) lv else if (aktif.contains(id)) 0.55f else 0f
                     }
                 } catch (e: Exception) { }
                 levels = m
+                // Kalau event pembicara dari server tidak datang (sering terjadi
+                // di jaringan lambat), pakai hasil deteksi level suara sendiri.
+                if (bicara.isEmpty() && deteksi.isNotEmpty()) bicara = deteksi
                 delay(130)
             }
             levels = emptyMap()

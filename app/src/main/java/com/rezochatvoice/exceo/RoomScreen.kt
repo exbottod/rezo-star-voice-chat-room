@@ -7,6 +7,10 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -1385,6 +1389,55 @@ private fun GelombangBicara(level: Float, size: Dp) {
     }
 }
 
+/**
+ * Gelembung suara di atas kursi mic: balon putih kecil dengan tiga batang
+ * yang bergerak mengikuti level suara, jadi jelas siapa yang sedang bicara.
+ */
+@Composable
+private fun GelembungSuara(size: Dp, level: Float) {
+    val l = level.coerceIn(0f, 1f)
+    val t = androidx.compose.animation.core.rememberInfiniteTransition(label = "gelembungSuara")
+    val detak by t.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(animation = tween(520), repeatMode = RepeatMode.Reverse),
+        label = "detakSuara",
+    )
+    val lebar = (size.value * 0.34f).dp
+    val tinggi = (size.value * 0.24f).dp
+    Box(
+        Modifier
+            .size(width = lebar, height = tinggi)
+            .clip(RoundedCornerShape(50))
+            .background(Color(0xF2FFFFFF))
+            .border(1.5.dp, Color(0xFF3FE08C), RoundedCornerShape(50)),
+        contentAlignment = Alignment.Center,
+    ) {
+        androidx.compose.foundation.Canvas(Modifier.size(width = lebar - 7.dp, height = tinggi - 6.dp)) {
+            val n = 3
+            val w = this.size.width
+            val h = this.size.height
+            val barW = w * 0.17f
+            val gap = (w - barW * n) / (n + 1)
+            val rasio = listOf(
+                0.40f + 0.35f * l,
+                0.50f + 0.45f * l * detak,
+                0.35f + 0.50f * l * (1f - detak),
+            )
+            for (i in 0 until n) {
+                val bh = h * rasio[i].coerceIn(0.18f, 1f)
+                val x = gap + i * (barW + gap)
+                drawRoundRect(
+                    color = Color(0xFF1E8E5A),
+                    topLeft = androidx.compose.ui.geometry.Offset(x, (h - bh) / 2f),
+                    size = androidx.compose.ui.geometry.Size(barW, bh),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(barW / 2f),
+                )
+            }
+        }
+    }
+}
+
 @Composable
 private fun RmSeatView(index: Int, seat: Seat?, size: Dp, locked: Boolean = false, emote: SeatEmote? = null, points: Long = 0L, onClick: () -> Unit) {
     val bmp = remember(seat?.avatarB64) { ProfileRepo.decodeB64(seat?.avatarB64) }
@@ -1398,10 +1451,15 @@ private fun RmSeatView(index: Int, seat: Seat?, size: Dp, locked: Boolean = fals
         }
     }
     val seatFrame = if (seat != null) frameAssetOf(seatUser?.frame, seatUser?.vip ?: 0, seatUser?.vipUntil ?: 0L) else null
-    // Gelombang suara: muncul di belakang foto kursi saat orangnya sedang bicara.
+    // Gelombang & gelembung suara: muncul di kursi mic saat orangnya bicara.
+    val bicaraEvent = seat != null && !seat.muted && AgoraVoice.bicara.contains(seat.uid)
     val lvlMentah = if (seat != null && !seat.muted) (AgoraVoice.levels[seat.uid] ?: 0f) else 0f
+    // Kalau server suara hanya mengirim daftar pembicara tanpa angka level,
+    // pakai nilai dasar supaya gelombang dan gelembung tetap kelihatan.
+    val lvlTarget = if (bicaraEvent) kotlin.math.max(lvlMentah.coerceIn(0f, 1f), 0.55f)
+                    else lvlMentah.coerceIn(0f, 1f)
     val lvl by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = lvlMentah.coerceIn(0f, 1f),
+        targetValue = lvlTarget,
         animationSpec = androidx.compose.animation.core.tween(120),
         label = "levelSuara",
     )
@@ -1460,6 +1518,13 @@ private fun RmSeatView(index: Int, seat: Seat?, size: Dp, locked: Boolean = fals
                 } else {
                     Text(emote.emoji, fontSize = (size.value * 0.6f).sp, modifier = Modifier.align(Alignment.Center))
                 }
+            }
+            if (lvl > 0.012f || bicaraEvent) {
+                Box(
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .offset(x = (size.value * 0.10f).dp, y = (-size.value * 0.04f).dp),
+                ) { GelembungSuara(size, lvl) }
             }
         }
         VipNameByUid(
