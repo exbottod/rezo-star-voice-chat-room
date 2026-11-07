@@ -589,6 +589,20 @@ fun VipScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
             }
             Spacer(Modifier.height(22.dp))
             OrnTitle("Penampilan mewah $own/4", Color(0xFFE6C47A))
+            val devVip = remember {
+                try {
+                    com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.email.equals("developerex100@gmail.com", ignoreCase = true)
+                } catch (e: Exception) { false }
+            }
+            if (devVip) {
+                val gagal = VipAssets.diag.entries.filter { it.key.startsWith("${sel}_") }
+                Text(
+                    "Diagnosa aset: " + VipAssets.jumlah() + " terbaca" +
+                        (if (gagal.isEmpty()) ", tidak ada gambar gagal" else ", gagal: " + gagal.joinToString(" ; ") { it.key + " " + it.value }),
+                    color = Color(0xFF9E9E9E), fontSize = 10.sp,
+                    modifier = Modifier.padding(horizontal = 18.dp),
+                )
+            }
             VipAssets.lastError?.let { err ->
                 Column(
                     Modifier.padding(horizontal = 18.dp, vertical = 6.dp).fillMaxWidth()

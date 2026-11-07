@@ -63,6 +63,9 @@ data class VipAsset(
 )
 
 object VipAssets {
+    /** Ringkasan diagnosa: berapa aset terbaca dan alasan gagal muat gambar (untuk akun developer). */
+    val diag = mutableStateMapOf<String, String>()
+    fun jumlah(): Int = cfg.size
     private val cfg = mutableStateMapOf<String, VipAsset>()
     private val blobs = HashMap<String, ByteArray>()
     private var reg: ListenerRegistration? = null
@@ -398,6 +401,12 @@ fun VipMedia(
             modifier = modifier,
             contentScale = contentScale,
             filterQuality = androidx.compose.ui.graphics.FilterQuality.High,
+            onError = { r ->
+                VipAssets.diag["${a.n}_${a.slot}"] =
+                    (if (remote) a.url.substringAfter("//").take(60) else "data") + " -> " +
+                        (r.result.throwable.message ?: r.result.throwable.javaClass.simpleName).take(60)
+            },
+            onSuccess = { VipAssets.diag.remove("${a.n}_${a.slot}") },
         )
     }
 }
