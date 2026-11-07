@@ -698,6 +698,17 @@ label{font-size:12px;color:var(--mut)}
   </div>
 
   <div class="card">
+    <h2>Perbaiki ID cantik (ID tidak ditemukan)</h2>
+    <p class="muted">Dipakai kalau ID cantik sudah tampil di profil tapi pencarian bilang tidak ditemukan. Isi ID akun (angka) dan ID cantiknya, lalu simpan.</p>
+    <label>ID akun (angka)</label>
+    <input type="text" id="fxAkun" inputmode="numeric" placeholder="mis. 100001">
+    <label>ID cantik</label>
+    <input type="text" id="fxCantik" inputmode="numeric" placeholder="mis. 1000">
+    <button class="btn out" id="fxSimpan">Daftarkan ulang ID cantik</button>
+    <div class="muted" id="fxStatus" style="margin-top:10px;line-height:1.5"></div>
+  </div>
+
+  <div class="card">
     <h2>Bersihkan aset mati &amp; aset bawaan</h2>
     <p class="muted">Memeriksa katalog Store dan emote. Aset mati: tautan Cloudinary lama yang sudah ditolak (401). Aset bawaan: item tanpa gambar sama sekali sehingga tampil kotak kosong di aplikasi.</p>
     <button class="btn out" id="clScan">1. Pindai aset</button>
@@ -1628,6 +1639,27 @@ function lencanaStart(){
     if (/^https?:\/\//i.test(u)) { stopPrev(box); box.innerHTML = '<img src="' + u + '" style="max-width:100%;max-height:180px;object-fit:contain">'; }
   };
   $("bkSend").onclick = bkKirim;
+  $("fxSimpan").onclick = async () => {
+    const st = $("fxStatus");
+    const akun = String($("fxAkun").value || "").replace(/[^0-9]/g, "");
+    const cantik = String($("fxCantik").value || "").replace(/[^0-9]/g, "");
+    if (!akun || !cantik) { st.textContent = "Isi ID akun dan ID cantik dulu."; return; }
+    st.textContent = "Mencari akun " + akun + "\u2026";
+    try {
+      const sn = await rtdb.ref("ids/i/" + akun).get();
+      if (!sn.exists()) { st.textContent = "ID akun " + akun + " tidak ada di peta ID."; return; }
+      const v = sn.val() || {};
+      const uid = (typeof v === "object" ? (v.uid || v.u || "") : String(v || ""));
+      if (!uid) { st.textContent = "UID akun " + akun + " belum tercatat. Buka app akun itu sekali lagi."; return; }
+      const pn = await rtdb.ref("uidCustom/" + cantik + "/uid").get();
+      const pemilik = pn.exists() ? String(pn.val() || "") : "";
+      if (pemilik && pemilik !== uid) { st.textContent = "ID cantik " + cantik + " tercatat milik akun lain."; return; }
+      await rtSet("uidCustom/" + cantik, { uid: uid, itemId: "manual", at: Date.now() });
+      await rtSet("uidAliasOf/" + uid, cantik);
+      st.textContent = "Selesai. ID " + cantik + " sekarang terhubung ke akun " + akun + ". Coba cari lagi di app.";
+      logAction({ type: "fixUidCantik", akun: akun, cantik: cantik });
+    } catch (e) { st.textContent = "Gagal: " + (e.message || e); }
+  };
   $("clScan").onclick = clPindai;
   $("clDel").onclick = clHapus;
 }

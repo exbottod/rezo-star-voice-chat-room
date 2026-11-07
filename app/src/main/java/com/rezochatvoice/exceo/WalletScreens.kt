@@ -163,6 +163,8 @@ object WalletRepo {
         try { WalletCache.save(uid, w) } catch (e: Exception) { }
         // Item SVIP dari Realtime Database digabung untuk tampilan/logika.
         val merged = SvipInv.apply(uid, w)
+        // ID cantik yang sudah dipakai didaftarkan ulang kalau petanya hilang.
+        try { UidAlias.pastikan(uid, merged) } catch (e: Exception) { }
         backupCbs.forEach { try { it(uid, merged) } catch (e: Exception) { } }
     }
 

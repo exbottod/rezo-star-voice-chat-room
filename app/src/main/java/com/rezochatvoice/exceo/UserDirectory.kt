@@ -720,6 +720,29 @@ object UidAlias {
         }
     }
 
+    private val sudahPasti = java.util.Collections.synchronizedSet(HashSet<String>())
+
+    /**
+     * Pastikan ID cantik yang sudah dipakai di profil tetap terdaftar di
+     * uidCustom. Kalau petanya hilang (misal dibersihkan dari panel), daftar ulang
+     * otomatis supaya ID-nya bisa dicari lagi tanpa perlu beli atau pasang ulang.
+     */
+    fun pastikan(uid: String, w: Wallet) {
+        val itemId = w.equip["uid"].orEmpty()
+        if (itemId.isBlank() || uid.isBlank()) return
+        if (!sudahPasti.add(uid)) return
+        kotlinx.coroutines.GlobalScope.launch {
+            try {
+                val nomor = StoreCatalog.find(itemId)?.customId.orEmpty()
+                if (nomor.isBlank()) return@launch
+                val pemilik = Rtdb.ref("uidCustom/$nomor/uid").get().await()
+                    .getValue(String::class.java).orEmpty()
+                if (pemilik.isNotBlank()) return@launch
+                klaim(nomor, uid, itemId)
+            } catch (e: Exception) { }
+        }
+    }
+
     suspend fun lepas(uid: String) {
         try {
             val nomor = Rtdb.ref("uidAliasOf/$uid").get().await().getValue(String::class.java).orEmpty()
