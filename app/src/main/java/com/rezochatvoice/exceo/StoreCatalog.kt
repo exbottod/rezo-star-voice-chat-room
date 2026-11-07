@@ -48,11 +48,20 @@ object StoreCatalog {
     /** Nomor ID custom yang sudah dipakai pembeli -> itemnya hilang dari Store. */
     private val idTerpakai = mutableStateMapOf<String, String>()
     private val rtdbMap = HashMap<String, CatalogItem>()
+    /** Sudah pernah menerima data vipCfg dari RTDB? */
+    @Volatile private var rtdbSiap = false
 
     private fun apply() {
         val merged = HashMap<String, CatalogItem>()
-        merged.putAll(fsMap)
-        merged.putAll(rtdbMap) // RTDB selalu menang
+        if (rtdbSiap) {
+            // RTDB adalah satu-satunya sumber. Item yang sudah dihapus di panel
+            // langsung hilang dari Store, tidak muncul lagi dari cache/Firestore lama.
+            merged.putAll(rtdbMap)
+            fsMap.clear()
+        } else {
+            merged.putAll(fsMap)
+            merged.putAll(rtdbMap)
+        }
         items.clear()
         items.putAll(merged)
         saveDisk(merged.values)
@@ -78,6 +87,11 @@ object StoreCatalog {
             sp().edit().putString("catalog", arr.toString()).apply()
         } catch (e: Exception) {
         }
+    }
+
+    /** Hapus cache katalog di perangkat (dipakai kalau RTDB sudah jadi sumber utama). */
+    fun bersihkanCache() {
+        try { sp().edit().remove("catalog").apply() } catch (e: Exception) { }
     }
 
     private fun loadDisk() {
@@ -142,6 +156,7 @@ object StoreCatalog {
                     c.child("customId").getValue(String::class.java) ?: "",
                 )
             }
+            rtdbSiap = true
             apply()
         }
         // FIRESTORE (warisan lama): dimuat SEKALI per buka app, bukan listener
