@@ -709,6 +709,16 @@ label{font-size:12px;color:var(--mut)}
   </div>
 
   <div class="card">
+    <h2>Ganti tautan lama (repo lama)</h2>
+    <p class="muted">Memeriksa data di Realtime Database: item Store, emote, banner, dan pengaturan yang masih memakai alamat repo lama <b>voice-chat-room-real-time</b>. Tautan lama diganti ke <b>rezo-star-voice-chat-room</b> supaya gambar dan file tetap tampil.</p>
+    <button class="btn out" id="lkPindai">1. Pindai tautan lama</button>
+    <div class="muted" id="lkInfo" style="margin-top:10px;line-height:1.5"></div>
+    <div id="lkList" style="margin-top:10px"></div>
+    <button class="btn" id="lkGanti" style="margin-top:10px" disabled>2. Ganti semua tautan lama</button>
+    <div class="muted" id="lkProg" style="margin-top:8px;line-height:1.5"></div>
+  </div>
+
+  <div class="card">
     <h2>Bersihkan aset mati &amp; aset bawaan</h2>
     <p class="muted">Memeriksa katalog Store dan emote. Aset mati: tautan Cloudinary lama yang sudah ditolak (401). Aset bawaan: item tanpa gambar sama sekali sehingga tampil kotak kosong di aplikasi.</p>
     <button class="btn out" id="clScan">1. Pindai aset</button>
@@ -1660,6 +1670,8 @@ function lencanaStart(){
       logAction({ type: "fixUidCantik", akun: akun, cantik: cantik });
     } catch (e) { st.textContent = "Gagal: " + (e.message || e); }
   };
+  $("lkPindai").onclick = lkPindai;
+  $("lkGanti").onclick = lkGanti;
   $("clScan").onclick = clPindai;
   $("clDel").onclick = clHapus;
 }
@@ -1827,6 +1839,67 @@ async function clHapus(){
   logAction({ type: "bersihAset", jumlah: ok });
   toast("Aset dibersihkan \u2705");
   btn.disabled = false;
+}
+
+/* ---------- Ganti tautan repo lama di Realtime Database ---------- */
+const LK_LAMA = "voice-chat-room-real-time";
+const LK_BARU = "rezo-star-voice-chat-room";
+const LK_AKAR = ["vipCfg", "cfg", "config", "banner", "banners", "store", "appCfg", "meta", "settings", "rocketCfg", "giftCfg"];
+let lkRows = [];
+function lkCari(obj, jalur, hasil) {
+  if (obj === null || obj === undefined) return;
+  if (typeof obj === "string") {
+    if (obj.indexOf(LK_LAMA) >= 0) hasil.push({ jalur: jalur, nilai: obj });
+    return;
+  }
+  if (typeof obj !== "object") return;
+  for (const k of Object.keys(obj)) lkCari(obj[k], jalur ? jalur + "/" + k : k, hasil);
+}
+async function lkPindai() {
+  const btn = $("lkPindai"), info = $("lkInfo"), box = $("lkList");
+  btn.disabled = true; info.textContent = "Memindai data\u2026"; box.innerHTML = ""; lkRows = [];
+  try {
+    for (const akar of LK_AKAR) {
+      let snap;
+      try { snap = await rtdb.ref(akar).get(); } catch (e) { continue; }
+      if (!snap.exists()) continue;
+      const tmp = [];
+      lkCari(snap.val(), "", tmp);
+      tmp.forEach(r => lkRows.push({ akar: akar, jalur: r.jalur, nilai: r.nilai }));
+    }
+    if (!lkRows.length) {
+      info.textContent = "Bersih. Tidak ada tautan repo lama di data Firebase.";
+      $("lkGanti").disabled = true;
+      return;
+    }
+    info.textContent = lkRows.length + " tautan lama ditemukan. Tekan Ganti semua untuk memperbarui.";
+    box.innerHTML = lkRows.slice(0, 40).map(r =>
+      '<div style="padding:8px;border:1px solid var(--line);border-radius:10px;margin-bottom:6px;font-size:12px;color:#eee;word-break:break-all">'
+      + '<b>' + r.akar + "/" + r.jalur + '</b><br><span class="muted">' + r.nilai + '</span></div>'
+    ).join("");
+    $("lkGanti").disabled = false;
+  } catch (e) {
+    info.textContent = "Gagal memindai: " + (e.message || e);
+  } finally { btn.disabled = false; }
+}
+async function lkGanti() {
+  if (!lkRows.length) return toast("Pindai dulu");
+  if (!confirm("Ganti " + lkRows.length + " tautan lama ke alamat repo baru?")) return;
+  const btn = $("lkGanti"), prog = $("lkProg");
+  btn.disabled = true;
+  let ok = 0, gagal = 0;
+  for (const r of lkRows) {
+    prog.textContent = "Memperbarui " + (ok + gagal + 1) + "/" + lkRows.length + "\u2026";
+    try {
+      await rtdb.ref(r.akar + "/" + r.jalur).set(r.nilai.split(LK_LAMA).join(LK_BARU));
+      ok++;
+    } catch (e) { gagal++; }
+  }
+  prog.textContent = "Selesai. " + ok + " tautan diperbarui" + (gagal ? (", " + gagal + " gagal") : "") + ".";
+  logAction({ type: "gantiTautanLama", jumlah: ok });
+  toast("Tautan diperbarui \u2705");
+  lkRows = [];
+  btn.disabled = true;
 }
 
 function buildHome(){
