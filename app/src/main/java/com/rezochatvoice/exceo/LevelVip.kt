@@ -112,6 +112,12 @@ val STORE_ITEMS = listOf(
     StoreItem("badge_heart", "badge", "Lencana Hati", "💖", 250_000, 30, Color(0xFFFF4081)),
 )
 
+/** Nama item sesuai yang ditulis di panel developer, plus nomor ID untuk item Unique ID. */
+private fun namaItem(item: StoreItem): String {
+    val nomor = if (item.id.startsWith("sx_")) StoreCatalog.find(item.id)?.customId.orEmpty() else ""
+    return if (nomor.isNotBlank()) "${item.name} \u00b7 ID $nomor" else item.name
+}
+
 private fun vipItems(n: Int) = listOf(
     StoreItem("vipt_$n", "title", "Gelar VIP$n", "🏅", 0, VIP_DAYS, vipColor(n), n),
     StoreItem("vipf_$n", "frame", "Bingkai eksklusif VIP$n", "⭕", 0, VIP_DAYS, vipColor(n), n),
@@ -965,6 +971,11 @@ fun StoreScreen(uid: String, wallet: Wallet, onOpenVip: () -> Unit, onBack: () -
                                             )
                                             Box(Modifier.align(Alignment.Center), contentAlignment = Alignment.Center) { ItemPreview(item, 110.dp) }
                                         }
+                                        Text(
+                                            tr(namaItem(item)), color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold,
+                                            maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center,
+                                            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),
+                                        )
                                         Box(
                                             Modifier.fillMaxWidth().background(if (chosen) Color(0xFFFFC107) else Color(0xFF1FC8B5)).padding(vertical = 10.dp),
                                             contentAlignment = Alignment.Center,
@@ -1071,6 +1082,11 @@ fun StoreScreen(uid: String, wallet: Wallet, onOpenVip: () -> Unit, onBack: () -
                                                 contentAlignment = Alignment.Center,
                                             ) { ItemPreview(item, 110.dp) }
                                         }
+                                        Text(
+                                            tr(namaItem(item)), color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold,
+                                            maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center,
+                                            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+                                        )
                                         Box(
                                             Modifier.fillMaxWidth().background(if (used) Color(0xFFFFC107) else Color(0xFF1FC8B5)).padding(vertical = 8.dp),
                                             contentAlignment = Alignment.Center,
