@@ -647,7 +647,9 @@ fun HivePlayScreen(uid: String, game: HiveGames.Game, onClose: () -> Unit) {
                     settings.allowFileAccess = true
                     settings.allowContentAccess = true
                     settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-                    settings.cacheMode = android.webkit.WebSettings.LOAD_DEFAULT
+                    // Game Wave harus selalu memakai konfigurasi terbaru dari Hive
+                    // (daftar taruhan berubah tanpa perlu tutup aplikasi).
+                    settings.cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE
                     settings.userAgentString =
                         "Mozilla/5.0 (Linux; Android 13; SM-G991B) AppleWebKit/537.36 " +
                             "(KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
@@ -754,7 +756,13 @@ fun HivePlayScreen(uid: String, game: HiveGames.Game, onClose: () -> Unit) {
                         }
                     }
                     web = this
-                    loadUrl(url)
+                    // Tambah penanda waktu supaya browser tidak memakai halaman
+                    // game lama dari cache (taruhan ikut berubah seperti di Hive).
+                    val urlSegar = if (url.contains("://")) {
+                        val t = "t=" + System.currentTimeMillis()
+                        if (url.contains('?')) url + "&" + t else url + "?" + t
+                    } else url
+                    loadUrl(urlSegar)
                 }
                 // Kalau HP menolak berputar (mode putar terkunci, layar terbagi,
                 // atau pengaturan aksesibilitas) padahal game-nya lanskap, isi
