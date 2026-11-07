@@ -700,8 +700,9 @@ object UidAlias {
         val nomor = customId.trim()
         if (nomor.isBlank() || uid.isBlank()) return "Nomor ID custom kosong"
         return try {
+            kotlinx.coroutines.withTimeout<String?>(8000L) {
             val lama = Rtdb.ref("uidCustom/$nomor/uid").get().await().getValue(String::class.java).orEmpty()
-            if (lama.isNotBlank() && lama != uid) return "ID $nomor sedang dipakai akun lain"
+            if (lama.isNotBlank() && lama != uid) return@withTimeout "ID $nomor sedang dipakai akun lain"
             // Nomor lama milik akun ini dilepas supaya tidak dobel.
             val bekas = Rtdb.ref("uidAliasOf/$uid").get().await().getValue(String::class.java).orEmpty()
             if (bekas.isNotBlank() && bekas != nomor) {
@@ -713,6 +714,9 @@ object UidAlias {
             ).await()
             Rtdb.ref("uidAliasOf/$uid").setValue(nomor).await()
             null
+            }
+        } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+            "Jaringan lambat, coba lagi sebentar"
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -744,13 +748,21 @@ object UidAlias {
     }
 
     suspend fun lepas(uid: String) {
+        // Semua langkah Firebase diberi batas waktu pendek: kalau RTDB lambat atau
+        // menolak, tombol Lepas tetap lanjut ke server dan tidak menggantung.
         try {
-            val nomor = Rtdb.ref("uidAliasOf/$uid").get().await().getValue(String::class.java).orEmpty()
-            if (nomor.isNotBlank()) {
-                val pemilik = Rtdb.ref("uidCustom/$nomor/uid").get().await().getValue(String::class.java).orEmpty()
-                if (pemilik == uid) Rtdb.ref("uidCustom/$nomor").removeValue().await()
+            kotlinx.coroutines.withTimeoutOrNull(6000L) {
+                val nomor = Rtdb.ref("uidAliasOf/$uid").get().await().getValue(String::class.java).orEmpty()
+                if (nomor.isNotBlank()) {
+                    val pemilik = Rtdb.ref("uidCustom/$nomor/uid").get().await().getValue(String::class.java).orEmpty()
+                    if (pemilik == uid || pemilik.isBlank()) {
+                        try { Rtdb.ref("uidCustom/$nomor").removeValue().await() } catch (e: Exception) { }
+                    }
+                }
+                try { Rtdb.ref("uidAliasOf/$uid").removeValue().await() } catch (e: Exception) { }
             }
-            Rtdb.ref("uidAliasOf/$uid").removeValue().await()
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) { }
     }
 }
