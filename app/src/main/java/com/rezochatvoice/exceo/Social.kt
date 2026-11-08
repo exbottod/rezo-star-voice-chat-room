@@ -14,6 +14,7 @@ import androidx.compose.ui.*
 import androidx.compose.ui.draw.*
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -717,12 +718,16 @@ fun UserProfileSheet(
             onClick = onDismiss,
         ),
     ) {
+        val adaKartu = user?.cardbg.orEmpty().startsWith("vipcard_")
         Box(
             Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                .background(Color(0xFF0B0B0B))
+                // Kalau kartu profil dipasang, warna hitam default dihilangkan:
+                // yang terlihat hanya gambar kartu.
+                .background(if (adaKartu) Color.Transparent else Color(0xFF0B0B0B))
+                .then(if (adaKartu) Modifier.heightIn(max = (LocalConfiguration.current.screenHeightDp * 0.88f).dp) else Modifier)
                 .blockTouches(),
         ) {
             // Latar kartu profil menutup SELURUH badan sheet, berpangkal di tepi atas.
@@ -734,6 +739,8 @@ fun UserProfileSheet(
                 if (cb.startsWith("vipcard_") && n in 1..9) VipAssets.get(n, "cardbg") else null
             }
             if (kartuBg != null) {
+                // Gambar kartu penuh selebar sheet, rasio asli dipertahankan; tinggi sheet
+                // dikunci mengikuti gambar, jadi tidak ada bagian yang terpotong.
                 Box(Modifier.matchParentSize().clipToBounds()) {
                     KartuProfilBg(
                         kartuBg,
@@ -741,15 +748,12 @@ fun UserProfileSheet(
                         ContentScale.FillBounds,
                     )
                 }
-                Box(
-                    Modifier.matchParentSize().background(
-                        Brush.verticalGradient(listOf(Color(0x33000000), Color(0xAA000000))),
-                    ),
-                )
             }
             Column(
-                Modifier.fillMaxWidth().navigationBarsPadding(),
+                (if (kartuBg != null) Modifier.fillMaxWidth().heightIn(min = 420.dp) else Modifier.fillMaxWidth())
+                    .navigationBarsPadding(),
                 horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = if (kartuBg != null) Arrangement.Bottom else Arrangement.Top,
             ) {
                 val u = user
                 if (u == null) {
