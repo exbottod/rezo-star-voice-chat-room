@@ -782,7 +782,13 @@ fun UserProfileSheet(
                             FamTag3D(u.fam)
                             Spacer(Modifier.height(6.dp))
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(tr("UID:${u.userId}"), color = Color(0xFFBDBDBD), fontSize = 15.sp)
+                                // ID unik: kalau pemilik memasangnya, gambar ID menggantikan angka.
+                                val asetIdUnik = StoreCatalog.find(u.uidItem.ifBlank { null })?.asset
+                                if (asetIdUnik != null) {
+                                    UidUnikId(asetIdUnik, 20.dp)
+                                } else {
+                                    Text(tr("UID:${u.userId}"), color = Color(0xFFBDBDBD), fontSize = 15.sp)
+                                }
                                 Spacer(Modifier.width(8.dp))
                                 LevelBadge(userLevel(u))
                                 // Lencana tingkat VIP pindah ke sini, sebelah level.
