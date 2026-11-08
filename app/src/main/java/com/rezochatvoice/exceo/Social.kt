@@ -727,7 +727,7 @@ fun UserProfileSheet(
                 // Kalau kartu profil dipasang, warna hitam default dihilangkan:
                 // yang terlihat hanya gambar kartu.
                 .background(if (adaKartu) Color.Transparent else Color(0xFF0B0B0B))
-                .then(if (adaKartu) Modifier.heightIn(max = (LocalConfiguration.current.screenHeightDp * 0.88f).dp) else Modifier)
+                .then(if (adaKartu) Modifier.heightIn(max = (LocalConfiguration.current.screenHeightDp * 0.64f).dp) else Modifier)
                 .blockTouches(),
         ) {
             // Latar kartu profil menutup SELURUH badan sheet, berpangkal di tepi atas.
@@ -750,10 +750,10 @@ fun UserProfileSheet(
                 }
             }
             Column(
-                (if (kartuBg != null) Modifier.fillMaxWidth().heightIn(min = 420.dp) else Modifier.fillMaxWidth())
+                Modifier.fillMaxWidth()
+                    .then(if (kartuBg != null) Modifier.align(Alignment.BottomCenter) else Modifier)
                     .navigationBarsPadding(),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = if (kartuBg != null) Arrangement.Bottom else Arrangement.Top,
             ) {
                 val u = user
                 if (u == null) {
