@@ -3634,10 +3634,51 @@ async function ghUploadSekali(tok, path, b64, name){
    jadi 512 px sudah lebih dari cukup. File 1-2 MB jadi 30-80 KB, sehingga
    unggahan selesai dalam hitungan detik walau jaringannya lambat.
    GIF dan SVGA tidak diubah supaya animasinya tidak hilang. */
+/* Ringankan aset sebelum dikirim dari HP: unggahan lambat karena file besar
+   melewati jaringan seluler (webp 1-3 MB bisa 30-60 detik). Bingkai/efek tampil
+   kecil di layar, jadi 720 px sudah cukup. GIF, SVGA, MP4, dan WEBP BERGERAK
+   tidak diubah sama sekali supaya animasinya tetap jalan. */
+async function ringankanAset(file){
+  const ext0 = (file.name.split(".").pop() || "").toLowerCase();
+  const tetap = { file: file, ext: ext0 };
+  try {
+    if (/^(gif|svga|mp4)$/.test(ext0)) return tetap;
+    if (file.size < 150 * 1024) return tetap;
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    if (ext0 === "webp") {
+      // Chunk ANIM menandakan webp bergerak. Jangan dipadatkan.
+      let kepala = "";
+      const n = Math.min(bytes.length, 8192);
+      for (let i = 0; i < n; i++) kepala += String.fromCharCode(bytes[i]);
+      if (kepala.indexOf("ANIM") >= 0 || kepala.indexOf("ANMF") >= 0) return tetap;
+    }
+    const img = await new Promise((res, rej) => {
+      const i = new Image();
+      i.onload = () => { URL.revokeObjectURL(i.src); res(i); };
+      i.onerror = rej;
+      i.src = URL.createObjectURL(file);
+    });
+    const maks = 720;
+    const s = Math.min(1, maks / Math.max(img.width, img.height));
+    if (s >= 1 && file.size < 400 * 1024) return tetap;
+    const c = document.createElement("canvas");
+    c.width = Math.max(1, Math.round(img.width * s));
+    c.height = Math.max(1, Math.round(img.height * s));
+    const g = c.getContext("2d");
+    g.imageSmoothingQuality = "high";
+    g.drawImage(img, 0, 0, c.width, c.height);
+    const blob = await new Promise(r => c.toBlob(r, "image/webp", 0.85));
+    if (!blob || blob.size >= file.size * 0.9) return tetap;
+    try { toast("Aset dikecilkan " + Math.round(file.size / 1024) + " KB \u2192 " + Math.round(blob.size / 1024) + " KB"); } catch (e) { }
+    return { file: new File([blob], (file.name.replace(/\.[^.]+$/, "") || "aset") + ".webp", { type: "image/webp" }), ext: "webp" };
+  } catch (e) { return tetap; }
+}
 async function ghUpload(file, name){
   const tok = ghToken();
   if (!tok) throw new Error("Token GitHub belum diisi");
-  const ext = (file.name.split(".").pop() || "").toLowerCase();
+  const ringan = await ringankanAset(file);
+  file = ringan.file;
+  const ext = ringan.ext;
   const path = "docs/aset/" + name + "_" + Date.now().toString(36) + "." + ext;
   const bytes = new Uint8Array(await file.arrayBuffer());
   if (bytes.length > 8 * 1024 * 1024) throw new Error("File lebih dari 8 MB. Kecilkan dulu atau pakai URL.");
