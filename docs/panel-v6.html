@@ -259,6 +259,32 @@ label{font-size:12px;color:var(--mut)}
     <button class="btn" id="idBebasBtn">Bebaskan nomor ini</button>
     <div class="muted" id="idBebasMsg" style="font-size:12px;margin-top:6px"></div>
   </div>
+  <div class="card">
+    <h2>Pulihkan item yang hilang</h2>
+    <p class="muted">Item yang sudah ada di tas user tapi catatannya hilang dari Store tidak bisa tampil di app dan tidak muncul di daftar panel. Isi ID item (tanpa awalan sx_), pilih jenisnya, beri nama, lalu pilih gambarnya. Catatan Store dibuat ulang dengan ID yang sama, jadi item langsung terlihat lagi di akun pemiliknya.</p>
+    <label>ID item</label>
+    <input type="text" id="prId" placeholder="mis. mw1brpiw7kg9">
+    <label>Jenis</label>
+    <select id="prSlot">
+      <option value="frame">Bingkai avatar</option>
+      <option value="entry">Efek masuk</option>
+      <option value="banner">Banner efek masuk</option>
+      <option value="badge">Lencana</option>
+      <option value="medal">Medali</option>
+      <option value="bubble">Gelembung</option>
+      <option value="uid">Unique ID</option>
+    </select>
+    <label>Nama item</label>
+    <input type="text" id="prName" placeholder="Nama yang tampil di app">
+    <label>Durasi bawaan (hari)</label>
+    <input type="number" id="prDays" value="30" min="1">
+    <label>atau tempel URL gambar</label>
+    <input type="text" id="prUrl" placeholder="https://...">
+    <label>atau pilih file</label>
+    <input type="file" id="prFile" accept=".png,.gif,.webp,.jpg,.jpeg,.svga,.mp4">
+    <button class="btn" id="prBtn">Buat ulang catatan item</button>
+    <div class="muted" id="prMsg" style="font-size:12px;margin-top:6px"></div>
+  </div>
   <div id="stList"></div>
 </div>
 
@@ -1679,6 +1705,7 @@ function lencanaStart(){
     } catch (e) { st.textContent = "Gagal: " + (e.message || e); }
   };
   $("ckStore").onclick = ckStorePeriksa;
+  $("prBtn").onclick = pulihkanItem;
   $("lkPindai").onclick = lkPindai;
   $("lkGanti").onclick = lkGanti;
   $("clScan").onclick = clPindai;
@@ -3784,6 +3811,38 @@ async function vipDelete(slot){
   } catch (e) { toast("Gagal: " + e.message); }
 }
 
+/* ---------- Pulihkan catatan item yang hilang ---------- */
+async function pulihkanItem(){
+  const msg = $("prMsg"), btn = $("prBtn");
+  const id = String($("prId").value || "").trim().replace(/^sx_/, "");
+  const slot = $("prSlot").value;
+  const nm = String($("prName").value || "").trim() || "Item";
+  const days = Math.max(1, parseInt($("prDays").value, 10) || 30);
+  let url = String($("prUrl").value || "").trim();
+  const f = $("prFile").files[0];
+  if (!/^[a-z0-9]{6,40}$/i.test(id)) { msg.textContent = "ID item tidak masuk akal. Salin ID tanpa awalan sx_."; return; }
+  btn.disabled = true;
+  try {
+    msg.textContent = "Menyiapkan…";
+    if (f) url = await cldUpload(f, "item_" + id);
+    if (!/^https?:\/\//i.test(url)) { msg.textContent = "Isi URL gambar atau pilih file dulu."; return; }
+    try { tolakAsetMati(url); } catch (e) { msg.textContent = e.message; return; }
+    const ex = vipExt(url);
+    if (!ex) { msg.textContent = "Tautan harus berakhiran png, gif, webp, jpg, svga, atau mp4."; return; }
+    await rtSet("vipCfg/store_" + id, {
+      store: true, meta: false, id: id, slot: slot, name: nm, price: 0,
+      days: days, order: 0, kind: vipKind(url), url: url,
+      hasData: false, chunks: 0, updatedAt: Date.now(), targetUid: "", dariPanel: "pulihkan",
+    });
+    const cek = await rtdb.ref("vipCfg/store_" + id).get();
+    if (!cek.exists()) { msg.textContent = "Gagal: catatan tidak tersimpan."; return; }
+    msg.textContent = "Selesai. Catatan item " + id + " dibuat ulang (" + slot + "). Semua akun yang punya item ini sekarang bisa melihatnya. Minta user membuka ulang app.";
+    toast("Item dipulihkan \u2705");
+    logAction({ type: "pulihItem", itemId: id, slot: slot });
+  } catch (e) {
+    msg.textContent = "Gagal: " + (e.message || e);
+  } finally { btn.disabled = false; }
+}
 /* ---------- Store: bingkai, efek masuk, lencana ---------- */
 const STORE_SLOTS = {
   frame: { name: "⭕ Bingkai avatar", accept: [".svga", ".gif", ".webp", ".png"] },
