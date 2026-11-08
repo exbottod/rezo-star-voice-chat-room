@@ -22,7 +22,10 @@ if (!env.TURSO_URL || !env.TURSO_TOKEN) {
 
 const PORT = Number(process.env.PORT || 8080);
 const HOST = process.env.HOST || "127.0.0.1";
-const BATAS_ISI = 1024 * 1024; // 1 MB, cukup untuk semua permintaan dompet
+// Permintaan dompet kecil, tapi unggah aset lewat /aset-upload membawa file
+// gambar dalam base64, jadi batasnya dibuat jauh lebih longgar (bisa diatur
+// lewat env BATAS_ISI_MB).
+const BATAS_ISI = Math.max(1, Number(process.env.BATAS_ISI_MB || 12)) * 1024 * 1024;
 
 function bacaIsi(req) {
   return new Promise((resolve, reject) => {

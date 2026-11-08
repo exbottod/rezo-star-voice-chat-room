@@ -1149,6 +1149,44 @@ async function stokStaf(env, uid) {
   return r[0].rows.map((x) => ({ id: String(x.id), kind: String(x.kind ?? ""), name: String(x.name ?? ""), days: Number(x.days ?? 7) }));
 }
 
+/**
+ * Unggah aset (gambar frame, lencana, banner) ke repo lewat server ini.
+ *
+ * Kenapa lewat server: HP yang mengunggah langsung ke api.github.com sering
+ * menggantung di jaringan seluler, sampai batas waktu habis. Server ini
+ * berada jauh lebih dekat ke HP dan meneruskan ke GitHub dengan koneksi
+ * pusat data, jadi unggahan selesai dalam hitungan detik. Hasil akhirnya
+ * tetap tautan CDN GitHub (jsDelivr), bukan penyimpanan lain.
+ */
+const ASET_REPO = "exbottod/rezo-star-voice-chat-room";
+const ASET_CABANG = "main";
+async function asetUpload(env, b) {
+  const gh = String(b.gh || "").trim();
+  if (!gh) throw new Error("Token GitHub belum diisi");
+  const b64 = String(b.b64 || "").replace(/^data:[^,]+,/, "").replace(/\s+/g, "");
+  if (!b64) throw new Error("Isi file kosong");
+  if (b64.length > 15 * 1024 * 1024) throw new Error("File terlalu besar (maks sekitar 11 MB)");
+  const ext = (String(b.ext || "png").toLowerCase().replace(/[^a-z0-9]/g, "") || "png").slice(0, 5);
+  const nama = (String(b.name || "aset").toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 40) || "aset");
+  const path = "docs/aset/" + nama + "_" + Date.now().toString(36) + "." + ext;
+  const r = await fetch("https://api.github.com/repos/" + ASET_REPO + "/contents/" + path, {
+    method: "PUT",
+    headers: {
+      Authorization: "Bearer " + gh,
+      Accept: "application/vnd.github+json",
+      "Content-Type": "application/json",
+      "User-Agent": "rezo-panel",
+    },
+    body: JSON.stringify({ message: "aset: " + nama, content: b64, branch: ASET_CABANG }),
+  });
+  const out = await r.json().catch(() => ({}));
+  if (r.status === 401 || r.status === 403) {
+    throw new Error("Token GitHub ditolak atau tidak punya izin Contents: Read and write");
+  }
+  if (!r.ok) throw new Error("GitHub: " + ((out && out.message) || r.status));
+  return json({ ok: 1, url: "https://cdn.jsdelivr.net/gh/" + ASET_REPO + "@" + ASET_CABANG + "/" + path, path: path });
+}
+
 async function panel(env, body) {
   const sesi = await sesiDariToken(body.t ?? "");
   if (!sesi) return json({ ok: 0, e: "Sesi tidak sah" }, 401);
@@ -2311,6 +2349,15 @@ export default {
       if (!sesi) return json({ ok: 0, e: "Sesi tidak sah" }, 401);
       try { return await sellerApi(env, sesi, b); }
       catch (e) { return gagal(String(e?.message ?? "Server seller sibuk")); }
+    }
+    if (url.pathname.toLowerCase() === "/aset-upload") {
+      const bA = await req.json().catch(() => null);
+      if (!bA) return json({ ok: 0, e: "Body tidak valid" }, 400);
+      const sesiA = await sesiDariToken(bA.t ?? "");
+      if (!sesiA) return json({ ok: 0, e: "Sesi tidak sah" }, 401);
+      if (sesiA.email !== ADMIN_EMAIL) return json({ ok: 0, e: "Hanya admin" }, 403);
+      try { return await asetUpload(env, bA); }
+      catch (e) { return json({ ok: 0, e: String(e?.message ?? e) }, 502); }
     }
     if (url.pathname === "/admin") {
       const b = await req.json().catch(() => null);

@@ -3540,6 +3540,10 @@ function readAsDataURL(f){ return new Promise((res, rej) => { const r = new File
 
 /* ---------- Upload media ke Cloudinary lewat backend (Cloudflare Worker) ---------- */
 const UPLOAD_URL = "https://43-156-99-4.sslip.io/agora/upload";
+/* Jalur unggah aset: HP -> server VPS -> repo GitHub -> CDN jsDelivr.
+   HP tidak lagi bicara langsung ke api.github.com karena di jaringan
+   seluler permintaannya sering menggantung sampai batas waktu. */
+const ASET_UPLOAD_URL = "https://43-156-99-4.sslip.io/aset-upload";
 /* Server database cadangan (KV) saat kuota Firestore habis. */
 const BACKUP_URL = "https://rezo-agora-token.bangexx01.workers.dev";
 const WALLET_API = "https://fdemjdqagxkhgqkmfvwk.supabase.co/functions/v1/smart-processor";
@@ -3636,10 +3640,37 @@ async function ghUpload(file, name){
   const ext = (file.name.split(".").pop() || "").toLowerCase();
   const path = "docs/aset/" + name + "_" + Date.now().toString(36) + "." + ext;
   const bytes = new Uint8Array(await file.arrayBuffer());
-  if (bytes.length > 9 * 1024 * 1024) throw new Error("File lebih dari 9 MB. Kecilkan dulu atau pakai URL.");
+  if (bytes.length > 8 * 1024 * 1024) throw new Error("File lebih dari 8 MB. Kecilkan dulu atau pakai URL.");
   let bin = "";
   for (let i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192));
   const b64 = btoa(bin);
+  // 1) Lewat server VPS. Ini jalur utama: koneksinya dekat dan cepat.
+  try {
+    const u = auth.currentUser;
+    const idToken = u ? await u.getIdToken() : "";
+    try { toast("Mengunggah " + Math.round(bytes.length / 1024) + " KB lewat server..."); } catch (e) { }
+    const ctl = new AbortController();
+    const jam = setTimeout(() => ctl.abort(), 120000);
+    let res;
+    try {
+      res = await fetch(ASET_UPLOAD_URL, {
+        method: "POST",
+        signal: ctl.signal,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ t: idToken, gh: tok, name: name, ext: ext, b64: b64 }),
+      });
+    } finally {
+      clearTimeout(jam);
+    }
+    const out = await res.json().catch(() => ({}));
+    if (res.ok && out && out.ok && out.url) return tolakAsetMati(out.url);
+    if (res.status === 401 || res.status === 403) localStorage.removeItem("ghToken");
+    const pesan = (out && out.e) || ("server menjawab " + res.status);
+    try { toast("Lewat server gagal (" + pesan + "), coba langsung ke GitHub..."); } catch (e) { }
+  } catch (e) {
+    try { toast("Server unggah tidak menjawab, coba langsung ke GitHub..."); } catch (x) { }
+  }
+  // 2) Cadangan: unggah langsung ke api.github.com.
   const pesan = "Mengunggah " + Math.round(bytes.length / 1024) + " KB ke GitHub...";
   try { toast(pesan); } catch (e) { }
   let gagal = null;
