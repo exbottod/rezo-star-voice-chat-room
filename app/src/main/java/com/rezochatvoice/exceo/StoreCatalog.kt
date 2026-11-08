@@ -38,6 +38,8 @@ data class CatalogItem(
     val targetUid: String = "",
     /** Nomor ID custom yang dibawa item ini (mis. "1000"), bisa dicari di app. */
     val customId: String = "",
+    /** true = dijual di Store. false = hanya kiriman panel, tetap tampil di tas. */
+    val store: Boolean = true,
 ) {
     fun toStoreItem() = StoreItem("sx_$id", slot, name, "\uD83C\uDF81", price, days, Color(0xFFD4AF37), 0, asset)
 }
@@ -119,7 +121,7 @@ object StoreCatalog {
                     .put("price", it.price).put("days", it.days).put("order", it.order)
                     .put("kind", it.asset.kind).put("url", it.asset.url)
                     .put("hasData", it.asset.hasData).put("updatedAt", it.asset.updatedAt)
-                    .put("chunks", it.asset.chunks),
+                    .put("chunks", it.asset.chunks).put("store", it.store),
             )
             sp().edit().putString("catalog", arr.toString()).apply()
         } catch (e: Exception) {
@@ -146,6 +148,7 @@ object StoreCatalog {
                         0, "st_$id", o.optString("kind", "image"), o.optString("url"),
                         o.optBoolean("hasData"), o.optLong("updatedAt"), o.optInt("chunks"),
                     ),
+                    store = o.optBoolean("store", true),
                 )
             }
         } catch (e: Exception) {
@@ -172,7 +175,11 @@ object StoreCatalog {
             rtdbMap.clear()
             for (c in snap.children) {
                 val id = c.child("id").getValue(String::class.java) ?: continue
-                if (c.child("store").getValue(Boolean::class.java) != true) continue
+                // Aset VIP (meta) bukan item tas. Item store=false adalah kiriman
+                // panel langsung ke satu akun: tidak dijual, tapi tetap harus
+                // muncul di tas pemiliknya.
+                if (c.child("meta").getValue(Boolean::class.java) == true) continue
+                val dijual = c.child("store").getValue(Boolean::class.java) == true
                 val slot = c.child("slot").getValue(String::class.java) ?: continue
                 val asset = VipAsset(
                     0, "st_$id",
@@ -191,6 +198,7 @@ object StoreCatalog {
                     asset,
                     c.child("targetUid").getValue(String::class.java) ?: "",
                     c.child("customId").getValue(String::class.java) ?: "",
+                    dijual,
                 )
             }
             rtdbSiap = true
@@ -203,7 +211,7 @@ object StoreCatalog {
             try {
                 val snap = kotlinx.coroutines.withTimeoutOrNull(6000L) {
                     FirebaseFirestore.getInstance().collection("vipConfig")
-                        .whereEqualTo("store", true).get().await()
+                        .get().await()
                 }
                 if (snap != null) {
                     val fresh = HashMap<String, CatalogItem>()
@@ -227,6 +235,7 @@ object StoreCatalog {
                             asset,
                             d.getString("targetUid") ?: "",
                             d.getString("customId") ?: "",
+                            d.getBoolean("store") ?: true,
                         )
                     }
                     fsMap.clear()
@@ -244,6 +253,7 @@ object StoreCatalog {
      *  item Unique ID yang dikunci ke akun lain tidak ikut tampil. */
     fun bySlot(slot: String, uidPemakai: String? = null): List<CatalogItem> =
         items.values
+            .filter { it.store }
             .filter { it.slot == slot }
             .filter { it.targetUid.isBlank() || it.targetUid == uidPemakai }
             // Item ID custom hilang dari Store begitu sudah dibeli akun lain.
