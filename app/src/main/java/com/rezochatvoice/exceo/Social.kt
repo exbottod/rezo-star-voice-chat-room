@@ -727,7 +727,9 @@ fun UserProfileSheet(
                 // Kalau kartu profil dipasang, warna hitam default dihilangkan:
                 // yang terlihat hanya gambar kartu.
                 .background(if (adaKartu) Color.Transparent else Color(0xFF0B0B0B))
-                .then(if (adaKartu) Modifier.heightIn(max = (LocalConfiguration.current.screenHeightDp * 0.64f).dp) else Modifier)
+                // Tinggi sheet mengikuti gambar kartu (rasio asli), jadi tidak ada
+                // bagian kartu yang terpotong sama sekali.
+                .then(if (adaKartu) Modifier.heightIn(max = LocalConfiguration.current.screenHeightDp.dp) else Modifier)
                 .blockTouches(),
         ) {
             // Latar kartu profil menutup SELURUH badan sheet, berpangkal di tepi atas.
