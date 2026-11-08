@@ -747,9 +747,15 @@ fun UserProfileSheet(
                     }
                     Box(Modifier.fillMaxWidth()) {
                     if (bgKartu != null) {
-                        // Gambar kartu ditampilkan UTUH (Fit), tidak dipotong ujung atas
-                        // maupun bawah. Sisa ruang di sisi kiri/kanan ditutup gradasi gelap.
-                        KartuProfilBg(bgKartu, Modifier.matchParentSize(), ContentScale.Fit)
+                        // Gambar kartu memenuhi lebar sheet, berpangkal di tepi ATAS
+                        // (ujung atas selalu utuh); kelebihan di bawah yang dipotong.
+                        Box(Modifier.matchParentSize().clipToBounds()) {
+                            KartuProfilBg(
+                                bgKartu,
+                                Modifier.fillMaxWidth().aspectRatio(748f / 1459f).align(Alignment.TopCenter),
+                                ContentScale.FillBounds,
+                            )
+                        }
                         Box(
                             Modifier.matchParentSize().background(
                                 Brush.verticalGradient(listOf(Color(0x33000000), Color(0x99000000))),
@@ -758,11 +764,11 @@ fun UserProfileSheet(
                     }
                     Box(Modifier.fillMaxWidth().clickable(onClick = onOpenFull)) {
                         Column(
-                            Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
+                            Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
-                            FramedAvatar(u, 96.dp)
-                            Spacer(Modifier.height(10.dp))
+                            FramedAvatar(u, 84.dp)
+                            Spacer(Modifier.height(6.dp))
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 VipNameText(
                                     u.name,
@@ -778,8 +784,6 @@ fun UserProfileSheet(
                                 Spacer(Modifier.width(8.dp))
                                 Text(flagEmoji(u.countryCode), fontSize = 22.sp)
                             }
-                            Spacer(Modifier.height(6.dp))
-                            FamTag3D(u.fam)
                             Spacer(Modifier.height(6.dp))
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 // ID unik: kalau pemilik memasangnya, gambar ID menggantikan angka.
@@ -809,22 +813,30 @@ fun UserProfileSheet(
                     // Bagian bawah (lencana, medali, VIP) disembunyikan di area yang bisa
                     // digeser/digulir, supaya sheet pendek dan kartu di atas tetap utuh.
                     Column(
-                        Modifier.fillMaxWidth().heightIn(max = 150.dp)
+                        Modifier.fillMaxWidth().heightIn(max = 130.dp)
                             .verticalScroll(rememberScrollState())
                             .clickable(onClick = onOpenFull).padding(horizontal = 20.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        Spacer(Modifier.height(10.dp))
-                        UserBadges(u)
-                        Spacer(Modifier.height(10.dp))
-                        Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0x33FFFFFF)))
-                        Spacer(Modifier.height(10.dp))
-                        UserMedals(u.medals, 44.dp, Modifier.fillMaxWidth())
-                        Spacer(Modifier.height(12.dp))
+                        Spacer(Modifier.height(6.dp))
+                        // Lencana + lencana family sebaris (tidak makan baris sendiri).
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            // Tag tingkat VIP sudah ada di sebelah level, jadi di sini hanya
+                            // lencana yang dipasang dari toko.
+                            findItem(u.badge)?.let { StoreBadgeIcon(it, 24.dp) }
+                            if (u.fam.isNotBlank()) FamTag3D(u.fam)
+                        }
+                        Spacer(Modifier.height(4.dp))
+                        UserMedals(u.medals, 40.dp, Modifier.fillMaxWidth())
+                        Spacer(Modifier.height(6.dp))
                         VipBanner(u)
-                        Spacer(Modifier.height(8.dp))
+                        Spacer(Modifier.height(4.dp))
                         Text(tr("Ketuk untuk lihat profil lengkap \u203A"), color = Gold, fontSize = 12.sp)
-                        Spacer(Modifier.height(10.dp))
+                        Spacer(Modifier.height(6.dp))
                     }
                     Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0x22FFFFFF)))
                     Column(
