@@ -725,6 +725,28 @@ fun UserProfileSheet(
                 .background(Color(0xFF0B0B0B))
                 .blockTouches(),
         ) {
+            // Latar kartu profil menutup SELURUH badan sheet, berpangkal di tepi atas.
+            // Sisa panjangnya terpotong tepat di tepi bawah sheet (di luar layar),
+            // jadi tidak ada garis potongan yang terlihat di tengah kartu.
+            val kartuBg = remember(user?.cardbg) {
+                val cb = user?.cardbg.orEmpty()
+                val n = cb.removePrefix("vipcard_").toIntOrNull() ?: 0
+                if (cb.startsWith("vipcard_") && n in 1..9) VipAssets.get(n, "cardbg") else null
+            }
+            if (kartuBg != null) {
+                Box(Modifier.matchParentSize().clipToBounds()) {
+                    KartuProfilBg(
+                        kartuBg,
+                        Modifier.fillMaxWidth().aspectRatio(748f / 1459f).align(Alignment.TopCenter),
+                        ContentScale.FillBounds,
+                    )
+                }
+                Box(
+                    Modifier.matchParentSize().background(
+                        Brush.verticalGradient(listOf(Color(0x33000000), Color(0xAA000000))),
+                    ),
+                )
+            }
             Column(
                 Modifier.fillMaxWidth().navigationBarsPadding(),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -739,29 +761,6 @@ fun UserProfileSheet(
                     // Bagian atas: ketuk -> halaman profil lengkap.
                     // Latar kartu: animasi SVIP di belakang foto, nama, dan medali.
                     // Identitas (foto, nama, ID): bagian yang memakai latar kartu profil.
-                    // Latar kartu hanya tampil kalau pemiliknya memasangnya sendiri
-                    // (bisa dilepas kapan saja dari Ransel > Item VIP).
-                    val bgKartu = remember(u.cardbg) {
-                        val n = u.cardbg.removePrefix("vipcard_").toIntOrNull() ?: 0
-                        if (u.cardbg.startsWith("vipcard_") && n in 1..9) VipAssets.get(n, "cardbg") else null
-                    }
-                    Box(Modifier.fillMaxWidth()) {
-                    if (bgKartu != null) {
-                        // Gambar kartu memenuhi lebar sheet, berpangkal di tepi ATAS
-                        // (ujung atas selalu utuh); kelebihan di bawah yang dipotong.
-                        Box(Modifier.matchParentSize().clipToBounds()) {
-                            KartuProfilBg(
-                                bgKartu,
-                                Modifier.fillMaxWidth().aspectRatio(748f / 1459f).align(Alignment.TopCenter),
-                                ContentScale.FillBounds,
-                            )
-                        }
-                        Box(
-                            Modifier.matchParentSize().background(
-                                Brush.verticalGradient(listOf(Color(0x33000000), Color(0x99000000))),
-                            ),
-                        )
-                    }
                     Box(Modifier.fillMaxWidth().clickable(onClick = onOpenFull)) {
                         Column(
                             Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp),
@@ -809,7 +808,6 @@ fun UserProfileSheet(
                             }
                         }
                     }
-                    }
                     // Bagian bawah (lencana, medali, VIP) disembunyikan di area yang bisa
                     // digeser/digulir, supaya sheet pendek dan kartu di atas tetap utuh.
                     Column(
@@ -838,7 +836,6 @@ fun UserProfileSheet(
                         Text(tr("Ketuk untuk lihat profil lengkap \u203A"), color = Gold, fontSize = 12.sp)
                         Spacer(Modifier.height(6.dp))
                     }
-                    Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0x22FFFFFF)))
                     Column(
                         Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
