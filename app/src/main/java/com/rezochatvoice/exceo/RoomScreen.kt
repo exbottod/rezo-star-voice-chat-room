@@ -142,6 +142,9 @@ fun RoomScreen(
     myAvatarB64: String?,
     onExit: () -> Unit,
     onMinimize: () -> Unit,
+    // Data room yang sudah ada dari kartu yang diketuk: layar langsung tampil
+    // tanpa menunggu jaringan, data segar menimpa begitu datang.
+    initialRoom: RoomInfo? = null,
 ) {
     // Waktu (ms) dompet terakhir disegarkan karena gift masuk.
     var segarGift by remember { mutableLongStateOf(0L) }
@@ -153,7 +156,7 @@ fun RoomScreen(
     }
     val scope = rememberCoroutineScope()
 
-    var room by remember { mutableStateOf<RoomInfo?>(null) }
+    var room by remember { mutableStateOf<RoomInfo?>(initialRoom) }
     // --- Owner bisa mengeluarkan user: kalau keanggotaan kita hilang, keluar dari room.
     var joinedOnce by remember { mutableStateOf(false) }
     var kickedOut by remember { mutableStateOf(false) }

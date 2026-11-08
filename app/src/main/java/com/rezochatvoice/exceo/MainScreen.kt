@@ -612,6 +612,7 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                             myAvatarB64 = profile.avatarB64,
                             onExit = ::exitRoom,
                             onMinimize = { minimized = true },
+                            initialRoom = room,
                         )
                     }
                 } else {
