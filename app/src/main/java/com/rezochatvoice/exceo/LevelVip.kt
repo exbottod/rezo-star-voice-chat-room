@@ -876,6 +876,7 @@ private val STORE_CATS = listOf(
     Triple("uid", "Unique ID", "\uD83C\uDD94"),
     Triple("entry", "Efek masuk", "\u2728"),
     Triple("banner", "Banner masuk", "\uD83D\uDEA9"),
+    Triple("badge", "Lencana", "\uD83C\uDF96\uFE0F"),
     Triple("bubble", "Gelembung", "\uD83D\uDCAC"),
     Triple("medal", "Medali", "\uD83C\uDFC5"),
 )
