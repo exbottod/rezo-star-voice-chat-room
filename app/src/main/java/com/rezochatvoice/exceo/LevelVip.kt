@@ -106,10 +106,6 @@ val STORE_ITEMS = listOf(
     StoreItem("bubble_green", "bubble", "Gelembung Hijau", "💬", 200_000, 7, Color(0xFF2ECC71)),
     StoreItem("bubble_pink", "bubble", "Gelembung Pink", "💬", 400_000, 30, Color(0xFFFF6FA5)),
     StoreItem("bubble_purple", "bubble", "Gelembung Ungu", "💬", 400_000, 30, Color(0xFF8E44E8)),
-    StoreItem("badge_star", "badge", "Lencana Bintang", "⭐", 150_000, 30, Color(0xFFFFC107)),
-    StoreItem("badge_fire", "badge", "Lencana Api", "🔥", 250_000, 30, Color(0xFFFF7043)),
-    StoreItem("badge_diamond", "badge", "Lencana Berlian", "💎", 800_000, 30, Color(0xFF4DD0E1)),
-    StoreItem("badge_heart", "badge", "Lencana Hati", "💖", 250_000, 30, Color(0xFFFF4081)),
 )
 
 /** Nama item sesuai yang ditulis di panel developer, plus nomor ID untuk item Unique ID. */
