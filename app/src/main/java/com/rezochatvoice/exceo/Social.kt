@@ -700,11 +700,19 @@ fun UserProfileSheet(
                             if (u.cardbg.startsWith("vipcard_") && n in 1..9) VipAssets.get(n, "cardbg") else null
                         }
                         if (bgKartu != null) {
-                            KartuProfilBg(bgKartu, Modifier.matchParentSize())
+                            // Gambar kartu dipasang dari TEPI ATAS: rasio asli dipertahankan
+                            // (748x1459) lalu dipotong di bawah, jadi bagian atas kartu
+                            // tidak ikut terpotong seperti sebelumnya.
+                            Box(Modifier.matchParentSize().clipToBounds()) {
+                                KartuProfilBg(
+                                    bgKartu,
+                                    Modifier.fillMaxWidth().aspectRatio(748f / 1459f).align(Alignment.TopCenter),
+                                )
+                            }
                             // Selaput gelap tipis supaya nama dan angka tetap terbaca.
                             Box(
                                 Modifier.matchParentSize().background(
-                                    Brush.verticalGradient(listOf(Color(0x55000000), Color(0x99000000))),
+                                    Brush.verticalGradient(listOf(Color(0x44000000), Color(0xAA000000))),
                                 ),
                             )
                         }
