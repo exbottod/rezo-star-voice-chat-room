@@ -579,13 +579,6 @@ fun ProfileSheetAction(label: String, icon: String, onClick: () -> Unit) {
     }
 }
 
-/**
- * Sheet profil pengguna lain. Muncul saat profil di mic / hasil pencarian diketuk.
- * Mengetuk bagian atas (avatar, nama, medali, VIP) membuka halaman profil lengkap.
- * [extra] = tombol tambahan (mis. Turun Mic, Hadiah) saat dibuka dari dalam room.
- * [topAction] = tombol di pojok kanan atas sheet (mis. menu titik tiga: Kick dari room).
- */
-@Composable
 /** Latar kartu profil: aset SVIP yang diunggah dari panel developer
  *  (slot "cardbg" per tingkat). Disajikan dari CDN, jadi APK tetap kecil. */
 @Composable
@@ -595,6 +588,13 @@ private fun KartuProfilBg(a: VipAsset, modifier: Modifier = Modifier) {
     }
 }
 
+/**
+ * Sheet profil pengguna lain. Muncul saat profil di mic / hasil pencarian diketuk.
+ * Mengetuk bagian atas (avatar, nama, medali, VIP) membuka halaman profil lengkap.
+ * [extra] = tombol tambahan (mis. Turun Mic, Hadiah) saat dibuka dari dalam room.
+ * [topAction] = tombol di pojok kanan atas sheet (mis. menu titik tiga: Kick dari room).
+ */
+@Composable
 fun UserProfileSheet(
     uid: String,
     myUid: String,
