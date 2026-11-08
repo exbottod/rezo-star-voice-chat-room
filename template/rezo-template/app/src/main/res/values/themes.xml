@@ -1,0 +1,6 @@
+<resources>
+    <style name="Theme.RezoTemplate" parent="android:Theme.Material.NoActionBar">
+        <item name="android:statusBarColor">#00332E</item>
+        <item name="android:navigationBarColor">#00332E</item>
+    </style>
+</resources>
