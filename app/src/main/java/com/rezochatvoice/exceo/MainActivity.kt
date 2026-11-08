@@ -537,11 +537,11 @@ fun AppRoot() {
     }
 
     // Splash: gambar yang sama dengan latar window (muncul seketika saat APK dibuka),
-    // ditahan singkat lalu langsung ke layar login / beranda. Hanya sekali per proses.
+    // ditahan sangat singkat lalu langsung ke layar login / beranda. Hanya sekali per proses.
     var splashSelesai by remember { mutableStateOf(SplashState.sudahTampil) }
     if (!splashSelesai) {
         LaunchedEffect(Unit) {
-            kotlinx.coroutines.delay(1400L)
+            kotlinx.coroutines.delay(450L)
             SplashState.sudahTampil = true
             splashSelesai = true
         }

@@ -125,7 +125,7 @@ object SupaRepo {
     private fun kirim(alamat: String, body: org.json.JSONObject, tunggu: Int): Pair<Int, String> {
         val conn = (URL(alamat).openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
-            connectTimeout = 8_000
+            connectTimeout = 4_000
             readTimeout = tunggu
             doOutput = true
             setRequestProperty("apikey", KEY)
@@ -152,7 +152,7 @@ object SupaRepo {
         var terakhir: Pair<Int, String>? = null
         urls.forEachIndexed { i, u ->
             try {
-                val hasil = kirim(u, body, if (i == 0) 15_000 else 20_000)
+                val hasil = kirim(u, body, if (i == 0) 9_000 else 12_000)
                 val (code, txt) = hasil
                 val penuh = code == 429 || code >= 500 || txt.contains("1027")
                 if (!penuh) return hasil           // 2xx dan 4xx biasa (mis. 401) = jawaban sah
@@ -196,8 +196,11 @@ object SupaRepo {
         return try {
             c = (URL("$TURSO_RO_URL/v2/pipeline").openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"
-                connectTimeout = 6_000
-                readTimeout = 8_000
+                // Jalur baca cepat: kalau Turso tidak menjawab dalam hitungan detik,
+                // biarkan jalur worker mengambil alih. Menunggu 8 detik hanya
+                // membuat layar tampak "loading" padahal sinyal bagus.
+                connectTimeout = 3_000
+                readTimeout = 4_500
                 doOutput = true
                 setRequestProperty("Authorization", "Bearer $TURSO_RO_TOKEN")
                 setRequestProperty("Content-Type", "application/json")

@@ -376,7 +376,9 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                 throw e
             } catch (e: Exception) {
                 if (attempt == 5) Toast.makeText(context, tr("Gagal membuat ID: ${e.message}"), Toast.LENGTH_LONG).show()
-                else kotlinx.coroutines.delay(1500L)
+                // Jeda pendek: biasanya percobaan kedua langsung berhasil,
+                // jadi tidak perlu menahan layar 1,5 detik tiap gagal.
+                else kotlinx.coroutines.delay(600L)
             }
         }
         try {
