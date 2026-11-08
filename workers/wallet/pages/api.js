@@ -993,7 +993,7 @@ async function panel(env, body) {
     const salah = butuhTarget();
     if (salah) return gagal(salah);
     const coins = Math.trunc(Number(p.coins ?? 0));
-    if (!(coins > 0) || coins > 100000000000) return gagal("Jumlah coin tidak valid");
+    if (!(coins > 0) || coins > 10000000000000) return gagal("Jumlah coin tidak valid");
     // Pemilik akun yang juga developer tetap memakai jalur manager di panel manager,
     // supaya stok coin benar-benar berkurang sesuai jumlah yang dikirim.
     const pakaiStok = staf && staf.role === "manager";

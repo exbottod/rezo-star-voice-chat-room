@@ -291,7 +291,7 @@ async function sellerKirim(env, uid, p) {
   if (to === uid) return gagal("Tidak bisa mengirim ke diri sendiri");
   const coins = Math.trunc(Number(p.coins ?? 0));
   if (!(coins > 0)) return gagal("Jumlah coin tidak valid");
-  if (coins > 100000000000) return gagal("Jumlah coin terlalu besar");
+  if (coins > 10000000000000) return gagal("Jumlah coin terlalu besar");
   const req = String(p.req ?? `s-${uid}-${Date.now()}`);
   const note = String(p.note ?? "").slice(0, 120);
   const now = Date.now();
@@ -1207,7 +1207,7 @@ async function panel(env, body) {
     const salah = butuhTarget();
     if (salah) return gagal(salah);
     const coins = Math.trunc(Number(p.coins ?? 0));
-    if (!(coins > 0) || coins > 100000000000) return gagal("Jumlah coin tidak valid");
+    if (!(coins > 0) || coins > 10000000000000) return gagal("Jumlah coin tidak valid");
     // Pemilik akun yang juga developer tetap memakai jalur manager di panel manager,
     // supaya stok coin benar-benar berkurang sesuai jumlah yang dikirim.
     const pakaiStok = staf && staf.role === "manager";
