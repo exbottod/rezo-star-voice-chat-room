@@ -583,9 +583,9 @@ fun ProfileSheetAction(label: String, icon: String, onClick: () -> Unit) {
 /** Latar kartu profil: aset SVIP yang diunggah dari panel developer
  *  (slot "cardbg" per tingkat). Disajikan dari CDN, jadi APK tetap kecil. */
 @Composable
-private fun KartuProfilBg(a: VipAsset, modifier: Modifier = Modifier) {
+private fun KartuProfilBg(a: VipAsset, modifier: Modifier = Modifier, scale: ContentScale = ContentScale.Crop) {
     key(a.n, a.slot, a.updatedAt, a.url) {
-        VipMedia(a, modifier = modifier, loop = true, contentScale = ContentScale.Crop)
+        VipMedia(a, modifier = modifier, loop = true, contentScale = scale)
     }
 }
 
@@ -693,30 +693,25 @@ fun UserProfileSheet(
                     // Bagian atas: ketuk -> halaman profil lengkap.
                     // Latar kartu: animasi SVIP di belakang foto, nama, dan medali.
                     // Identitas (foto, nama, ID): bagian yang memakai latar kartu profil.
+                    // Latar kartu hanya tampil kalau pemiliknya memasangnya sendiri
+                    // (bisa dilepas kapan saja dari Ransel > Item VIP).
+                    val bgKartu = remember(u.cardbg) {
+                        val n = u.cardbg.removePrefix("vipcard_").toIntOrNull() ?: 0
+                        if (u.cardbg.startsWith("vipcard_") && n in 1..9) VipAssets.get(n, "cardbg") else null
+                    }
+                    Box(Modifier.fillMaxWidth()) {
+                    if (bgKartu != null) {
+                        // Gambar kartu ditampilkan UTUH (Fit), tidak dipotong ujung atas
+                        // maupun bawah. Sisa ruang di sisi kiri/kanan ditutup gradasi gelap.
+                        KartuProfilBg(bgKartu, Modifier.matchParentSize(), ContentScale.Fit)
+                        Box(
+                            Modifier.matchParentSize().background(
+                                Brush.verticalGradient(listOf(Color(0x33000000), Color(0x99000000))),
+                            ),
+                        )
+                    }
+                    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                     Box(Modifier.fillMaxWidth().clickable(onClick = onOpenFull)) {
-                        // Latar kartu hanya tampil kalau pemiliknya memasangnya sendiri
-                        // (bisa dilepas kapan saja dari Ransel > Item VIP).
-                        val bgKartu = remember(u.cardbg) {
-                            val n = u.cardbg.removePrefix("vipcard_").toIntOrNull() ?: 0
-                            if (u.cardbg.startsWith("vipcard_") && n in 1..9) VipAssets.get(n, "cardbg") else null
-                        }
-                        if (bgKartu != null) {
-                            // Gambar kartu dipasang dari TEPI ATAS: rasio asli dipertahankan
-                            // (748x1459) lalu dipotong di bawah, jadi bagian atas kartu
-                            // tidak ikut terpotong seperti sebelumnya.
-                            Box(Modifier.matchParentSize().clipToBounds()) {
-                                KartuProfilBg(
-                                    bgKartu,
-                                    Modifier.fillMaxWidth().aspectRatio(748f / 1459f).align(Alignment.TopCenter),
-                                )
-                            }
-                            // Selaput gelap tipis supaya nama dan angka tetap terbaca.
-                            Box(
-                                Modifier.matchParentSize().background(
-                                    Brush.verticalGradient(listOf(Color(0x44000000), Color(0xAA000000))),
-                                ),
-                            )
-                        }
                         Column(
                             Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
@@ -775,6 +770,8 @@ fun UserProfileSheet(
                         Spacer(Modifier.height(8.dp))
                         Text(tr("Ketuk untuk lihat profil lengkap \u203A"), color = Gold, fontSize = 12.sp)
                         Spacer(Modifier.height(10.dp))
+                    }
+                    }
                     }
                     Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0x22FFFFFF)))
                     Column(
