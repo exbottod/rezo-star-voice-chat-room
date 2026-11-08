@@ -572,10 +572,11 @@ fun FramedAvatar(u: PublicUser?, size: Dp) {
 
 @Composable
 fun ProfileSheetAction(label: String, icon: String, onClick: () -> Unit) {
-    Column(Modifier.clickable(onClick = onClick).padding(horizontal = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(icon, fontSize = 28.sp)
-        Spacer(Modifier.height(4.dp))
-        Text(tr(label), color = Color(0xFFD0D0D0), fontSize = 12.sp)
+    // Ikon dibuat lebih kecil dan teks dirapatkan supaya baris tombol tidak makan tempat.
+    Column(Modifier.clickable(onClick = onClick).padding(horizontal = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(icon, fontSize = 22.sp)
+        Spacer(Modifier.height(2.dp))
+        Text(tr(label), color = Color(0xFFD0D0D0), fontSize = 11.sp)
     }
 }
 
@@ -788,7 +789,7 @@ fun UserProfileSheet(
                             ) {
                                 extra()
                             }
-                            Spacer(Modifier.height(12.dp))
+                            Spacer(Modifier.height(6.dp))
                         }
                         if (!isMe) {
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
