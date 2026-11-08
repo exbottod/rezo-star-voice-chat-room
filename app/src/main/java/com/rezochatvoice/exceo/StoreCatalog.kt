@@ -168,7 +168,7 @@ object StoreCatalog {
                 }
             }
         } catch (e: Exception) { }
-        rtdbReg = Rtdb.listen(Rtdb.ref("vipCfg")) { snap ->
+        rtdbReg = Rtdb.listen(Rtdb.ref("vipCfg"), onBatal = { jadwalUlangKatalog() }) { snap ->
             rtdbMap.clear()
             for (c in snap.children) {
                 val id = c.child("id").getValue(String::class.java) ?: continue
@@ -256,8 +256,70 @@ object StoreCatalog {
     fun idSudahDipakai(customId: String): Boolean =
         customId.isNotBlank() && !idTerpakai[customId].isNullOrBlank()
 
-    fun find(itemId: String?): CatalogItem? =
-        if (itemId != null && itemId.startsWith("sx_")) items[itemId.removePrefix("sx_")] else null
+    fun find(itemId: String?): CatalogItem? {
+        if (itemId == null || !itemId.startsWith("sx_")) return null
+        val key = itemId.removePrefix("sx_")
+        items[key]?.let { return it }
+        rtdbMap[key]?.let { return it }
+        ambilSatu(key)
+        return null
+    }
+
+    /* ---- Jaring pengaman kalau katalog belum termuat ---- */
+    private val dicoba = java.util.concurrent.ConcurrentHashMap<String, Boolean>()
+    @Volatile private var ulangKe = 0
+
+    /** Listener katalog ditolak (biasanya karena dipasang sebelum login) -> pasang ulang. */
+    private fun jadwalUlangKatalog() {
+        if (ulangKe >= 6 || rtdbSiap) return
+        ulangKe++
+        kotlinx.coroutines.GlobalScope.launch {
+            kotlinx.coroutines.delay(3000L)
+            try {
+                rtdbReg?.remove()
+                rtdbReg = null
+                start(force = true)
+            } catch (t: Throwable) { }
+        }
+    }
+
+    /** Ambil satu catatan item langsung dari Realtime Database.
+     *  Dipakai saat item sudah ada di tas user tapi katalog belum memuatnya
+     *  (mis. lencana yang baru dikirim panel), supaya gambarnya tetap tampil. */
+    private fun ambilSatu(key: String) {
+        if (key.length < 6) return
+        if (dicoba.putIfAbsent(key, true) != null) return
+        var reg: Reg? = null
+        reg = Rtdb.listen(Rtdb.ref("vipCfg/store_$key"), onBatal = { }) { c ->
+            try {
+                val url = c.child("url").getValue(String::class.java) ?: ""
+                val hasData = c.child("hasData").getValue(Boolean::class.java) ?: false
+                if (url.isNotBlank() || hasData) {
+                    val id = c.child("id").getValue(String::class.java) ?: key
+                    val asset = VipAsset(
+                        0, "st_$id",
+                        c.child("kind").getValue(String::class.java) ?: "image",
+                        url, hasData,
+                        c.child("updatedAt").getValue(Long::class.java) ?: 0L,
+                        (c.child("chunks").getValue(Long::class.java) ?: 0L).toInt(),
+                    )
+                    items[id] = CatalogItem(
+                        id,
+                        c.child("slot").getValue(String::class.java) ?: "badge",
+                        c.child("name").getValue(String::class.java) ?: id,
+                        c.child("price").getValue(Long::class.java) ?: 0L,
+                        (c.child("days").getValue(Long::class.java) ?: 7L).coerceAtLeast(1L),
+                        c.child("order").getValue(Long::class.java) ?: 0L,
+                        asset,
+                        c.child("targetUid").getValue(String::class.java) ?: "",
+                        c.child("customId").getValue(String::class.java) ?: "",
+                    )
+                }
+            } finally {
+                try { reg?.remove() } catch (t: Throwable) { }
+            }
+        }
+    }
 }
 
 /** Aset bingkai yang harus dipasang di avatar: item store (sx_) dulu, lalu bingkai VIP. */

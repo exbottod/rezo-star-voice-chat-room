@@ -33,7 +33,11 @@ object Rtdb {
                 override fun onDataChange(snapshot: DataSnapshot) {
                     clockOffset = snapshot.getValue(Long::class.java) ?: 0L
                 }
-                override fun onCancelled(error: DatabaseError) {}
+                override fun onCancelled(error: DatabaseError) {
+                // Biasanya terjadi saat app mendengarkan sebelum login: aturan
+                // database menolak. Pemanggil bisa mencoba memasang ulang.
+                try { onBatal?.invoke() } catch (t: Throwable) {}
+            }
             })
     }
 
@@ -41,7 +45,7 @@ object Rtdb {
     fun serverNow(): Long = System.currentTimeMillis() + clockOffset
     fun ref(path: String): DatabaseReference = root().child(path)
 
-    fun listen(q: Query, onData: (DataSnapshot) -> Unit): Reg {
+    fun listen(q: Query, onBatal: (() -> Unit)? = null, onData: (DataSnapshot) -> Unit): Reg {
         val l = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 // Satu data yang bentuknya aneh tidak boleh menjatuhkan aplikasi.
