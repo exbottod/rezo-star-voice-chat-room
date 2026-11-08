@@ -3604,7 +3604,7 @@ function ghToken(paksa){
    dicoba ulang sekali secara otomatis. */
 async function ghUploadSekali(tok, path, b64, name){
   const ctl = new AbortController();
-  const jam = setTimeout(() => ctl.abort(), 45000);
+  const jam = setTimeout(() => ctl.abort(), 60000);
   try {
     const res = await fetch("https://api.github.com/repos/" + GH_REPO + "/contents/" + path, {
       method: "PUT",
@@ -3620,15 +3620,50 @@ async function ghUploadSekali(tok, path, b64, name){
     if (!res.ok) throw new Error("GitHub: " + ((out && out.message) || res.status));
     return true;
   } catch (e) {
-    if (e && e.name === "AbortError") throw new Error("Unggahan ke GitHub melebihi 45 detik (jaringan lambat). Coba lagi, atau tempel URL gambar langsung.");
+    if (e && e.name === "AbortError") throw new Error("Unggahan ke GitHub melebihi 60 detik (jaringan lambat). Coba lagi, atau tempel URL gambar langsung.");
     throw e;
   } finally {
     clearTimeout(jam);
   }
 }
+/* Kecilkan gambar sebelum diunggah: bingkai avatar tampil kecil di layar,
+   jadi 512 px sudah lebih dari cukup. File 1-2 MB jadi 30-80 KB, sehingga
+   unggahan selesai dalam hitungan detik walau jaringannya lambat.
+   GIF dan SVGA tidak diubah supaya animasinya tidak hilang. */
+function kecilkanGambar(file, maxPx){
+  return new Promise((resolve) => {
+    const ext = (file.name.split(".").pop() || "").toLowerCase();
+    if (["gif", "svga", "mp4"].indexOf(ext) >= 0) return resolve(file);
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      try {
+        const max = maxPx || 512;
+        const skala = Math.min(1, max / Math.max(img.width, img.height));
+        if (skala >= 1 && file.size < 120 * 1024) { URL.revokeObjectURL(url); return resolve(file); }
+        const c = document.createElement("canvas");
+        c.width = Math.max(1, Math.round(img.width * skala));
+        c.height = Math.max(1, Math.round(img.height * skala));
+        c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+        c.toBlob((b) => {
+          URL.revokeObjectURL(url);
+          if (!b) return resolve(file);
+          resolve(new File([b], file.name.replace(/\.[a-z0-9]+$/i, "") + ".webp", { type: "image/webp" }));
+        }, "image/webp", 0.9);
+      } catch (e) {
+        URL.revokeObjectURL(url);
+        resolve(file);
+      }
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
+
 async function ghUpload(file, name){
   const tok = ghToken();
   if (!tok) throw new Error("Token GitHub belum diisi");
+  file = await kecilkanGambar(file, 512);
   const ext = (file.name.split(".").pop() || "").toLowerCase();
   const path = "docs/aset/" + name + "_" + Date.now().toString(36) + "." + ext;
   const bytes = new Uint8Array(await file.arrayBuffer());
