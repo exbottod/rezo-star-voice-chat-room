@@ -34,10 +34,7 @@ object Rtdb {
                     clockOffset = snapshot.getValue(Long::class.java) ?: 0L
                 }
                 override fun onCancelled(error: DatabaseError) {
-                // Biasanya terjadi saat app mendengarkan sebelum login: aturan
-                // database menolak. Pemanggil bisa mencoba memasang ulang.
-                try { onBatal?.invoke() } catch (t: Throwable) {}
-            }
+                }
             })
     }
 
@@ -56,7 +53,11 @@ object Rtdb {
                 }
             }
 
-            override fun onCancelled(error: DatabaseError) {}
+            override fun onCancelled(error: DatabaseError) {
+                // Biasanya terjadi karena app mendengarkan sebelum login: aturan
+                // database menolak. Pemanggil boleh memasang ulang listener.
+                try { onBatal?.invoke() } catch (t: Throwable) {}
+            }
         }
         q.addValueEventListener(l)
         return Reg { q.removeEventListener(l) }
