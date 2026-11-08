@@ -3705,11 +3705,20 @@ async function ghUpload(file, name){
     }
     const out = await res.json().catch(() => ({}));
     if (res.ok && out && out.ok && out.url) return tolakAsetMati(out.url);
-    if (res.status === 401 || res.status === 403) localStorage.removeItem("ghToken");
     const pesan = (out && out.e) || ("server menjawab " + res.status);
+    // Jawaban server adalah jawaban SEBENARNYA. Jangan ditimpa oleh percobaan
+    // langsung ke GitHub (yang di jaringan seluler sering "Failed to fetch").
+    if (/token github/i.test(pesan)) {
+      localStorage.removeItem("ghToken");
+      throw new Error("Server: " + pesan + ". Buat token GitHub baru (izin Contents: Read and write) lalu ulangi.");
+    }
+    if (res.status === 401) throw new Error("Server: sesi login habis. Keluar lalu masuk lagi ke panel, kemudian ulangi.");
+    if (res.status === 403) throw new Error("Server: " + pesan + ". Akun yang login di panel bukan akun admin.");
+    if (res.status === 400 || (res.status >= 400 && res.status < 500)) throw new Error("Server: " + pesan);
     try { toast("Lewat server gagal (" + pesan + "), coba langsung ke GitHub..."); } catch (e) { }
   } catch (e) {
-    try { toast("Server unggah tidak menjawab, coba langsung ke GitHub..."); } catch (x) { }
+    if (e && /^Server:/.test(String(e.message || ""))) throw e;
+    try { toast("Server unggah tidak menjawab (" + String((e && e.message) || e) + "), coba langsung ke GitHub..."); } catch (x) { }
   }
   // 2) Cadangan: unggah langsung ke api.github.com.
   const pesan = "Mengunggah " + Math.round(bytes.length / 1024) + " KB ke GitHub...";
@@ -3726,7 +3735,12 @@ async function ghUpload(file, name){
       try { toast("Percobaan " + (coba + 1) + " gagal, mencoba lagi..."); } catch (x) { }
     }
   }
-  if (gagal) throw gagal;
+  if (gagal) {
+    if (/failed to fetch|networkerror|load failed/i.test(String(gagal.message || gagal))) {
+      throw new Error("Tidak bisa terhubung ke server unggah maupun GitHub dari jaringan ini. Ganti ke Wi-Fi atau data seluler lain, lalu ulangi.");
+    }
+    throw gagal;
+  }
   return "https://cdn.jsdelivr.net/gh/" + GH_REPO + "@" + GH_BRANCH + "/" + path;
 }
 /** Tautan Cloudinary sekarang dijawab 401 (akun diblokir), jadi jangan pernah disimpan. */
@@ -3750,8 +3764,9 @@ async function cldUpload(file, name){
   try {
     return tolakAsetMati(await ghUpload(file, name));
   } catch (e) {
-    throw new Error("Upload ke GitHub gagal (" + String((e && e.message) || e) +
-      "). Tempel token GitHub yang baru lalu ulangi. Jangan pakai Cloudinary: akunnya diblokir, semua tautan 401.");
+    // Teruskan alasan aslinya apa adanya. Dulu semua error dibungkus teks soal
+    // token dan Cloudinary sehingga penyebab sebenarnya tidak kelihatan.
+    throw new Error("Upload gagal: " + String((e && e.message) || e));
   }
 }
 /* Pesan bantuan kalau database menolak (aturan belum diperbarui). */
