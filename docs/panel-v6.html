@@ -1772,6 +1772,12 @@ async function bkKirim(){
       days: days, order: 0, kind: vipKind(finalUrl), url: finalUrl,
       hasData: false, chunks: 0, updatedAt: Date.now(), targetUid: bkUid, dariPanel: "lencana",
     });
+    // Pastikan simpannya benar-benar ada. Dulu lencana sempat terkirim tapi
+    // catatannya tidak tersimpan, jadi di HP user itemnya muncul tanpa gambar.
+    const cek = await rtdb.ref("vipCfg/store_" + id).get();
+    if (!cek.exists() || !(cek.val() || {}).url) {
+      throw new Error("Lencana gagal disimpan ke database (catatannya tidak ada). Coba lagi.");
+    }
     st.textContent = "Mengirim ke ID " + bkPilih + "…";
     await kirimItem(bkUid, "sx_" + id, days, $("bkPakai").checked ? "badge" : "");
     logAction({ type: "sendBadge", targetId: bkPilih, uid: bkUid, itemId: id, days: days });
