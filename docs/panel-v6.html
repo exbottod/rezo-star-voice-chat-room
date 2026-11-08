@@ -3622,7 +3622,7 @@ async function walletAdmin(p){
   const u = auth.currentUser;
   if (!u) throw new Error("Belum login");
   if (OPS_TANPA_UID.has(p.op) && !p.uid) p = Object.assign({}, p, { uid: "-" });
-  const idToken = await u.getIdToken(true);
+  const idToken = await u.getIdToken();
   const kirim = (url) => fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json", apikey: WALLET_KEY },
@@ -5322,23 +5322,28 @@ async function pstProfil(uid){
   const k = String(uid || "");
   if (pstProfilCache.has(k)) return pstProfilCache.get(k);
   const out = { id: "", name: "", foto: null };
-  try {
-    const s = await rtdb.ref("ids/u/" + k).get();
-    if (s.exists()) {
-      const v = s.val();
-      out.id = String(typeof v === "object" ? ((v && v.id) || "") : (v || ""));
-    }
-  } catch (e) { }
-  try {
-    const s = await rtdb.ref("pub/" + k).get();
-    if (s.exists()) {
-      const v = s.val() || {};
-      if (v.id) out.id = String(v.id);
-      if (v.name) out.name = String(v.name);
-      out.foto = v.avatarB64 || v.avatar || v.photoUrl || null;
-    }
-  } catch (e) { }
+  // Ambil field kecil saja. Dulu seluruh pub/{uid} diunduh, termasuk foto
+  // base64 yang bisa ratusan KB per staf, sehingga daftar lama sekali.
+  const baca = async (path) => {
+    try { const sn = await rtdb.ref(path).get(); return sn.exists() ? sn.val() : null; } catch (e) { return null; }
+  };
+  const [vId, vNama, vPid, vUrl] = await Promise.all([
+    baca("ids/u/" + k),
+    baca("pub/" + k + "/name"),
+    baca("pub/" + k + "/id"),
+    baca("pub/" + k + "/photoUrl"),
+  ]);
+  out.id = String(vPid || (typeof vId === "object" ? ((vId && vId.id) || "") : (vId || "")) || "");
+  if (vNama) out.name = String(vNama);
+  if (vUrl) out.foto = String(vUrl);
+  // Nama dan ID sudah cukup untuk menampilkan baris. Foto tertanam (base64)
+  // diambil terpisah supaya tidak menahan daftar.
   pstProfilCache.set(k, out);
+  if (!out.foto) {
+    baca("pub/" + k + "/avatarB64").then(f => {
+      if (f) { out.foto = String(f); out.fotoBaru = true; }
+    });
+  }
   return out;
 }
 
@@ -5373,10 +5378,9 @@ async function pstList(){
         : "Belum ada staf. Kirim panel ke user di atas.";
       return;
     }
-    const profil = await Promise.all(tampil.map(x => pstProfil(x.uid)));
     box.innerHTML = "";
     tampil.forEach((x, n) => {
-      const p = profil[n] || { id: "", name: "", foto: null };
+      const p = pstProfilCache.get(String(x.uid)) || { id: "", name: "", foto: null };
       const row = document.createElement("div"); row.className = "item";
       const info = document.createElement("div"); info.className = "info";
       info.style.display = "flex"; info.style.alignItems = "center"; info.style.gap = "10px";
@@ -5405,6 +5409,22 @@ async function pstList(){
         } catch (e) { off.disabled = false; toast("Gagal: " + e.message); }
       };
       row.append(info, use, off); box.appendChild(row);
+      // Profil menyusul: baris sudah tampil, nama dan foto terisi begitu datang.
+      if (!pstProfilCache.has(String(x.uid))) {
+        pstProfil(x.uid).then(pp => {
+          if (!row.isConnected) return;
+          p.id = pp.id; p.name = pp.name; p.foto = pp.foto;
+          t.textContent = (pp.name || "Pengguna tanpa nama") + "  \u00B7  " + (x.role === "manager" ? "Manager" : "Admin");
+          s2.textContent = "ID " + (pp.id || "-") + (x.active ? "" : " \u00B7 dicabut") + " \u00B7 " + (x.stok || 0) + " item \u00B7 coin " + fmtKoin(x.coins || 0);
+          const tukarFoto = () => {
+            const lama = info.firstChild;
+            const baru2 = pstFoto(pp);
+            if (lama) info.replaceChild(baru2, lama);
+          };
+          tukarFoto();
+          if (!pp.foto) setTimeout(() => { if (row.isConnected && pp.foto) tukarFoto(); }, 1500);
+        });
+      }
     });
   } catch (e) { box.textContent = "Gagal memuat staf: " + e.message; }
 }
