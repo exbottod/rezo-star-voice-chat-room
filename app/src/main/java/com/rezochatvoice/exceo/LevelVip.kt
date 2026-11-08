@@ -160,7 +160,11 @@ fun findItem(id: String?): StoreItem? {
     return base.copy(asset = a)
 }
 
+/** Lencana dimatikan dulu: gambarnya belum bisa tampil benar di tas user. */
+const val LENCANA_AKTIF = false
+
 fun activeEquip(w: Wallet, slot: String): String {
+    if (slot == "badge" && !LENCANA_AKTIF) return ""
     val id = w.equip[slot] ?: return ""
     return if ((w.inv[id] ?: 0L) > System.currentTimeMillis()) id else ""
 }
@@ -287,6 +291,7 @@ fun VipTagText(n: Int, modifier: Modifier = Modifier) {
 /** Lencana di bawah level & nama: VIP otomatis + lencana store yang dipakai. */
 @Composable
 fun BadgeRow(vip: Int, until: Long, badge: String, modifier: Modifier = Modifier) {
+    if (!LENCANA_AKTIF) return
     val on = vipActive(vip, until)
     val b = findItem(badge)
     if (!on && b == null) return
@@ -871,7 +876,6 @@ private val STORE_CATS = listOf(
     Triple("uid", "Unique ID", "\uD83C\uDD94"),
     Triple("entry", "Efek masuk", "\u2728"),
     Triple("banner", "Banner masuk", "\uD83D\uDEA9"),
-    Triple("badge", "Lencana", "\uD83C\uDF96\uFE0F"),
     Triple("bubble", "Gelembung", "\uD83D\uDCAC"),
     Triple("medal", "Medali", "\uD83C\uDFC5"),
 )
@@ -1024,6 +1028,7 @@ fun StoreScreen(uid: String, wallet: Wallet, onOpenVip: () -> Unit, onBack: () -
                         it?.let { i -> i to exp }
                     }
                     .filter { it.first.slot != "medal" && it.first.slot != "title" }
+                    .filter { LENCANA_AKTIF || it.first.slot != "badge" }
                     // Item kiriman panel (sx_) selalu tampil. Item bawaan yang belum punya
                 // gambar tetap disembunyikan supaya tidak muncul ikon kosong.
                 .filter { it.first.id.startsWith("sx_") || run { val a = it.first.asset; a != null && (a.url.isNotBlank() || a.hasData) } }

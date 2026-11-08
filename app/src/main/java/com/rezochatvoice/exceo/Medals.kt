@@ -91,7 +91,7 @@ fun activeMedalIds(w: Wallet): List<String> {
             id.startsWith("svm_") -> true
             id.startsWith("sx_") -> true
             else -> findItem(id) != null
-        }
+        } && (LENCANA_AKTIF || findItem(id)?.slot != "badge")
     }.take(MAX_MEDALS)
 }
 
@@ -147,7 +147,7 @@ fun UserMedals(csv: String?, size: Dp = 44.dp, modifier: Modifier = Modifier) {
     // Aturan sama dengan activeMedalIds: medal VIP, store (sx_), SVIP (svm_), dan bawaan.
     val ids = medalIdList(csv).take(MAX_MEDALS).filter {
         it.startsWith("vipt_") || it.startsWith("sx_") || it.startsWith("svm_") || findItem(it) != null
-    }
+    }.filter { LENCANA_AKTIF || findItem(it)?.slot != "badge" }
     if (ids.isEmpty()) return
     // Barisan medal rapi: rata kiri, jarak seragam, otomatis pindah baris kalau banyak.
     if (size <= 36.dp) {
