@@ -3536,11 +3536,16 @@ async function walletAdmin(p){
   });
   let res;
   if (OPS_NEW.has(p.op)) {
-    // Server Base44 dulu; kalau tidak terjangkau, coba Cloudflare.
-    try { res = await kirim(WALLET_NEW); }
-    catch (e) { res = await kirim(WALLET_CADANGAN); }
-    if (res.status === 429 || res.status >= 500) {
-      try { res = await kirim(WALLET_CADANGAN); } catch (e) { /* pakai jawaban pertama */ }
+    // Worker Cloudflare + Turso dulu: server Base44 bisa menjawab 402 kalau
+    // kuota integrasi bulanannya habis, dan itu mematikan seluruh panel admin.
+    try { res = await kirim(WALLET_CADANGAN); }
+    catch (e) { res = await kirim(WALLET_NEW); }
+    if (!res.ok) {
+      // 402 = kuota Base44, 429/5xx = server sibuk. Semua dicoba ke server lain.
+      try {
+        const cad = await kirim(WALLET_NEW);
+        if (cad.ok) res = cad;
+      } catch (e) { /* tetap pakai jawaban pertama */ }
     }
   } else {
     res = await kirim(WALLET_API);
