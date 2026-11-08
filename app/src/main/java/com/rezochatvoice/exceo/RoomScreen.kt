@@ -819,15 +819,15 @@ fun RoomScreen(
                     },
                     extra = {
                         if (s.uid == myUid) {
-                            ProfileSheetAction(tr("Turun Mic"), "⬇") {
+                            ProfileSheetAction(tr("Turun Mic"), "down") {
                                 seatSheet = null
                                 scope.launch { RoomRepo.leaveSeat(r.id, idx) }
                             }
-                            ProfileSheetAction(if (s.muted) "Buka mic" else "Matikan mic", if (s.muted) "🎤" else "🔇") {
+                            ProfileSheetAction(if (s.muted) "Buka mic" else "Matikan mic", if (s.muted) "mic" else "mute") {
                                 scope.launch { RoomRepo.setSeatMuted(r.id, idx, !s.muted) }
                             }
                         }
-                        ProfileSheetAction(tr("Hadiah"), "🎁") {
+                        ProfileSheetAction(tr("Hadiah"), "gift") {
                             seatSheet = null
                             giftTarget = s.uid
                             giftOpen = true

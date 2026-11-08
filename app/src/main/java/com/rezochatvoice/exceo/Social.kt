@@ -18,6 +18,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.*
@@ -572,11 +573,56 @@ fun FramedAvatar(u: PublicUser?, size: Dp) {
 
 @Composable
 fun ProfileSheetAction(label: String, icon: String, onClick: () -> Unit) {
-    // Ikon dibuat lebih kecil dan teks dirapatkan supaya baris tombol tidak makan tempat.
-    Column(Modifier.clickable(onClick = onClick).padding(horizontal = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(icon, fontSize = 22.sp)
+    // Ikon digambar sendiri (bukan emoji): kecil, rapi, warna emas.
+    // Kunci ikon: "down" (turun mic), "mute", "mic", "gift".
+    val kind = when (icon) {
+        "\u2B07", "down" -> "down"
+        "\uD83D\uDD07", "mute" -> "mute"
+        "\uD83C\uDFA4", "mic" -> "mic"
+        else -> "gift"
+    }
+    Column(
+        Modifier.clickable(onClick = onClick).padding(horizontal = 14.dp, vertical = 2.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(
+            Modifier.size(30.dp).clip(CircleShape)
+                .background(Brush.verticalGradient(listOf(Color(0xFF2A2415), Color(0xFF15120B))))
+                .border(1.dp, Color(0x99FFC107), CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            androidx.compose.foundation.Canvas(Modifier.size(16.dp)) {
+                val w = size.width; val h = size.height
+                val c = Color(0xFFFFD54F)
+                val st = androidx.compose.ui.graphics.drawscope.Stroke(width = w * 0.12f, cap = androidx.compose.ui.graphics.StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round)
+                when (kind) {
+                    "down" -> {
+                        drawLine(c, Offset(w * 0.5f, h * 0.12f), Offset(w * 0.5f, h * 0.82f), strokeWidth = w * 0.13f, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                        val a = Path().apply { moveTo(w * 0.2f, h * 0.55f); lineTo(w * 0.5f, h * 0.86f); lineTo(w * 0.8f, h * 0.55f) }
+                        drawPath(a, c, style = st)
+                    }
+                    "gift" -> {
+                        drawRoundRect(c, Offset(w * 0.1f, h * 0.42f), androidx.compose.ui.geometry.Size(w * 0.8f, h * 0.5f), androidx.compose.ui.geometry.CornerRadius(w * 0.08f), style = st)
+                        drawLine(c, Offset(w * 0.5f, h * 0.42f), Offset(w * 0.5f, h * 0.92f), strokeWidth = w * 0.11f)
+                        drawLine(c, Offset(w * 0.05f, h * 0.42f), Offset(w * 0.95f, h * 0.42f), strokeWidth = w * 0.12f, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                        val bow = Path().apply {
+                            moveTo(w * 0.5f, h * 0.42f); cubicTo(w * 0.2f, h * 0.02f, w * 0.0f, h * 0.3f, w * 0.5f, h * 0.42f)
+                            moveTo(w * 0.5f, h * 0.42f); cubicTo(w * 0.8f, h * 0.02f, w * 1.0f, h * 0.3f, w * 0.5f, h * 0.42f)
+                        }
+                        drawPath(bow, c, style = st)
+                    }
+                    else -> {
+                        drawRoundRect(c, Offset(w * 0.36f, h * 0.04f), androidx.compose.ui.geometry.Size(w * 0.28f, h * 0.5f), androidx.compose.ui.geometry.CornerRadius(w * 0.14f), style = st)
+                        val u = Path().apply { moveTo(w * 0.2f, h * 0.45f); cubicTo(w * 0.2f, h * 0.85f, w * 0.8f, h * 0.85f, w * 0.8f, h * 0.45f) }
+                        drawPath(u, c, style = st)
+                        drawLine(c, Offset(w * 0.5f, h * 0.76f), Offset(w * 0.5f, h * 0.96f), strokeWidth = w * 0.11f, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                        if (kind == "mute") drawLine(Color(0xFFFF5252), Offset(w * 0.08f, h * 0.92f), Offset(w * 0.92f, h * 0.08f), strokeWidth = w * 0.13f, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                    }
+                }
+            }
+        }
         Spacer(Modifier.height(2.dp))
-        Text(tr(label), color = Color(0xFFD0D0D0), fontSize = 11.sp)
+        Text(tr(label), color = Color(0xFFD0D0D0), fontSize = 10.sp)
     }
 }
 
@@ -710,7 +756,6 @@ fun UserProfileSheet(
                             ),
                         )
                     }
-                    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                     Box(Modifier.fillMaxWidth().clickable(onClick = onOpenFull)) {
                         Column(
                             Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
@@ -754,9 +799,13 @@ fun UserProfileSheet(
                             }
                         }
                     }
-                    // Bagian bawah: lencana lain di ATAS medali 1:1, tanpa latar kartu.
+                    }
+                    // Bagian bawah (lencana, medali, VIP) disembunyikan di area yang bisa
+                    // digeser/digulir, supaya sheet pendek dan kartu di atas tetap utuh.
                     Column(
-                        Modifier.fillMaxWidth().clickable(onClick = onOpenFull).padding(horizontal = 20.dp),
+                        Modifier.fillMaxWidth().heightIn(max = 150.dp)
+                            .verticalScroll(rememberScrollState())
+                            .clickable(onClick = onOpenFull).padding(horizontal = 20.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Spacer(Modifier.height(10.dp))
@@ -770,8 +819,6 @@ fun UserProfileSheet(
                         Spacer(Modifier.height(8.dp))
                         Text(tr("Ketuk untuk lihat profil lengkap \u203A"), color = Gold, fontSize = 12.sp)
                         Spacer(Modifier.height(10.dp))
-                    }
-                    }
                     }
                     Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0x22FFFFFF)))
                     Column(
