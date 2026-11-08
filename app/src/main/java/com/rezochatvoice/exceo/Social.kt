@@ -691,7 +691,8 @@ fun UserProfileSheet(
                 } else {
                     // Bagian atas: ketuk -> halaman profil lengkap.
                     // Latar kartu: animasi SVIP di belakang foto, nama, dan medali.
-                    Box(Modifier.fillMaxWidth()) {
+                    // Identitas (foto, nama, ID): bagian yang memakai latar kartu profil.
+                    Box(Modifier.fillMaxWidth().clickable(onClick = onOpenFull)) {
                         // Latar kartu hanya tampil kalau pemiliknya memasangnya sendiri
                         // (bisa dilepas kapan saja dari Ransel > Item VIP).
                         val bgKartu = remember(u.cardbg) {
@@ -708,7 +709,7 @@ fun UserProfileSheet(
                             )
                         }
                         Column(
-                            Modifier.fillMaxWidth().clickable(onClick = onOpenFull).padding(horizontal = 20.dp, vertical = 16.dp),
+                            Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
                             FramedAvatar(u, 96.dp)
@@ -730,12 +731,16 @@ fun UserProfileSheet(
                             }
                             Spacer(Modifier.height(6.dp))
                             FamTag3D(u.fam)
-
                             Spacer(Modifier.height(6.dp))
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(tr("UID:${u.userId}"), color = Color(0xFFBDBDBD), fontSize = 15.sp)
                                 Spacer(Modifier.width(8.dp))
                                 LevelBadge(userLevel(u))
+                                // Lencana tingkat VIP pindah ke sini, sebelah level.
+                                if (vipActive(u.vip, u.vipUntil)) {
+                                    Spacer(Modifier.width(6.dp))
+                                    VipTag(u.vip)
+                                }
                                 Spacer(Modifier.width(6.dp))
                                 GenderBadge(u.gender)
                             }
@@ -743,21 +748,28 @@ fun UserProfileSheet(
                                 Spacer(Modifier.height(8.dp))
                                 Text(u.bio, color = Color(0xFFE0E0E0), fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                             }
-                            Spacer(Modifier.height(12.dp))
-                            Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0x33FFFFFF)))
-                            Spacer(Modifier.height(12.dp))
-                            UserMedals(u.medals, 44.dp, Modifier.fillMaxWidth())
-                            Spacer(Modifier.height(14.dp))
-                            VipBanner(u)
-                            Spacer(Modifier.height(8.dp))
-                            UserBadges(u)
-                            Spacer(Modifier.height(10.dp))
-                            Text(tr("Ketuk untuk lihat profil lengkap ›"), color = Gold, fontSize = 12.sp)
                         }
+                    }
+                    // Bagian bawah: lencana lain di ATAS medali 1:1, tanpa latar kartu.
+                    Column(
+                        Modifier.fillMaxWidth().clickable(onClick = onOpenFull).padding(horizontal = 20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Spacer(Modifier.height(10.dp))
+                        UserBadges(u)
+                        Spacer(Modifier.height(10.dp))
+                        Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0x33FFFFFF)))
+                        Spacer(Modifier.height(10.dp))
+                        UserMedals(u.medals, 44.dp, Modifier.fillMaxWidth())
+                        Spacer(Modifier.height(12.dp))
+                        VipBanner(u)
+                        Spacer(Modifier.height(8.dp))
+                        Text(tr("Ketuk untuk lihat profil lengkap \u203A"), color = Gold, fontSize = 12.sp)
+                        Spacer(Modifier.height(10.dp))
                     }
                     Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0x22FFFFFF)))
                     Column(
-                        Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
+                        Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         if (extra != null) {
