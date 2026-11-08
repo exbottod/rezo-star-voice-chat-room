@@ -1017,7 +1017,15 @@ fun StoreScreen(uid: String, wallet: Wallet, onOpenVip: () -> Unit, onBack: () -
                 // Hanya item yang masih aktif DAN punya gambar. Item bawaan tanpa aset
                 // (tampil emoji kosong) dan item yang sudah expired tidak ditampilkan.
                 val mineAll = wallet.inv.filter { it.value > now }
-                    .mapNotNull { (id, exp) -> findItem(id)?.let { it to exp } }
+                    .mapNotNull { (id, exp) ->
+                        // Item kiriman panel tetap tampil walau katalog store belum
+                        // sempat termuat di HP ini: lebih baik muncul dengan ikon
+                        // bawaan daripada hilang tanpa jejak.
+                        val it = findItem(id) ?: if (id.startsWith("sx_"))
+                            StoreItem(id, "badge", tr("Lencana"), "\uD83C\uDF96\uFE0F", 0, 0, Color(0xFFD4AF37))
+                        else null
+                        it?.let { i -> i to exp }
+                    }
                     .filter { it.first.slot != "medal" && it.first.slot != "title" }
                     // Item kiriman panel (sx_) selalu tampil. Item bawaan yang belum punya
                 // gambar tetap disembunyikan supaya tidak muncul ikon kosong.
