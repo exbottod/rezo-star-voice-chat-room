@@ -345,7 +345,10 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
         // Katalog (gift/store/VIP) dimuat PALING AWAL, tidak bergantung proses lain,
         // supaya gift bawaan selalu tampil walau Firestore limit/koneksi bermasalah.
         VipAssets.load()
-        StoreCatalog.start()
+        // Setelah login uid berubah: listener katalog yang dipasang sebelum login
+        // ditolak database, jadi muat ulang paksa supaya lencana/frame kiriman
+        // panel langsung terbaca.
+        StoreCatalog.start(force = uid.isNotEmpty())
         GiftCatalog.start()
         if (uid.isEmpty()) return@LaunchedEffect
         ProfileRepo.loadRemote()?.let {

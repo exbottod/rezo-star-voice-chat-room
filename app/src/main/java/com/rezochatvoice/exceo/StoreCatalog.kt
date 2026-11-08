@@ -271,10 +271,10 @@ object StoreCatalog {
 
     /** Listener katalog ditolak (biasanya karena dipasang sebelum login) -> pasang ulang. */
     private fun jadwalUlangKatalog() {
-        if (ulangKe >= 6 || rtdbSiap) return
+        if (ulangKe >= 10 || rtdbSiap) return
         ulangKe++
         kotlinx.coroutines.GlobalScope.launch {
-            kotlinx.coroutines.delay(3000L)
+            kotlinx.coroutines.delay(2500L)
             try {
                 rtdbReg?.remove()
                 rtdbReg = null

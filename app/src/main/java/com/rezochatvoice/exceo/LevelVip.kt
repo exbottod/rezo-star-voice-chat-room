@@ -161,7 +161,7 @@ fun findItem(id: String?): StoreItem? {
 }
 
 /** Lencana dimatikan dulu: gambarnya belum bisa tampil benar di tas user. */
-const val LENCANA_AKTIF = false
+const val LENCANA_AKTIF = true
 
 fun activeEquip(w: Wallet, slot: String): String {
     if (slot == "badge" && !LENCANA_AKTIF) return ""
