@@ -1841,6 +1841,9 @@ async function bkKirim(){
     }
     st.textContent = "Mengirim ke ID " + bkPilih + "…";
     await kirimItem(bkUid, "sx_" + id, days, $("bkPakai").checked ? "badge" : "");
+    let bkUser = { id: bkPilih, name: "Pengguna" };
+    try { bkUser = await lookup(bkPilih); } catch (e) { }
+    await kirimNotifItem(bkUid, bkUser, "badge", name || "Lencana Resmi");
     logAction({ type: "sendBadge", targetId: bkPilih, uid: bkUid, itemId: id, days: days });
     st.textContent = "Selesai. Lencana terkirim ke ID " + bkPilih + " selama " + days + " hari"
       + ($("bkPakai").checked ? ", dan sudah dipakai di profilnya." : ". User bisa memakainya dari My Item.");
@@ -2845,6 +2848,59 @@ function logAction(obj){
 /* ---------- Banned ---------- */
 /* Ban disimpan di server dompet (tabel panel_ban), tempat yang sama yang dicek
    aplikasi saat user membuka app. Firestore tidak lagi dipakai untuk ban. */
+/* ---------- Notifikasi item ke penerima ----------
+   Setiap aset yang dikirim panel (bingkai, efek masuk, banner, lencana, medali,
+   ID custom) juga membuat pesan di chat pribadi penerima dengan akun pengirim,
+   jadi muncul notifikasi dan riwayatnya tersimpan di tab Pesan aplikasi. */
+const JENIS_ITEM = {
+  frame: "frame", entry: "entry effect", banner: "entry banner",
+  badge: "badge", medal: "medal", uid: "Unique ID", bubble: "chat bubble",
+};
+async function sayaSendiri(){
+  const u = auth.currentUser;
+  if (!u) return null;
+  const email = String(u.email || "");
+  const resmi = /developerex100/i.test(email) ? "Official Developer" : "Official Manager";
+  let nama = resmi, id = email ? email.split("@")[0] : "official";
+  try {
+    const p = await rtdb.ref("pub/" + u.uid).get();
+    const v = (p.exists() && p.val()) || {};
+    if (v.name) nama = String(v.name);
+    if (v.id) id = String(v.id);
+  } catch (e) { }
+  return { uid: u.uid, nama: nama, id: id, resmi: resmi };
+}
+async function kirimNotifItem(uidT, userT, jenis, namaItem){
+  try {
+    if (!uidT) return;
+    const ak = await sayaSendiri();
+    if (!ak || !ak.uid) return;
+    const tipe = JENIS_ITEM[jenis] || jenis || "item";
+    const sebut = namaItem ? ("\u201C" + namaItem + "\u201D ") : "";
+    const teks = "You received a " + tipe + " " + sebut + "from the " + ak.resmi + ". Open My Items to use it.";
+    const id = ak.uid < uidT ? ak.uid + "_" + uidT : uidT + "_" + ak.uid;
+    const at = Date.now();
+    const lawanNama = (userT && userT.name) || "Pengguna";
+    const lawanId = String((userT && userT.id) || "");
+    await rtdb.ref("chats/" + id + "/messages").push({ from: ak.uid, text: teks, at: at });
+    await rtdb.ref("chats/" + id).update({
+      members: { [ak.uid]: true, [uidT]: true },
+      names: { [ak.uid]: ak.nama, [uidT]: lawanNama },
+      ids: { [ak.uid]: ak.id, [uidT]: lawanId },
+      lastText: teks, lastAt: at,
+    });
+    await rtdb.ref("chatsByUser/" + ak.uid + "/" + id).update({
+      otherUid: uidT, otherName: lawanNama, otherId: lawanId,
+      lastText: teks, lastAt: at, lastFrom: ak.uid,
+    });
+    await rtdb.ref("chatsByUser/" + uidT + "/" + id).update({
+      otherUid: ak.uid, otherName: ak.nama, otherId: ak.id,
+      lastText: teks, lastAt: at, lastFrom: ak.uid,
+    });
+    return teks;
+  } catch (e) { console.warn("notif item", e); }
+}
+
 /* Kirim item ke akun lewat server panel VPS. Jalur ini sama dengan yang dipakai
    aplikasi (action "send_item"), karena wallet-api Supabase belum punya operasi itu. */
 async function kirimItem(uid, itemId, days, slot){
@@ -4217,6 +4273,7 @@ async function storeSave(c, el, btn){
         // ID custom (mis. 1000) didaftarkan sebagai alias supaya bisa dicari di app.
         try { await rtSet("uidCustom/" + stUidPilih, { uid: targetUid, itemId: "sx_" + id, at: Date.now() }); } catch (e) { }
         await kirimItem(targetUid, "sx_" + id, 3650, slot);
+        await kirimNotifItem(targetUid, { id: stUidPilih, name: name }, slot, name || "Item Resmi");
         toast("Tersimpan ✅ dan langsung dipasang ke ID " + stUidPilih);
       } catch (e) {
         toast("Item tersimpan, tapi gagal dipasang ke ID " + stUidPilih + ": " + (e.message || e));
@@ -4325,6 +4382,7 @@ async function kirimFrameUser(){
     });
     if (st) st.textContent = "Mengirim ke akun...";
     await kirimItem(uidT, "sx_" + id, hari, pakai ? "frame" : "");
+    await kirimNotifItem(uidT, u, "frame", nama || "Bingkai Resmi");
     logAction({ type: "kirimFrame", targetId: idRaw, uid: uidT, itemId: "sx_" + id, days: hari, pakai: pakai });
     if (st) st.textContent = "Terkirim. Frame sudah masuk My Item akun " + idRaw + " (" + hari + " hari).";
     toast("Frame terkirim ke ID " + idRaw);
