@@ -3615,18 +3615,42 @@ function dbHelp(e){
   }
   return m;
 }
+/* Simpan ke Realtime Database lewat HTTPS biasa (REST), bukan soket SDK.
+   Di jaringan seluler soket sering diputus diam-diam: baca jalan dari cache,
+   tapi tulis menggantung sampai timeout. REST selalu lewat HTTPS jadi tetap
+   jalan. Kalau REST gagal, baru coba SDK. */
+async function rtRest(method, path, obj){
+  const u = auth.currentUser;
+  if (!u) throw new Error("Belum login Google. Masuk dulu lalu ulangi.");
+  const t = await u.getIdToken();
+  const bersih = String(path).replace(/^\/+/, "");
+  const url = CFG.databaseURL + "/" + bersih + ".json?auth=" + encodeURIComponent(t);
+  const opt = { method, headers: { "Content-Type": "application/json" }, cache: "no-store" };
+  if (method !== "DELETE") opt.body = JSON.stringify(obj === undefined ? null : obj);
+  const r = await fetch(url, opt);
+  const teks = await r.text();
+  if (!r.ok) throw new Error("Realtime Database menolak (" + r.status + "): " + teks.slice(0, 160));
+  return true;
+}
 async function rtSet(path, obj){
   toast("Menyimpan ke Realtime Database...");
-  return Promise.race([
-    rtdb.ref(path).set(obj),
-    new Promise((_, rej) => setTimeout(() => rej(new Error("Realtime Database tidak merespons dalam 20 detik. Cek koneksi.")), 20000))
-  ]);
+  try { return await rtRest("PUT", path, obj); }
+  catch (e) {
+    if (String(e && e.message).indexOf("menolak (401") >= 0 || String(e && e.message).indexOf("Belum login") >= 0) throw e;
+    return Promise.race([
+      rtdb.ref(path).set(obj),
+      new Promise((_, rej) => setTimeout(() => rej(new Error(dbHelp(e))), 15000))
+    ]);
+  }
 }
 async function rtDel(path){
-  return Promise.race([
-    rtdb.ref(path).remove(),
-    new Promise((_, rej) => setTimeout(() => rej(new Error("Realtime Database tidak merespons dalam 20 detik. Cek koneksi.")), 20000))
-  ]);
+  try { return await rtRest("DELETE", path); }
+  catch (e) {
+    return Promise.race([
+      rtdb.ref(path).remove(),
+      new Promise((_, rej) => setTimeout(() => rej(new Error("Realtime Database tidak merespons dalam 15 detik. Cek koneksi.")), 15000))
+    ]);
+  }
 }
 function fsCommit(b){
   toast("Menyimpan ke database...");
