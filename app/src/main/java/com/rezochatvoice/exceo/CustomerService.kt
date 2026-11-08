@@ -409,6 +409,12 @@ object ChatWatch {
     private var reg: Reg? = null
     private var startedFor: String? = null
 
+    /** Waktu pemantauan mulai. Pesan yang datang setelah ini dianggap baru,
+     *  termasuk pada chat yang belum pernah ada. Tanpa batas ini, chat baru
+     *  (mis. kiriman bingkai dari Developer Resmi) tidak pernah memunculkan
+     *  notifikasi karena dianggap "pesan lama" saat pertama kali terlihat. */
+    private var mulai: Long = 0L
+
     private fun sp(ctx: Context) = ctx.getSharedPreferences("chat_notif", Context.MODE_PRIVATE)
 
     private fun seen(ctx: Context, chatId: String): Long = sp(ctx).getLong(chatId, 0L)
@@ -421,6 +427,7 @@ object ChatWatch {
         if (startedFor == myUid && reg != null) return
         reg?.remove()
         startedFor = myUid
+        if (mulai == 0L) mulai = System.currentTimeMillis()
         reg = Rtdb.listen(Rtdb.ref("chatsByUser/$myUid")) { s ->
             s.children.forEach { c ->
                 val chatId = c.key ?: return@forEach
@@ -430,12 +437,13 @@ object ChatWatch {
                 val nama = c.child("otherName").getValue(String::class.java) ?: tr("Pengguna")
                 val idLawan = c.child("otherId").getValue(String::class.java) ?: ""
                 val lama = seen(ctx, chatId)
-                if (lama == 0L) {
-                    // Pertama kali dipantau: jangan notifikasi pesan lama.
+                if (lama == 0L && at <= mulai) {
+                    // Chat yang sudah ada sebelum app dipantau: riwayat lama
+                    // tidak perlu dinotifikasi.
                     setSeen(ctx, chatId, at)
                     return@forEach
                 }
-                if (at <= lama) return@forEach
+                if (lama != 0L && at <= lama) return@forEach
                 setSeen(ctx, chatId, at)
                 if (from.isNotEmpty() && from == myUid) return@forEach
                 if (AppState.openChatId == chatId) return@forEach
