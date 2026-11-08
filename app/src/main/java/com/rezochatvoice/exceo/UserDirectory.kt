@@ -41,6 +41,8 @@ data class PublicUser(
     val svipUntil: Long = 0,
     /** Item Unique ID yang dipakai akun ini (id "sx_..."), tampil menggantikan angka ID. */
     val uidItem: String = "",
+    /** Kartu profil yang sedang dipasang (id "vipcard_N"). Kosong = tidak dipakai. */
+    val cardbg: String = "",
 )
 
 /** Level SVIP efektif: SVIP yang dibeli (Realtime Database) atau level VIP dompet, mana yang lebih tinggi. */

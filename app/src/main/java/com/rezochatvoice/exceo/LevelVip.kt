@@ -591,6 +591,7 @@ fun VipScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                 "🎁 Gelar, bingkai, gelembung & efek masuk VIP$sel masuk ke My Item (Store)",
                 "⚡ Bonus exp +${vipBoostPercent(sel)}% dari setiap gift",
                 "🖼️ Bingkai avatar eksklusif VIP$sel",
+                "🪪 Kartu profil eksklusif VIP$sel (latar semua sheet profil)",
                 "💬 Gelembung chat eksklusif VIP$sel",
                 "🕒 Aktif $VIP_DAYS hari, bisa diperpanjang",
             )
@@ -688,6 +689,29 @@ fun VipScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                     }
                     Text(tr("Efek masuk"), color = Color(0xFFE6C47A), fontSize = 17.sp)
                 }
+            }
+            Spacer(Modifier.height(12.dp))
+            // ---- kartu profil: latar animasi untuk semua sheet profil (slot "cardbg") ----
+            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(
+                    Modifier.width(170.dp).height(110.dp).clip(RoundedCornerShape(14.dp))
+                        .background(Color(0x33000000)).border(1.dp, Color(0x66E6C47A), RoundedCornerShape(14.dp)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    val ka = kartuProfil(sel)
+                    key(sel) {
+                        VipMediaSafe(
+                            ka,
+                            Modifier.fillMaxSize(),
+                            loop = true,
+                            contentScale = ContentScale.Crop,
+                            fallback = { Text("\uD83E\uDEAA", fontSize = 40.sp) },
+                        )
+                    }
+                }
+                Spacer(Modifier.height(6.dp))
+                Text(tr("Kartu profil"), color = Color(0xFFE6C47A), fontSize = 17.sp, textAlign = TextAlign.Center)
+                Text(tr("Tampil di belakang nama dan medali, semua sheet profil"), color = Color(0xFFB9A98A), fontSize = 11.sp, textAlign = TextAlign.Center)
             }
             Spacer(Modifier.height(18.dp))
             Column(Modifier.padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1017,6 +1041,13 @@ fun StoreScreen(uid: String, wallet: Wallet, onOpenVip: () -> Unit, onBack: () -
                 // ===== RANSEL SAYA: kategori di kiri, grid item di kanan, play = preview penuh =====
                 // Hanya item yang masih aktif DAN punya gambar. Item bawaan tanpa aset
                 // (tampil emoji kosong) dan item yang sudah expired tidak ditampilkan.
+                // Item milik VIP Center punya id vipt_/vipf_/vipb_/vipe_/vipbn_ dan
+                // hanya tampil di tab Item VIP, tidak lagi bercampur di kategori Store.
+                val isVipId = { i: String ->
+                    i.startsWith("vipt_") || i.startsWith("vipf_") || i.startsWith("vipb_") ||
+                        i.startsWith("vipe_") || i.startsWith("vipbn_") || i.startsWith("vipm_")
+                }
+                val vipLevelOf = { i: String -> i.substringAfter("_").toIntOrNull() ?: 0 }
                 val mineAll = wallet.inv.filter { it.value > now }
                     .mapNotNull { (id, exp) ->
                         // Item kiriman panel tetap tampil walau katalog store belum
@@ -1028,12 +1059,15 @@ fun StoreScreen(uid: String, wallet: Wallet, onOpenVip: () -> Unit, onBack: () -
                         val it = findItem(id)
                         it?.let { i -> i to exp }
                     }
-                    .filter { it.first.slot != "medal" && it.first.slot != "title" }
+                    // Gelar & medali VIP tetap disimpan, tapi hanya tampil di tab Item VIP.
+                    .filter { (it.first.slot != "medal" && it.first.slot != "title") || isVipId(it.first.id) }
                     .filter { LENCANA_AKTIF || it.first.slot != "badge" }
                     // Item kiriman panel (sx_) selalu tampil. Item bawaan yang belum punya
                 // gambar tetap disembunyikan supaya tidak muncul ikon kosong.
                 .filter { it.first.id.startsWith("sx_") || run { val a = it.first.asset; a != null && (a.url.isNotBlank() || a.hasData) } }
-                val bagCats = STORE_CATS.filter { it.first != "medal" }
+                // Tab "Item VIP" memisahkan aset dari VIP Center (bingkai, lencana
+                // glory, efek masuk, gelembung, gelar, kartu profil) dari item Store.
+                val bagCats = listOf(Triple("vip", "Item VIP", "\uD83D\uDC51")) + STORE_CATS.filter { it.first != "medal" }
                 val mineCat = mineAll.filter { it.first.slot == cat }
                     .sortedWith(compareBy<Pair<StoreItem, Long>>({ it.first.id }))
                 Row(Modifier.weight(1f)) {
@@ -1063,10 +1097,111 @@ fun StoreScreen(uid: String, wallet: Wallet, onOpenVip: () -> Unit, onBack: () -
                         Text(tr("Ransel saya"), color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.height(8.dp))
                         val shownCat = if (cat == "medal") "frame" else cat
-                        val list = mineAll.filter { it.first.slot == shownCat }.sortedBy { it.first.id }
+                        val list = if (shownCat == "vip") {
+                            mineAll.filter { isVipId(it.first.id) }
+                                .sortedWith(compareBy<Pair<StoreItem, Long>>({ vipLevelOf(it.first.id) }, { it.first.slot }))
+                        } else {
+                            mineAll.filter { it.first.slot == shownCat && !isVipId(it.first.id) }.sortedBy { it.first.id }
+                        }
+                        if (shownCat == "vip") {
+                            // Kartu profil VIP ikut ditampilkan di sini. Tidak perlu
+                            // dipasang: kartu otomatis memakai aset sesuai tingkat SVIP.
+                            val lvVip = wallet.vip
+                            val kartuVip = (lvVip downTo 1).mapNotNull { n -> VipAssets.get(n, "cardbg")?.let { n to it } }
+                            // Lencana glory (medal) VIP: aset per tingkat, dipakai otomatis.
+                            val medalVip = (lvVip downTo 1).mapNotNull { n -> VipAssets.get(n, "medal")?.let { n to it } }
+                            if (medalVip.isNotEmpty()) {
+                                Text(tr("Lencana glory VIP"), color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                                Spacer(Modifier.height(6.dp))
+                                Row(
+                                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                ) {
+                                    medalVip.forEach { (nv, av) ->
+                                        Column(
+                                            Modifier.width(96.dp).clip(RoundedCornerShape(14.dp))
+                                                .background(Color(0xFF0C7F7B)).border(2.dp, Color(0xFF39D3C3), RoundedCornerShape(14.dp))
+                                                .padding(8.dp),
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                        ) {
+                                            Box(Modifier.size(70.dp)) {
+                                                key(av.updatedAt) {
+                                                    VipMediaSafe(av, Modifier.fillMaxSize(), loop = true, contentScale = ContentScale.Fit)
+                                                }
+                                            }
+                                            Spacer(Modifier.height(6.dp))
+                                            Text(tr("VIP$nv"), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                            // Lencana glory dipasang manual supaya bisa dimatikan.
+                                            val midGlory = "vipt_$nv"
+                                            val pakaiGlory = medalIdList(wallet.equip["medals"]).contains(midGlory)
+                                            Spacer(Modifier.height(4.dp))
+                                            Box(
+                                                Modifier.fillMaxWidth().background(if (pakaiGlory) Color(0xFFFFC107) else Color(0xFF1FC8B5)).padding(vertical = 6.dp),
+                                                contentAlignment = Alignment.Center,
+                                            ) {
+                                                GoldPill(if (pakaiGlory) "Lepas" else "Pakai") {
+                                                    AppScope.scope.launch {
+                                                        val kini = medalIdList(wallet.equip["medals"])
+                                                        val baru = if (kini.contains(midGlory)) kini - midGlory else kini + midGlory
+                                                        val err = LvRepo.equip(uid, "medals", baru.joinToString(","))
+                                                        if (err == null) PublicSync.push(uid)
+                                                        Toast.makeText(context, err ?: if (pakaiGlory) "Dilepas" else "Dipakai", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                Spacer(Modifier.height(12.dp))
+                            }
+                            if (kartuVip.isNotEmpty()) {
+                                Text(tr("Kartu profil"), color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                                Spacer(Modifier.height(6.dp))
+                                Row(
+                                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                ) {
+                                    kartuVip.forEach { (nv, av) ->
+                                        Column(
+                                            Modifier.width(150.dp).clip(RoundedCornerShape(14.dp))
+                                                .background(Color(0xFF0C7F7B)).border(2.dp, Color(0xFF39D3C3), RoundedCornerShape(14.dp))
+                                                .padding(8.dp),
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                        ) {
+                                            Box(Modifier.fillMaxWidth().height(84.dp).clip(RoundedCornerShape(10.dp)).background(Color(0x33000000))) {
+                                                key(av.updatedAt) {
+                                                    VipMediaSafe(av, Modifier.fillMaxSize(), loop = true, contentScale = ContentScale.Crop)
+                                                }
+                                            }
+                                            Spacer(Modifier.height(6.dp))
+                                            Text(tr("Kartu profil VIP$nv"), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                                            // Kartu profil juga dipasang manual, jadi bisa on/off.
+                                            val idKartu = "vipcard_$nv"
+                                            val pakaiKartu = wallet.equip["cardbg"] == idKartu
+                                            Spacer(Modifier.height(4.dp))
+                                            Box(
+                                                Modifier.fillMaxWidth().background(if (pakaiKartu) Color(0xFFFFC107) else Color(0xFF1FC8B5)).padding(vertical = 6.dp),
+                                                contentAlignment = Alignment.Center,
+                                            ) {
+                                                GoldPill(if (pakaiKartu) "Lepas" else "Pakai") {
+                                                    AppScope.scope.launch {
+                                                        val err = LvRepo.equip(uid, "cardbg", if (pakaiKartu) "" else idKartu)
+                                                        if (err == null) PublicSync.push(uid)
+                                                        Toast.makeText(context, err ?: if (pakaiKartu) "Dilepas" else "Dipakai", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                Spacer(Modifier.height(12.dp))
+                            }
+                        }
                         if (list.isEmpty()) {
                             Text(
-                                tr("Belum ada item di kategori ini.\nBeli di Store atau beli VIP untuk mendapatkan item."),
+                                if (shownCat == "vip")
+                                    tr("Belum ada item VIP.\nBeli paket VIP di VIP Center untuk mendapatkan bingkai, lencana, efek masuk, dan kartu profil eksklusif.")
+                                else tr("Belum ada item di kategori ini.\nBeli di Store atau beli VIP untuk mendapatkan item."),
                                 color = Color.White, fontSize = 14.sp, textAlign = TextAlign.Center,
                                 modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp),
                             )
@@ -1216,6 +1351,7 @@ object PublicSync {
                 m["bubble"] = activeEquip(w2, "bubble")
                 m["badge"] = activeEquip(w2, "badge")
                 m["medals"] = activeMedalIds(w2).joinToString(",")
+                m["cardbg"] = w2.equip["cardbg"].orEmpty()
                 m["uidItem"] = activeEquip(w2, "uid")
                 m["exp"] = w2.exp
                 m["vip"] = w2.vip.toLong()
@@ -1266,6 +1402,7 @@ object PublicSync {
                     // FIX lencana/family hilang saat kuota habis: medals, fam, ad, svip ikut
                     // tersimpan di RTDB pub supaya profil tetap tampil lengkap.
                     "medals" to activeMedalIds(w).joinToString(","),
+                    "cardbg" to w.equip["cardbg"].orEmpty(),
                     "fam" to (UserCache.peek(uid)?.fam ?: ""),
                     "ad" to SvipLocal.ad(uid),
                     "svip" to SvipLocal.csv(uid),
@@ -1333,6 +1470,7 @@ object PublicSync {
                 "bubble" to activeEquip(w, "bubble"),
                 "badge" to activeEquip(w, "badge"),
                 "medals" to activeMedalIds(w).joinToString(","),
+                    "cardbg" to w.equip["cardbg"].orEmpty(),
                 "svip" to svipCsv,
                 "ad" to ad,
                 "fam" to famName,
@@ -1351,6 +1489,7 @@ object PublicSync {
                         "svip" to svipCsv,
                         // FIX lencana: medals + fam + ad ikut ke RTDB pub.
                         "medals" to activeMedalIds(w).joinToString(","),
+                    "cardbg" to w.equip["cardbg"].orEmpty(),
                         "fam" to famName,
                         "ad" to ad,
                         "av" to (me?.avatarB64 ?: ""),

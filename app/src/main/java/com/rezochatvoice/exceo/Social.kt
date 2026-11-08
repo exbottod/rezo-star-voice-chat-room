@@ -116,6 +116,7 @@ object UserCache {
             svip = o.optString("svip"),
             ad = o.optString("ad"),
             uidItem = o.optString("uidItem"),
+            cardbg = o.optString("cardbg"),
         )
     } catch (e: Exception) {
         null
@@ -151,6 +152,7 @@ object UserCache {
                 svipUntil = (s.child("svipUntil").value as? Number)?.toLong() ?: b.svipUntil,
                 ad = s.child("ad").getValue(String::class.java) ?: b.ad,
                 uidItem = if (s.hasChild("uidItem")) s.child("uidItem").getValue(String::class.java) ?: "" else b.uidItem,
+                cardbg = if (s.hasChild("cardbg")) s.child("cardbg").getValue(String::class.java) ?: "" else b.cardbg,
                 // FIX avatar: foto profil ikut dibaca dari RTDB pub (field "av")
                 // supaya avatar tetap tampil saat kuota Firestore habis.
                 avatarB64 = s.child("av").getValue(String::class.java)?.takeIf { it.isNotBlank() } ?: b.avatarB64,
@@ -584,6 +586,15 @@ fun ProfileSheetAction(label: String, icon: String, onClick: () -> Unit) {
  * [topAction] = tombol di pojok kanan atas sheet (mis. menu titik tiga: Kick dari room).
  */
 @Composable
+/** Latar kartu profil: aset SVIP yang diunggah dari panel developer
+ *  (slot "cardbg" per tingkat). Disajikan dari CDN, jadi APK tetap kecil. */
+@Composable
+private fun KartuProfilBg(a: VipAsset, modifier: Modifier = Modifier) {
+    key(a.n, a.slot, a.updatedAt, a.url) {
+        VipMedia(a, modifier = modifier, loop = true, contentScale = ContentScale.Crop)
+    }
+}
+
 fun UserProfileSheet(
     uid: String,
     myUid: String,
@@ -678,53 +689,71 @@ fun UserProfileSheet(
                         else Text(tr("Profil tidak ditemukan"), color = Color(0xFFBDBDBD))
                     }
                 } else {
-                    // Bagian atas: ketuk -> halaman profil lengkap
-                    Column(
-                        Modifier.fillMaxWidth().clickable(onClick = onOpenFull).padding(horizontal = 20.dp, vertical = 16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        FramedAvatar(u, 96.dp)
-                        Spacer(Modifier.height(10.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            VipNameText(
-                                u.name,
-                                u.vip,
-                                u.vipUntil,
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 22.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f, fill = false),
+                    // Bagian atas: ketuk -> halaman profil lengkap.
+                    // Latar kartu: animasi SVIP di belakang foto, nama, dan medali.
+                    Box(Modifier.fillMaxWidth()) {
+                        // Latar kartu hanya tampil kalau pemiliknya memasangnya sendiri
+                        // (bisa dilepas kapan saja dari Ransel > Item VIP).
+                        val bgKartu = remember(u.cardbg) {
+                            val n = u.cardbg.removePrefix("vipcard_").toIntOrNull() ?: 0
+                            if (u.cardbg.startsWith("vipcard_") && n in 1..9) VipAssets.get(n, "cardbg") else null
+                        }
+                        if (bgKartu != null) {
+                            KartuProfilBg(bgKartu, Modifier.matchParentSize())
+                            // Selaput gelap tipis supaya nama dan angka tetap terbaca.
+                            Box(
+                                Modifier.matchParentSize().background(
+                                    Brush.verticalGradient(listOf(Color(0x55000000), Color(0x99000000))),
+                                ),
                             )
-                            Spacer(Modifier.width(8.dp))
-                            Text(flagEmoji(u.countryCode), fontSize = 22.sp)
                         }
-                        Spacer(Modifier.height(6.dp))
-                        FamTag3D(u.fam)
+                        Column(
+                            Modifier.fillMaxWidth().clickable(onClick = onOpenFull).padding(horizontal = 20.dp, vertical = 16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            FramedAvatar(u, 96.dp)
+                            Spacer(Modifier.height(10.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                VipNameText(
+                                    u.name,
+                                    u.vip,
+                                    u.vipUntil,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 22.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f, fill = false),
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(flagEmoji(u.countryCode), fontSize = 22.sp)
+                            }
+                            Spacer(Modifier.height(6.dp))
+                            FamTag3D(u.fam)
 
-                        Spacer(Modifier.height(6.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(tr("UID:${u.userId}"), color = Color(0xFFBDBDBD), fontSize = 15.sp)
-                            Spacer(Modifier.width(8.dp))
-                            LevelBadge(userLevel(u))
-                            Spacer(Modifier.width(6.dp))
-                            GenderBadge(u.gender)
-                        }
-                        if (u.bio.isNotBlank()) {
+                            Spacer(Modifier.height(6.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(tr("UID:${u.userId}"), color = Color(0xFFBDBDBD), fontSize = 15.sp)
+                                Spacer(Modifier.width(8.dp))
+                                LevelBadge(userLevel(u))
+                                Spacer(Modifier.width(6.dp))
+                                GenderBadge(u.gender)
+                            }
+                            if (u.bio.isNotBlank()) {
+                                Spacer(Modifier.height(8.dp))
+                                Text(u.bio, color = Color(0xFFE0E0E0), fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            }
+                            Spacer(Modifier.height(12.dp))
+                            Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0x33FFFFFF)))
+                            Spacer(Modifier.height(12.dp))
+                            UserMedals(u.medals, 44.dp, Modifier.fillMaxWidth())
+                            Spacer(Modifier.height(14.dp))
+                            VipBanner(u)
                             Spacer(Modifier.height(8.dp))
-                            Text(u.bio, color = Color(0xFFE0E0E0), fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            UserBadges(u)
+                            Spacer(Modifier.height(10.dp))
+                            Text(tr("Ketuk untuk lihat profil lengkap ›"), color = Gold, fontSize = 12.sp)
                         }
-                        Spacer(Modifier.height(12.dp))
-                        Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0x33FFFFFF)))
-                        Spacer(Modifier.height(12.dp))
-                        UserMedals(u.medals, 44.dp, Modifier.fillMaxWidth())
-                        Spacer(Modifier.height(14.dp))
-                        VipBanner(u)
-                        Spacer(Modifier.height(8.dp))
-                        UserBadges(u)
-                        Spacer(Modifier.height(10.dp))
-                        Text(tr("Ketuk untuk lihat profil lengkap ›"), color = Gold, fontSize = 12.sp)
                     }
                     Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0x22FFFFFF)))
                     Column(

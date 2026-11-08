@@ -203,6 +203,14 @@ fun vipFrameTier(frameId: String?, vip: Int, until: Long): Int {
 
 fun hasVipFrame(tier: Int): Boolean = tier in 1..9 && VipAssets.get(tier, "frame") != null
 
+/** Latar kartu profil untuk tingkat SVIP tertentu (slot "cardbg", diunggah dari panel).
+ *  Kalau tingkat itu belum diunggah, pakai tingkat di bawahnya supaya kartu tetap berhias. */
+fun kartuProfil(tier: Int): VipAsset? {
+    val t = tier.coerceIn(1, 9)
+    for (n in t downTo 1) VipAssets.get(n, "cardbg")?.let { return it }
+    return null
+}
+
 /** Tingkat VIP untuk gelembung obrolan: pakai vipb_N yang dipakai, atau otomatis mengikuti VIP aktif. */
 fun vipBubbleTier(bubbleId: String?, vip: Int, until: Long): Int {
     if (!bubbleId.isNullOrBlank()) {
