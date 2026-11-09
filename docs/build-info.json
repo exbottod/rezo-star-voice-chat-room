@@ -1,73 +1,15 @@
 {
-  "status": "ok",
-  "masalah": [],
-  "versi": "1.1.23",
-  "ukuran_mb": 69.0,
-  "sha256": "ea9dc690ef4c7db6f8470a5bbc20c3ec4d8cfaf74bb1d1e4e65f54061942ee08",
-  "commit": "cf155ee",
-  "waktu": "2026-11-09T13:50:49Z",
+  "status": "gagal",
+  "masalah": [
+    "Build gagal, buka riwayat build untuk detail."
+  ],
+  "versi": "1.1.24",
+  "ukuran_mb": 0,
+  "sha256": "",
+  "commit": "d9cf70f",
+  "waktu": "2026-11-09T14:19:53Z",
   "workflow": "https://github.com/exbottod/rezo-star-voice-chat-room/actions",
-  "aset_roket": 30,
-  "aset_total": 118,
-  "fitur": [
-    {
-      "nama": "Banner cashback terpisah",
-      "ada": true
-    },
-    {
-      "nama": "Banner gift biasa",
-      "ada": true
-    },
-    {
-      "nama": "Animasi cashback di avatar",
-      "ada": true
-    },
-    {
-      "nama": "Tombol kombo cashback",
-      "ada": true
-    },
-    {
-      "nama": "Roket level 1-5 di room",
-      "ada": true
-    },
-    {
-      "nama": "Peluncuran roket cadangan",
-      "ada": true
-    },
-    {
-      "nama": "Sambung ulang suara otomatis",
-      "ada": true
-    },
-    {
-      "nama": "Tukar diamond nominal sendiri",
-      "ada": true
-    },
-    {
-      "nama": "Papan peringkat roket",
-      "ada": true
-    }
-  ],
-  "roket_level": [
-    {
-      "level": 1,
-      "ada": true
-    },
-    {
-      "level": 2,
-      "ada": true
-    },
-    {
-      "level": 3,
-      "ada": true
-    },
-    {
-      "level": 4,
-      "ada": true
-    },
-    {
-      "level": 5,
-      "ada": true
-    }
-  ],
-  "catatan": "Update error game Wave"
+  "aset_roket": 0,
+  "aset_total": 0,
+  "fitur": []
 }
