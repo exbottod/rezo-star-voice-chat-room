@@ -2659,6 +2659,41 @@ export default {
         return json({ ok: 1, url: VPS_ASET + "/" + namaC });
       } catch (e) { return json({ ok: 0, e: "Gagal menyimpan: " + String(e?.message ?? e) }, 500); }
     }
+/** Kirim email lewat Resend. Kunci disimpan di server, bukan di app. */
+async function kirimEmail(env, ke, subjek, isiHtml, isiTeks) {
+  const key = env.RESEND_KEY || env.RESEND_API_KEY || "";
+  if (!key) throw new Error("RESEND_KEY belum diisi di server");
+  const dari = env.RESEND_DARI || "REZO <onboarding@resend.dev>";
+  const r = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: "Bearer " + key, "Content-Type": "application/json" },
+    body: JSON.stringify({ from: dari, to: [ke], subject: subjek, html: isiHtml, text: isiTeks || undefined }),
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error("Resend " + r.status + ": " + String(j?.message || j?.error || "").slice(0, 160));
+  return j;
+}
+
+    if (url.pathname.toLowerCase() === "/email/uji") {
+      // Uji kirim email. Hanya bisa dengan kunci Resend milik server sendiri.
+      if (req.method !== "POST") return json({ ok: 0, e: "Pakai POST" }, 405);
+      const keyU = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "").trim();
+      if (!env.RESEND_KEY || keyU !== env.RESEND_KEY) return json({ ok: 0, e: "Kunci tidak cocok" }, 401);
+      let bU = {};
+      try { bU = await req.json(); } catch (e) { bU = {}; }
+      const keU = String(bU.ke || "").trim();
+      if (!keU.includes("@")) return json({ ok: 0, e: "Alamat email tidak sah" }, 400);
+      try {
+        const hasil = await kirimEmail(
+          env,
+          keU,
+          String(bU.subjek || "Uji email REZO"),
+          "<p>Email dari server REZO berhasil terkirim. Sistem email sudah aktif.</p>",
+          "Email dari server REZO berhasil terkirim.",
+        );
+        return json({ ok: 1, id: hasil?.id || "" });
+      } catch (e) { return json({ ok: 0, e: String(e?.message ?? e) }, 500); }
+    }
     if (url.pathname === "/admin") {
       const b = await req.json().catch(() => null);
       if (!b) return json({ ok: 0, e: "Body tidak valid" }, 400);
