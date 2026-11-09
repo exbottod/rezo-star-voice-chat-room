@@ -127,14 +127,16 @@ fun AgencyScreen(onBack: () -> Unit) {
                     }
                 }
             } else {
+                val hostInfo = sebagaiHost
+                val pesanGabung: String = if (hostInfo != null) {
+                    "Kamu host di " + hostInfo.optString("nama", "-") +
+                        " (rate " + hostInfo.optInt("rate", 0) + "%). Pindah agensi bisa setelah 30 hari."
+                } else {
+                    "Masukkan kode undangan dari pemilik agensi."
+                }
                 Kotak {
                     Text("Gabung agensi", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                    Text(
-                        sebagaiHost != null
-                            ? "Kamu host di " + sebagaiHost!!.optString("nama", "-") + " (rate " + sebagaiHost!!.optInt("rate", 0) + "%). Pindah agensi bisa setelah 30 hari."
-                            : "Masukkan kode undangan dari pemilik agensi.",
-                        color = Color(0xFFB8E6DF), fontSize = 13.sp,
-                    )
+                    Text(pesanGabung, color = Color(0xFFB8E6DF), fontSize = 13.sp)
                     Spacer(Modifier.height(8.dp))
                     OutlinedTextField(
                         value = kode,
