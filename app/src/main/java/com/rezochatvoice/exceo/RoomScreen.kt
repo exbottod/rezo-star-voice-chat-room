@@ -241,6 +241,9 @@ fun RoomScreen(
     var rocketOpen by remember { mutableStateOf(false) }
     var giftTarget by remember { mutableStateOf<String?>(null) }
     var emotes by remember { mutableStateOf<Map<String, SeatEmote>>(emptyMap()) }
+    // Emot yang sudah tampil sekali ("uid:at"). Disimpan di level room supaya pindah
+    // kursi (komponen kursi dibuat ulang) tidak memunculkan emot yang sama lagi.
+    val emotSudahTampil = remember { mutableStateListOf<String>() }
     var customEmotes by remember { mutableStateOf<List<RoomEmote>>(emptyList()) }
     LaunchedEffect(roomId) { customEmotes = RoomEmotes.load() }
     var draft by remember { mutableStateOf("") }
@@ -587,6 +590,7 @@ fun RoomScreen(
                                         seatSize,
                                         locked = r.lockedSeats.contains(i),
                                         emote = seats[i]?.uid?.let { emotes[it] },
+                                        emotSudahTampil = emotSudahTampil,
                                         points = micPoints[i] ?: 0L,
                                     ) { seatSheet = i }
                                 }
@@ -1364,31 +1368,31 @@ private fun RmAvatar(bmp: ImageBitmap?, fallback: String, size: Dp) {
 @Composable
 private fun GelombangBicara(level: Float, size: Dp) {
     val l = level.coerceIn(0f, 1f)
-    androidx.compose.foundation.Canvas(Modifier.size(size * 1.5f)) {
+    val t = androidx.compose.animation.core.rememberInfiniteTransition(label = "gelombangKursi")
+    val fase by t.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(animation = tween(1100, easing = androidx.compose.animation.core.LinearEasing)),
+        label = "faseGelombang",
+    )
+    // Kanvas lebih besar dari kursi: cincin menyebar KELUAR dari garis lingkaran kursi,
+    // dan tidak pernah menggambar di atas avatar.
+    androidx.compose.foundation.Canvas(Modifier.size(size * 1.6f)) {
         val cx = this.size.width / 2f
         val cy = this.size.height / 2f
-        val dasar = this.size.minDimension * 0.335f
-        // Dua cincin yang melebar sesuai kerasnya suara.
-        for (i in 0..1) {
-            val lebar = dasar + this.size.minDimension * (0.02f + 0.13f * l) + this.size.minDimension * 0.05f * i
-            val alfa = (0.55f - 0.22f * i) * (0.25f + 0.75f * l)
+        val rKursi = this.size.minDimension / 1.6f / 2f
+        val maks = this.size.minDimension / 2f
+        for (i in 0..2) {
+            val f = (fase + i / 3f) % 1f
+            val r = rKursi + (maks - rKursi) * f
+            val alfa = (1f - f) * (0.35f + 0.55f * l)
             drawCircle(
-                color = Color(0xFF3FE08C).copy(alpha = alfa.coerceIn(0f, 1f)),
-                radius = lebar,
+                color = Color(0xFF3FE08C).copy(alpha = alfa.coerceIn(0f, 0.9f)),
+                radius = r,
                 center = androidx.compose.ui.geometry.Offset(cx, cy),
-                style = androidx.compose.ui.graphics.drawscope.Stroke(width = this.size.minDimension * (0.035f + 0.02f * l)),
+                style = androidx.compose.ui.graphics.drawscope.Stroke(width = this.size.minDimension * (0.02f + 0.02f * l)),
             )
         }
-        // Pancaran hijau lembut di belakang foto.
-        drawCircle(
-            brush = androidx.compose.ui.graphics.Brush.radialGradient(
-                listOf(Color(0xFF3FE08C).copy(alpha = 0.30f * l), Color.Transparent),
-                center = androidx.compose.ui.geometry.Offset(cx, cy),
-                radius = dasar * 1.35f,
-            ),
-            radius = dasar * 1.35f,
-            center = androidx.compose.ui.geometry.Offset(cx, cy),
-        )
     }
 }
 
@@ -1442,7 +1446,7 @@ private fun GelembungSuara(size: Dp, level: Float) {
 }
 
 @Composable
-private fun RmSeatView(index: Int, seat: Seat?, size: Dp, locked: Boolean = false, emote: SeatEmote? = null, points: Long = 0L, onClick: () -> Unit) {
+private fun RmSeatView(index: Int, seat: Seat?, size: Dp, locked: Boolean = false, emote: SeatEmote? = null, emotSudahTampil: MutableList<String> = mutableListOf(), points: Long = 0L, onClick: () -> Unit) {
     val bmp = remember(seat?.avatarB64) { ProfileRepo.decodeB64(seat?.avatarB64) }
     var seatUser by remember(seat?.uid) { mutableStateOf(seat?.uid?.let { UserCache.peek(it) }) }
     LaunchedEffect(seat?.uid) {
@@ -1479,27 +1483,8 @@ private fun RmSeatView(index: Int, seat: Seat?, size: Dp, locked: Boolean = fals
                 ),
                 contentAlignment = Alignment.Center,
             ) {
-                // Gelembung suara: muncul di dalam lingkaran mic, DI BELAKANG avatar,
-                // jadi saat bicara semua orang melihat lingkarannya bergelembung.
-                if (seat != null && (lvl > 0.012f || bicaraEvent)) {
-                    val a = 0.35f + 0.5f * lvl
-                    Box(
-                        Modifier.fillMaxSize().clip(CircleShape).background(
-                            androidx.compose.ui.graphics.Brush.radialGradient(
-                                listOf(
-                                    Color(0xFF3FE08C).copy(alpha = a.coerceIn(0.25f, 0.85f)),
-                                    Color(0xFF3FE08C).copy(alpha = 0.10f),
-                                ),
-                            ),
-                        ),
-                    )
-                    Box(
-                        Modifier.fillMaxSize().clip(CircleShape)
-                            .border((2f + 3f * lvl).dp, Color(0xFF3FE08C).copy(alpha = 0.9f), CircleShape),
-                    )
-                }
                 // Avatar sedikit mengecil saat bicara supaya gelembung di belakangnya terlihat.
-                val skalaAvatar = if (seat != null && (lvl > 0.012f || bicaraEvent)) 0.84f else 1f
+                val skalaAvatar = 1f
                 when {
                     seat != null && bmp != null ->
                     Image(bitmap = bmp, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize(skalaAvatar))
@@ -1525,10 +1510,19 @@ private fun RmSeatView(index: Int, seat: Seat?, size: Dp, locked: Boolean = fals
             // Emote digambar SETELAH bingkai supaya tampil di depan frame,
             // bukan di belakangnya.
             var emoteShow by remember { mutableStateOf(false) }
-            LaunchedEffect(emote?.at) {
-                if (emote != null && abs(System.currentTimeMillis() - emote.at) < 20000) {
+            LaunchedEffect(emote?.at, seat?.uid) {
+                val kunci = if (emote != null && seat != null) "${seat.uid}:${emote.at}" else null
+                // Hanya emot yang BARU dikirim dan belum pernah tampil. Kalau kursi
+                // dibuat ulang (pindah kursi), emot lama tidak muncul lagi.
+                if (emote != null && kunci != null &&
+                    !emotSudahTampil.contains(kunci) &&
+                    abs(System.currentTimeMillis() - emote.at) < 6000
+                ) {
+                    emotSudahTampil.add(kunci)
                     emoteShow = true
                     delay(3000)
+                    emoteShow = false
+                } else {
                     emoteShow = false
                 }
             }
