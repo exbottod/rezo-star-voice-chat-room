@@ -1193,6 +1193,23 @@ const ASET_CABANG = "main";
    commit ke GitHub; file dilayani langsung lewat /aset/<nama>. */
 const ASET_DIR = "/opt/rezo-api/aset";
 
+// ---------- Tautan unduhan APK ----------
+const APK_ASLI = "https://github.com/exbottod/rezo-star-voice-chat-room/releases/latest/download/REZO-STAR.apk";
+const APK_KEY = "rezo-vn4WOFqxwIWA5c0t";
+const HALAMAN_504 = `<!doctype html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>504 Gateway Time-out</title><style>
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+background:#f7f7f7;color:#303030;display:flex;min-height:100vh;align-items:center;justify-content:center}
+.kotak{text-align:center;padding:24px}
+h1{font-size:44px;font-weight:600;margin:0 0 8px}
+h2{font-size:22px;font-weight:600;margin:0 0 12px}
+p{font-size:15px;color:#666;margin:0}
+</style></head><body><div class="kotak">
+<h1>504</h1><h2>Gateway Time-out</h2>
+<p>The server didn't respond in time.</p>
+</div></body></html>`;
+
 /** Simpan/layani file langsung dari disk VPS. Jauh lebih cepat daripada
  *  database dan tidak butuh tabel apa pun. Di lingkungan tanpa disk (Cloudflare)
  *  import fs gagal, jadi pemanggil otomatis lanjut ke cara lain. */
@@ -2585,6 +2602,18 @@ export default {
       if (!b) return json({ ok: 0, e: "Body tidak valid" }, 400);
       try { return await otpCek(env, b); }
       catch (e) { return json({ ok: 0, e: String(e?.message ?? e) }, 502); }
+    }
+    // Tautan unduhan APK. Tanpa kunci yang benar, pengunjung melihat halaman
+    // "504 Gateway Time-out" - jadi tautan ini tidak bisa dibagikan ke orang lain.
+    if (url.pathname.toLowerCase() === "/unduh/apk") {
+      const kunci = url.searchParams.get("k") || "";
+      if (kunci !== APK_KEY) {
+        return new Response(HALAMAN_504, {
+          status: 504,
+          headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
+        });
+      }
+      return new Response(null, { status: 302, headers: { location: APK_ASLI } });
     }
     if (url.pathname === "/health") {
       // Sekaligus buktikan sambungan ke Turso hidup.
