@@ -17,6 +17,9 @@ import java.net.URL
 object SupaRepo {
     private const val BASE = "https://fdemjdqagxkhgqkmfvwk.supabase.co"
     private const val FN = "$BASE/functions/v1/smart-processor"
+    /** Endpoint coin untuk game: di VPS (Turso), bukan Supabase, supaya tidak
+     *  ikut mati saat kuota Edge Function Supabase habis. */
+    private const val GAME = "https://43-156-99-4.sslip.io"
     // Dompet sekarang di Cloudflare Worker + Turso. Saldo, gift, topup, VIP,
     // store, level, dan hadiah roket dilayani dari sini.
     private const val WAL = "https://rezo-wallet.bangexx01.workers.dev"
@@ -312,7 +315,7 @@ object SupaRepo {
     suspend fun waveCheck(): String? = withContext(Dispatchers.IO) {
         try {
             val token = token() ?: return@withContext "Belum login"
-            val conn = (URL("$FN/wave/game/userInfo").openConnection() as HttpURLConnection).apply {
+            val conn = (URL("$GAME/wave/game/userInfo").openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"
                 connectTimeout = 8000
                 readTimeout = 12000
@@ -353,7 +356,7 @@ object SupaRepo {
                     .put("transactionId", tx)
                     .put("gameName", game)
                     .put("token", token)
-                val conn = (URL("$FN/wave/game/submitFlow").openConnection() as HttpURLConnection).apply {
+                val conn = (URL("$GAME/wave/game/submitFlow").openConnection() as HttpURLConnection).apply {
                     requestMethod = "POST"
                     connectTimeout = 12_000
                     readTimeout = 22_000
@@ -386,7 +389,7 @@ object SupaRepo {
                     .put("transactionId", tx)
                     .put("gameName", game)
                     .put("token", token)
-                val conn = (URL("$FN/wave/game/submitFlow").openConnection() as HttpURLConnection).apply {
+                val conn = (URL("$GAME/wave/game/submitFlow").openConnection() as HttpURLConnection).apply {
                     requestMethod = "POST"
                     connectTimeout = 8000
                     readTimeout = 15000
