@@ -2639,6 +2639,26 @@ export default {
       try { return await asetUpload(env, bA); }
       catch (e) { return json({ ok: 0, e: String(e?.message ?? e) }, 502); }
     }
+    if (url.pathname.toLowerCase() === "/chatimg") {
+      // Gambar chat room disimpan di VPS sendiri. Supabase menolak unggahan
+      // (402: layanan project dibatasi), jadi tidak dipakai lagi.
+      if (req.method !== "POST") return json({ ok: 0, e: "Pakai POST" }, 405);
+      const sesiC = await sesiDariToken(url.searchParams.get("t") ?? "");
+      if (!sesiC) return json({ ok: 0, e: "Sesi tidak sah" }, 401);
+      const extC = (url.searchParams.get("ext") || "jpg").toLowerCase().replace(/[^a-z]/g, "").slice(0, 4) || "jpg";
+      if (!/^(jpg|jpeg|png|webp|gif)$/.test(extC)) return json({ ok: 0, e: "Format tidak didukung" }, 400);
+      let bufC;
+      try { bufC = Buffer.from(await req.arrayBuffer()); }
+      catch (e) { return json({ ok: 0, e: "Isi tidak terbaca" }, 400); }
+      if (!bufC.length) return json({ ok: 0, e: "Isi kosong" }, 400);
+      if (bufC.length > 6 * 1024 * 1024) return json({ ok: 0, e: "Gambar lebih dari 6 MB" }, 413);
+      const uidC = String(sesiC.uid || "").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 40) || "umum";
+      const namaC = "chat_" + uidC + "_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6) + "." + extC;
+      try {
+        await asetSimpanDisk(namaC, bufC.toString("base64"));
+        return json({ ok: 1, url: VPS_ASET + "/" + namaC });
+      } catch (e) { return json({ ok: 0, e: "Gagal menyimpan: " + String(e?.message ?? e) }, 500); }
+    }
     if (url.pathname === "/admin") {
       const b = await req.json().catch(() => null);
       if (!b) return json({ ok: 0, e: "Body tidak valid" }, 400);

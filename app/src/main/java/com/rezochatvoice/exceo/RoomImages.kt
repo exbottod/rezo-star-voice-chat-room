@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.net.HttpURLConnection
@@ -20,6 +21,9 @@ import java.net.URL
  */
 object RoomImages {
     private const val BASE = "https://fdemjdqagxkhgqkmfvwk.supabase.co"
+    // Server REZO sendiri: gambar disimpan di sini karena Supabase menolak
+    // unggahan (402: layanan project dibatasi).
+    private const val VPS = "https://43-156-99-4.sslip.io"
     // Kunci publishable, sama seperti yang dipakai SupaRepo (aman ada di app).
     private const val KEY = "sb_publishable_4PxD2LedOsBgIJyHLkM47A_bImSQI2W"
     private const val BUCKET = "chatimg"
@@ -58,6 +62,31 @@ object RoomImages {
                 if (bytes.size > MAX_BYTES) bytes = jpeg(kecil, 60)
                 if (bytes.size > MAX_BYTES) return@withContext null to "Gambar masih terlalu besar, coba gambar lain"
 
+                // 1) Server sendiri: cepat dan tanpa batas kuota.
+                try {
+                    val token = com.google.firebase.auth.FirebaseAuth.getInstance()
+                        .currentUser?.getIdToken(false)?.await()?.token
+                    if (!token.isNullOrBlank()) {
+                        val q = "/chatimg?t=" + java.net.URLEncoder.encode(token, "UTF-8") + "&ext=jpg"
+                        val c1 = (URL(VPS + q).openConnection() as HttpURLConnection).apply {
+                            requestMethod = "POST"
+                            connectTimeout = 15000
+                            readTimeout = 60000
+                            doOutput = true
+                            setRequestProperty("Content-Type", "image/jpeg")
+                        }
+                        c1.outputStream.use { it.write(bytes) }
+                        if (c1.responseCode in 200..299) {
+                            val teks = c1.inputStream.bufferedReader().use { it.readText() }
+                            val u = org.json.JSONObject(teks).optString("url")
+                            if (u.startsWith("http")) return@withContext u to null
+                        }
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // Server sendiri belum bisa: lanjut ke Supabase di bawah.
+                }
                 val path = "$uid/${System.currentTimeMillis()}.jpg"
                 val conn = (URL("$BASE/storage/v1/object/$BUCKET/$path").openConnection() as HttpURLConnection).apply {
                     requestMethod = "POST"
