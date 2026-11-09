@@ -1,73 +1,24 @@
 {
-  "status": "ok",
-  "masalah": [],
-  "versi": "1.1.30",
-  "ukuran_mb": 69.0,
-  "sha256": "b41fdaf2380e0a4de90e9a07f5714f81436561194f3529f312161e434bf43d7c",
-  "commit": "48ab566",
-  "waktu": "2026-11-09T16:09:36Z",
+  "status": "gagal",
+  "masalah": [
+    "e: The daemon has terminated unexpectedly on startup attempt #1 with error code: 0. The daemon process output:",
+    "e: file:///home/runner/work/rezo-star-voice-chat-room/rezo-star-voice-chat-room/app/src/main/java/com/rezochatvoice/exceo/AgencyScreen.kt:132:21 None of the following candidates is applicable:",
+    "e: file:///home/runner/work/rezo-star-voice-chat-room/rezo-star-voice-chat-room/app/src/main/java/com/rezochatvoice/exceo/AgencyScreen.kt:134:29 Syntax error: Expecting ')'.",
+    "e: file:///home/runner/work/rezo-star-voice-chat-room/rezo-star-voice-chat-room/app/src/main/java/com/rezochatvoice/exceo/AgencyScreen.kt:134:31 Syntax error: Unexpected tokens (use ';' to separate ex",
+    "e: file:///home/runner/work/rezo-star-voice-chat-room/rezo-star-voice-chat-room/app/src/main/java/com/rezochatvoice/exceo/AgencyScreen.kt:135:29 Syntax error: Expecting an element.",
+    "e: file:///home/runner/work/rezo-star-voice-chat-room/rezo-star-voice-chat-room/app/src/main/java/com/rezochatvoice/exceo/AgencyScreen.kt:135:76 Syntax error: Unexpected tokens (use ';' to separate ex",
+    "e: file:///home/runner/work/rezo-star-voice-chat-room/rezo-star-voice-chat-room/app/src/main/java/com/rezochatvoice/exceo/AgencyScreen.kt:136:25 Unresolved reference 'color'.",
+    "e: file:///home/runner/work/rezo-star-voice-chat-room/rezo-star-voice-chat-room/app/src/main/java/com/rezochatvoice/exceo/AgencyScreen.kt:136:50 Syntax error: Unexpected tokens (use ';' to separate ex",
+    "e: file:///home/runner/work/rezo-star-voice-chat-room/rezo-star-voice-chat-room/app/src/main/java/com/rezochatvoice/exceo/AgencyScreen.kt:137:21 Syntax error: Expecting an element.",
+    "* What went wrong:"
+  ],
+  "versi": "1.1.31",
+  "ukuran_mb": 0,
+  "sha256": "",
+  "commit": "e45eadc",
+  "waktu": "2026-11-09T16:15:56Z",
   "workflow": "https://github.com/exbottod/rezo-star-voice-chat-room/actions",
-  "aset_roket": 30,
-  "aset_total": 118,
-  "fitur": [
-    {
-      "nama": "Banner cashback terpisah",
-      "ada": true
-    },
-    {
-      "nama": "Banner gift biasa",
-      "ada": true
-    },
-    {
-      "nama": "Animasi cashback di avatar",
-      "ada": true
-    },
-    {
-      "nama": "Tombol kombo cashback",
-      "ada": true
-    },
-    {
-      "nama": "Roket level 1-5 di room",
-      "ada": true
-    },
-    {
-      "nama": "Peluncuran roket cadangan",
-      "ada": true
-    },
-    {
-      "nama": "Sambung ulang suara otomatis",
-      "ada": true
-    },
-    {
-      "nama": "Tukar diamond nominal sendiri",
-      "ada": true
-    },
-    {
-      "nama": "Papan peringkat roket",
-      "ada": true
-    }
-  ],
-  "roket_level": [
-    {
-      "level": 1,
-      "ada": true
-    },
-    {
-      "level": 2,
-      "ada": true
-    },
-    {
-      "level": 3,
-      "ada": true
-    },
-    {
-      "level": 4,
-      "ada": true
-    },
-    {
-      "level": 5,
-      "ada": true
-    }
-  ],
-  "catatan": "Update error game Wave"
+  "aset_roket": 0,
+  "aset_total": 0,
+  "fitur": []
 }
