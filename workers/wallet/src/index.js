@@ -48,14 +48,44 @@ async function bukaDbLokal() {
   return db;
 }
 
+/** Turunkan stok yang sudah terlanjur melewati batas, sekali saat database dibuka. */
+function rapikanStokBesar(db) {
+  try {
+    const a = db.prepare("update coin_seller set stock = ? where stock > ?").run(MAKS_STOK, MAKS_STOK);
+    const b = db.prepare("update panel_staf set coins = ? where coins > ?").run(MAKS_STOK, MAKS_STOK);
+    const n = Number(a.changes ?? 0) + Number(b.changes ?? 0);
+    if (n > 0) console.log("rapikan stok: " + n + " baris diturunkan ke batas " + MAKS_STOK);
+  } catch (e) { /* tabel belum ada di instalasi baru: aman diabaikan */ }
+}
+
 async function dbLokal(env) {
   if (!dbSiap) {
     dbSiap = (async () => {
       const db = await bukaDbLokal();
+      rapikanStokBesar(db);
       return db;
     })().catch((e) => { dbSiap = null; dbGalat = String(e?.message ?? e); throw e; });
   }
   return dbSiap;
+}
+
+/** Batas stok seller dan stok coin staf: 1 kuadriliun, jauh di bawah batas aman JS. */
+const MAKS_STOK = 1000000000000000;
+/** Batas angka bulat yang masih persis di JavaScript (2^53 - 1). */
+const ANGKA_AMAN = Number.MAX_SAFE_INTEGER;
+function amankanBaris(r) {
+  const o = {};
+  for (const k of Object.keys(r)) {
+    const v = r[k];
+    if (typeof v === "bigint") {
+      if (v > BigInt(ANGKA_AMAN)) o[k] = ANGKA_AMAN;
+      else if (v < -BigInt(ANGKA_AMAN)) o[k] = -ANGKA_AMAN;
+      else o[k] = Number(v);
+    } else {
+      o[k] = v;
+    }
+  }
+  return o;
 }
 
 /** Jalankan sekumpulan statement di SQLite lokal, urut seperti pipeline. */
@@ -73,7 +103,13 @@ function pipeDi(db, stmts) {
     try {
       const st = db.prepare(sql);
       if (/^\s*(select|with|pragma|explain)/i.test(sql)) {
-        out.push({ rows: st.all(...args), affected: 0 });
+        // Bilangan bulat di atas 2^53 tidak bisa dibaca sebagai angka JavaScript
+        // biasa: node:sqlite melempar galat "Value is too large to be represented
+        // as a JavaScript number", dan satu baris besar saja membuat SELURUH daftar
+        // (seller, staf) gagal tampil. Jadi dibaca sebagai BigInt lalu diubah:
+        // angka aman tetap number, angka raksasa dibatasi ke batas aman.
+        st.setReadBigInts(true);
+        out.push({ rows: st.all(...args).map(amankanBaris), affected: 0 });
       } else {
         const r = st.run(...args);
         out.push({ rows: [], affected: Number(r.changes ?? 0) });
@@ -1576,15 +1612,18 @@ async function admin(env, body) {
     const now = Date.now();
     if (mode === "set") {
       if (n < 0) return gagal("Stok tidak boleh negatif");
+      if (n > MAKS_STOK) return gagal("Stok maksimal " + MAKS_STOK.toLocaleString("id-ID") + " coin");
       await pipe(env, [
         { sql: "update coin_seller set stock = ?, updated_at = ? where uid = ?", args: [I(n), I(now), T(who)] },
       ]);
     } else {
+      // Penambahan dibatasi MAKS_STOK: dulu stok bisa terus membengkak sampai
+      // melewati batas angka JavaScript, lalu seluruh daftar seller gagal dibaca.
       await pipe(env, [
         {
-          sql: `update coin_seller set stock = case when stock + ? < 0 then 0 else stock + ? end,
+          sql: `update coin_seller set stock = min(?, case when stock + ? < 0 then 0 else stock + ? end),
                   updated_at = ? where uid = ?`,
-          args: [I(n), I(n), I(now), T(who)],
+          args: [I(MAKS_STOK), I(n), I(n), I(now), T(who)],
         },
       ]);
     }
@@ -1638,11 +1677,11 @@ async function admin(env, body) {
     const role = String(p.role ?? "manager").trim() === "admin" ? "admin" : "manager";
     if (op === "panel_coin_add") {
       await pipe(env, [
-        { sql: "update panel_staf set coins = max(0, coins + ?) where uid = ? and role = ?", args: [I(n), T(who), T(role)] },
+        { sql: "update panel_staf set coins = min(?, max(0, coins + ?)) where uid = ? and role = ?", args: [I(MAKS_STOK), I(n), T(who), T(role)] },
       ]);
     } else {
       await pipe(env, [
-        { sql: "update panel_staf set coins = ? where uid = ? and role = ?", args: [I(Math.max(0, n)), T(who), T(role)] },
+        { sql: "update panel_staf set coins = ? where uid = ? and role = ?", args: [I(Math.min(MAKS_STOK, Math.max(0, n))), T(who), T(role)] },
       ]);
     }
     const r = await pipe(env, [

@@ -85,17 +85,42 @@ object PanelStaffRepo {
         return out
     }
 
-    /** Semua panel milik akun ini. Satu akun bisa punya manager dan admin sekaligus. */
+    /** Hasil terakhir yang berhasil dibaca dari server: dipakai saat jaringan sedang jelek. */
+    @Volatile private var terakhirBerhasil: List<PanelInfo>? = null
+
+    /**
+     * Semua panel milik akun ini. Satu akun bisa punya manager dan admin sekaligus.
+     *
+     * Dua keadaan sengaja dibedakan:
+     * 1. Server menjawab "Bukan staf" -> daftar kosong, ini jawaban yang sah.
+     * 2. Server tidak terjangkau -> melempar galat, supaya pemanggil mencoba lagi
+     *    dan tidak mengira akun ini bukan staf (dulu keduanya jadi daftar kosong,
+     *    sehingga menu panel hilang sampai app dibuka ulang).
+     */
     suspend fun panels(): List<PanelInfo> {
-        // Hak panel dicek ke server. Kalau jalur pertama sibuk, coba lagi
-        // sebentar supaya panel yang sudah dikirim tidak "hilang" dari layar.
         var o = SupaRepo.panelCall("me")
         var coba = 1
-        while (o.optInt("ok") != 1 && coba < 3) {
+        while (!jawabanSah(o) && coba < 3) {
             kotlinx.coroutines.delay(1200L)
             o = SupaRepo.panelCall("me")
             coba++
         }
+        if (!jawabanSah(o)) {
+            // Server tidak menjawab sama sekali: pakai hasil terakhir yang pernah
+            // berhasil kalau ada, kalau tidak ada beri tahu pemanggil lewat galat.
+            terakhirBerhasil?.let { return it }
+            throw java.io.IOException(o.optString("e", "Server panel tidak terjangkau"))
+        }
+        val hasil = bacaPanels(o)
+        terakhirBerhasil = hasil
+        return hasil
+    }
+
+    /** ok=1, atau server menjawab tegas bahwa akun ini bukan staf. */
+    private fun jawabanSah(o: org.json.JSONObject): Boolean =
+        o.optInt("ok") == 1 || o.has("role")
+
+    private fun bacaPanels(o: org.json.JSONObject): List<PanelInfo> {
         if (o.optInt("ok") != 1) return emptyList()
         val stok = bacaStok(o)
         val arr = o.optJSONArray("panels")

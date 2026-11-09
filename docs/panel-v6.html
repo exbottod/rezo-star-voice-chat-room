@@ -2828,7 +2828,7 @@ function userCard(el, u, line2){
   row.append(av, box); el.appendChild(row);
 }
 
-const PANEL_BUILD = "2026-11-06a";
+const PANEL_BUILD = "2026-11-09b";
 (function stempelPanel(){
   const cek = () => {
     if (!document.body || document.getElementById("panelBuild")) return;
@@ -5404,8 +5404,19 @@ async function pstList(){
       pstList();
     };
   }
+  box.textContent = "Memuat...";
   try {
-    const r = await walletAdmin({ op: "panel_list" });
+    // Jaringan seluler kadang putus sesaat: coba sampai 3 kali sebelum menyerah.
+    let r = null, galat = null;
+    for (let coba = 0; coba < 3 && !r; coba++) {
+      try { r = await walletAdmin({ op: "panel_list" }); }
+      catch (e) {
+        galat = e;
+        if (/Belum login|Hanya admin|Token tidak valid/i.test(String((e && e.message) || ""))) break;
+        await new Promise(res => setTimeout(res, 900 * (coba + 1)));
+      }
+    }
+    if (!r) throw galat || new Error("tidak ada jawaban");
     pstStaff = r.list || [];
     const tampil = pstStaff.filter(x => pstShowDead || x.active);
     if (!tampil.length) {
@@ -5462,7 +5473,15 @@ async function pstList(){
         });
       }
     });
-  } catch (e) { box.textContent = "Gagal memuat staf: " + e.message; }
+  } catch (e) {
+    box.innerHTML = "";
+    const m = document.createElement("div");
+    m.textContent = "Gagal memuat staf: " + ((e && e.message) || e) + " (kode panel " + PANEL_BUILD + ")";
+    const b = document.createElement("button");
+    b.className = "btn"; b.style.marginTop = "8px"; b.textContent = "Muat ulang daftar staf";
+    b.onclick = () => pstList();
+    box.append(m, b);
+  }
 }
 
 async function pstGrant(role){

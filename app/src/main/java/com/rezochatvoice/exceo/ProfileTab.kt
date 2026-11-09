@@ -182,13 +182,33 @@ fun ProfileTab(
             false
         }
     }
+    // Hak panel dicek ulang sampai server benar-benar menjawab. Dulu cukup sekali:
+    // kalau sinyal jelek saat app baru dibuka, hasilnya kosong dan menu panel
+    // tidak muncul lagi sampai app ditutup dan dibuka ulang.
     LaunchedEffect(userId) {
-        panelList = try {
-            if (userId.isBlank()) emptyList() else PanelStaffRepo.panels()
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            emptyList()
+        if (userId.isBlank()) {
+            panelList = emptyList()
+            return@LaunchedEffect
+        }
+        var jeda = 2_000L
+        while (true) {
+            val hasil = try {
+                PanelStaffRepo.panels()
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                null
+            }
+            if (hasil != null) {
+                panelList = hasil
+                // Sudah dapat jawaban sah. Segarkan pelan-pelan supaya panel yang
+                // baru dikirim atau dicabut developer ikut berubah tanpa buka ulang app.
+                kotlinx.coroutines.delay(90_000L)
+                jeda = 2_000L
+            } else {
+                kotlinx.coroutines.delay(jeda)
+                jeda = minOf(jeda * 2, 30_000L)
+            }
         }
     }
 
