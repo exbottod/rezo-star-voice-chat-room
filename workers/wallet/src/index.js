@@ -1159,16 +1159,60 @@ async function stokStaf(env, uid) {
  * tetap tautan CDN GitHub (jsDelivr), bukan penyimpanan lain.
  */
 const ASET_REPO = "exbottod/rezo-star-voice-chat-room";
+const VPS_ASET = "https://43-156-99-4.sslip.io/aset";
 const ASET_CABANG = "main";
+/* Penyimpanan aset di VPS (Turso). Unggah jadi cepat karena tidak menunggu
+   commit ke GitHub; file dilayani langsung lewat /aset/<nama>. */
+let asetTabelSiap = null;
+function asetPastikan(env) {
+  if (!asetTabelSiap) {
+    asetTabelSiap = pipe(env, [
+      { sql: `create table if not exists aset_file (
+                nama text primary key,
+                mime text,
+                b64  text not null,
+                created integer
+              )`, args: [] },
+    ]).catch((e) => { asetTabelSiap = null; throw e; });
+  }
+  return asetTabelSiap;
+}
+
+function mimeDariExt(ext) {
+  if (ext === "png") return "image/png";
+  if (ext === "jpg" || ext === "jpeg") return "image/jpeg";
+  if (ext === "webp") return "image/webp";
+  if (ext === "gif") return "image/gif";
+  if (ext === "svg") return "image/svg+xml";
+  if (ext === "svga") return "application/octet-stream";
+  return "application/octet-stream";
+}
+
 async function asetUpload(env, b) {
-  const gh = String(b.gh || "").trim();
-  if (!gh) throw new Error("Token GitHub belum diisi");
   const b64 = String(b.b64 || "").replace(/^data:[^,]+,/, "").replace(/\s+/g, "");
   if (!b64) throw new Error("Isi file kosong");
   if (b64.length > 15 * 1024 * 1024) throw new Error("File terlalu besar (maks sekitar 11 MB)");
   const ext = (String(b.ext || "png").toLowerCase().replace(/[^a-z0-9]/g, "") || "png").slice(0, 5);
   const nama = (String(b.name || "aset").toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 40) || "aset");
-  const path = "docs/aset/" + nama + "_" + Date.now().toString(36) + "." + ext;
+  const berkas = nama + "_" + Date.now().toString(36) + "." + ext;
+
+  // 1) Jalur utama: simpan di VPS (Turso). Cepat dan tidak bergantung GitHub.
+  try {
+    await asetPastikan(env);
+    await pipe(env, [
+      {
+        sql: "insert into aset_file (nama, mime, b64, created) values (?, ?, ?, ?)",
+        args: [berkas, mimeDariExt(ext), b64, Date.now()],
+      },
+    ]);
+    return json({ ok: 1, url: VPS_ASET + "/" + berkas, path: berkas, simpan: "vps" });
+  } catch (e) {
+    // kalau Turso bermasalah, lanjut ke GitHub di bawah
+  }
+
+  const gh = String(b.gh || "").trim();
+  if (!gh) throw new Error("Penyimpanan VPS gagal dan token GitHub belum diisi");
+  const path = "docs/aset/" + berkas;
   const r = await fetch("https://api.github.com/repos/" + ASET_REPO + "/contents/" + path, {
     method: "PUT",
     headers: {
@@ -2349,6 +2393,29 @@ export default {
       if (!sesi) return json({ ok: 0, e: "Sesi tidak sah" }, 401);
       try { return await sellerApi(env, sesi, b); }
       catch (e) { return gagal(String(e?.message ?? "Server seller sibuk")); }
+    }
+    if (url.pathname.toLowerCase().startsWith("/aset/")) {
+      const nm = decodeURIComponent(url.pathname.slice("/aset/".length));
+      try {
+        await asetPastikan(env);
+        const rA = await pipe(env, [
+          { sql: "select mime, b64 from aset_file where nama = ?", args: [nm] },
+        ]);
+        const row = rA[0].rows[0];
+        if (!row) return new Response("", { status: 404 });
+        const bin = Uint8Array.from(atob(String(row.b64)), (c) => c.charCodeAt(0));
+        return new Response(bin, {
+          status: 200,
+          headers: {
+            "Content-Type": String(row.mime || "application/octet-stream"),
+            // Nama file unik, jadi aman di-cache lama.
+            "Cache-Control": "public, max-age=31536000, immutable",
+            "Access-Control-Allow-Origin": "*",
+          },
+        });
+      } catch (e) {
+        return new Response("", { status: 500 });
+      }
     }
     if (url.pathname.toLowerCase() === "/aset-upload") {
       const bA = await req.json().catch(() => null);

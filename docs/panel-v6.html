@@ -3748,7 +3748,8 @@ async function ghUpload(file, name){
     const idToken = u ? await u.getIdToken() : "";
     try { toast("Mengunggah " + Math.round(bytes.length / 1024) + " KB lewat server..."); } catch (e) { }
     const ctl = new AbortController();
-    const jam = setTimeout(() => ctl.abort(), 120000);
+    // File SVGA/bingkai bisa besar; beri waktu lebih longgar ke server VPS.
+    const jam = setTimeout(() => ctl.abort(), 240000);
     let res;
     try {
       res = await fetch(ASET_UPLOAD_URL, {
