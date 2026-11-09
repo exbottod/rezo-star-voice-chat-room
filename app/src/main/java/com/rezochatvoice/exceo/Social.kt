@@ -828,7 +828,7 @@ fun UserProfileSheet(
                         ) {
                             // Tag tingkat VIP sudah ada di sebelah level, jadi di sini hanya
                             // lencana yang dipasang dari toko.
-                            findItem(u.badge)?.let { StoreBadgeIcon(it, 24.dp) }
+                            medalIdList(u.badge).mapNotNull { findItem(it) }.forEach { StoreBadgeIcon(it, 24.dp) }
                             if (u.fam.isNotBlank()) FamTag3D(u.fam)
                         }
                         Spacer(Modifier.height(4.dp))

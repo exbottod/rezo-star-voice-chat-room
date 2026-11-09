@@ -165,8 +165,28 @@ const val LENCANA_AKTIF = true
 
 fun activeEquip(w: Wallet, slot: String): String {
     if (slot == "badge" && !LENCANA_AKTIF) return ""
-    val id = w.equip[slot] ?: return ""
+    val raw = w.equip[slot].orEmpty()
+    // Lencana bisa dipakai lebih dari satu sekaligus: equip["badge"] menyimpan
+    // daftar id dipisah koma (sama seperti medali). Dulu satu slot hanya bisa
+    // menampung satu id, jadi memasang lencana kedua otomatis melepas yang lama.
+    if (slot == "badge") {
+        val now = System.currentTimeMillis()
+        return medalIdList(raw).filter { (w.inv[it] ?: 0L) > now }.joinToString(",")
+    }
+    val id = raw
     return if ((w.inv[id] ?: 0L) > System.currentTimeMillis()) id else ""
+}
+
+/** Item ini sedang dipakai? Lencana dicek satu per satu karena bisa banyak. */
+private fun itemTerpakai(w: Wallet, slot: String, id: String): Boolean =
+    if (slot == "badge") medalIdList(w.equip["badge"]).contains(id) else w.equip[slot] == id
+
+/** Nilai equip baru setelah tombol Pakai/Lepas ditekan. */
+private fun equipBaru(w: Wallet, slot: String, id: String): String {
+    if (slot != "badge") return if (itemTerpakai(w, slot, id)) "" else id
+    val kini = medalIdList(w.equip["badge"])
+    val baru = if (kini.contains(id)) kini - id else kini + id
+    return baru.joinToString(",")
 }
 
 
@@ -298,11 +318,11 @@ fun VipTagText(n: Int, modifier: Modifier = Modifier) {
 fun BadgeRow(vip: Int, until: Long, badge: String, modifier: Modifier = Modifier) {
     if (!LENCANA_AKTIF) return
     val on = vipActive(vip, until)
-    val b = findItem(badge)
-    if (!on && b == null) return
+    val daftar = medalIdList(badge).mapNotNull { findItem(it) }
+    if (!on && daftar.isEmpty()) return
     Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         if (on) VipTag(vip)
-        if (b != null) StoreBadgeIcon(b, 24.dp)
+        daftar.forEach { StoreBadgeIcon(it, 24.dp) }
     }
 }
 
@@ -1214,7 +1234,7 @@ fun StoreScreen(uid: String, wallet: Wallet, onOpenVip: () -> Unit, onBack: () -
                         list.chunked(2).forEach { row ->
                             Row(Modifier.fillMaxWidth().padding(bottom = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                 row.forEach { (item, exp) ->
-                                    val used = wallet.equip[item.slot] == item.id
+                                    val used = itemTerpakai(wallet, item.slot, item.id)
                                     Column(
                                         Modifier.weight(1f).clip(RoundedCornerShape(16.dp)).background(Color(0xFF0C7F7B))
                                             .border(if (used) 3.dp else 2.dp, if (used) Color(0xFFFFC107) else Color(0xFF39D3C3), RoundedCornerShape(16.dp)),
@@ -1246,7 +1266,7 @@ fun StoreScreen(uid: String, wallet: Wallet, onOpenVip: () -> Unit, onBack: () -
                                         ) {
                                             GoldPill(if (used) "Lepas" else "Memakai") {
                                                 AppScope.scope.launch {
-                                                    val err = LvRepo.equip(uid, item.slot, if (used) "" else item.id)
+                                                    val err = LvRepo.equip(uid, item.slot, equipBaru(wallet, item.slot, item.id))
                                                     if (err == null) PublicSync.push(uid)
                                                     Toast.makeText(context, err ?: if (used) "Dilepas" else "Dipakai", Toast.LENGTH_SHORT).show()
                                                 }
@@ -1290,12 +1310,12 @@ fun StoreScreen(uid: String, wallet: Wallet, onOpenVip: () -> Unit, onBack: () -
                     }
                 }
                 Spacer(Modifier.height(14.dp))
-                val used = wallet.equip[item.slot] == item.id
+                val used = itemTerpakai(wallet, item.slot, item.id)
                 val exp = wallet.inv[item.id] ?: 0L
                 if (exp > now) {
                     GoldPill(if (used) "Lepas" else "Memakai") {
                         AppScope.scope.launch {
-                            val err = LvRepo.equip(uid, item.slot, if (used) "" else item.id)
+                            val err = LvRepo.equip(uid, item.slot, equipBaru(wallet, item.slot, item.id))
                             if (err == null) PublicSync.push(uid)
                             Toast.makeText(context, err ?: if (used) "Dilepas" else "Dipakai", Toast.LENGTH_SHORT).show()
                         }

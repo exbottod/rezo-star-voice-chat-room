@@ -2072,7 +2072,7 @@ private fun RmChatRow(m: RoomMsg, myUid: String, onProfile: (String) -> Unit) {
                         VipTag(it.vip)
                     }
                 }
-                if (LENCANA_AKTIF) findItem(u?.badge)?.let {
+                if (LENCANA_AKTIF) medalIdList(u?.badge.orEmpty()).mapNotNull { findItem(it) }.forEach {
                     Spacer(Modifier.width(4.dp))
                     StoreBadgeIcon(it, 24.dp)
                 }
