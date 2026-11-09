@@ -675,7 +675,13 @@ fun RoomScreen(
                 // Ikon digeser masuk dari tepi kanan (aman untuk layar berlekuk /
                 // gesture tepi) dan digambar paling atas supaya tidak tertutup
                 // daftar chat atau terpotong di HP user lain.
-                if (ROCKET_ROOM_UI && fxRocketOn) RocketRail(
+                // Ikon roket di sisi room = jalan masuk ke panel Rocket, bukan hiasan.
+                // Dulu ikut saklar "efek roket" milik tiap user: siapa pun yang pernah
+                // mematikan efek di menu Efek kehilangan ikon ini selamanya (pilihannya
+                // tersimpan di HP dan di server), sehingga terlihat "tidak muncul di
+                // user lain". Sekarang ikonnya selalu tampil selama panel mengizinkan;
+                // yang mengikuti saklar user hanya animasi meluncurnya.
+                if (ROCKET_ROOM_UI) RocketRail(
                     roomId = r.id,
                     onOpen = { rocketOpen = true },
                     modifier = Modifier
