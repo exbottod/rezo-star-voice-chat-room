@@ -77,7 +77,19 @@ object AppUpdate {
     class Langkah(val url: String, val ukuran: Long, val sha256: String)
 
     /** "1.0.683" -> 683. Nomor terakhir dipakai sebagai urutan build. */
-    fun build(v: String): Int = v.trim().substringAfterLast('.').toIntOrNull() ?: 0
+    /**
+     * Nilai urut versi. Angka terakhir yang sudah melewati 999 dipindah ke
+     * kelompok minor, jadi "1.0.1015" dihitung sama dengan "1.1.15" dan tetap
+     * lebih kecil dari "1.1.16".
+     */
+    fun build(v: String): Int {
+        val bagian = v.trim().split('.').map { it.toIntOrNull() ?: 0 }
+        val mayor = bagian.getOrElse(0) { 0 }
+        var minor = bagian.getOrElse(1) { 0 }
+        var patch = bagian.getOrElse(2) { 0 }
+        if (patch >= 1000) { minor += patch / 1000; patch %= 1000 }
+        return (mayor * 1000 + minor) * 1000 + patch
+    }
 
     /**
      * Versi terpasang pada HP ini.

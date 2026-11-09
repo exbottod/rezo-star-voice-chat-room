@@ -22,6 +22,12 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+      - name: Hitung nomor versi
+        run: |
+          N="${{ github.run_number }}"
+          echo "VERSION_NAME=1.$((N / 1000)).$((N % 1000))" >> "$GITHUB_ENV"
+          echo "Versi rilis: $(tail -n1 "$GITHUB_ENV")"
+
 
       - uses: actions/setup-java@v4
         with:
@@ -58,7 +64,7 @@ jobs:
       - name: Periksa isi APK
         if: success()
         env:
-          VERSION_NAME: 1.0.${{ github.run_number }}
+          VERSION_NAME: ${{ env.VERSION_NAME }}
           BUILD_TIME: ${{ github.event.head_commit.timestamp || github.event.repository.pushed_at }}
         run: |
           APK=app/build/outputs/apk/release/app-universal-release.apk
@@ -117,7 +123,7 @@ jobs:
       - name: Catat error kalau build gagal
         if: failure()
         env:
-          VERSION_NAME: 1.0.${{ github.run_number }}
+          VERSION_NAME: ${{ env.VERSION_NAME }}
           BUILD_TIME: ${{ github.event.head_commit.timestamp || github.event.repository.pushed_at }}
         run: |
           python3 - <<'PYEOF'
@@ -163,7 +169,7 @@ jobs:
         if: success()
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION_NAME: 1.0.${{ github.run_number }}
+          VERSION_NAME: ${{ env.VERSION_NAME }}
         run: |
           set -e
           pip install --quiet bsdiff4
@@ -201,7 +207,7 @@ jobs:
         if: success()
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION_NAME: 1.0.${{ github.run_number }}
+          VERSION_NAME: ${{ env.VERSION_NAME }}
         run: |
           D=app/build/outputs/apk/release
           cp "$D/app-arm64-v8a-release.apk" "base-${VERSION_NAME}-arm64.apk" 2>/dev/null || true

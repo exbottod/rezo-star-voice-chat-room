@@ -41,7 +41,11 @@ android {
         targetSdk = 35
         // Selalu naik (menit sejak 1970), jadi APK baru bisa menimpa APK lama baik dari GitHub maupun build lokal.
         versionCode = (System.currentTimeMillis() / 60000L).toInt()
-        versionName = "1.0." + (System.getenv("GITHUB_RUN_NUMBER") ?: (System.getenv("REZO_BUILD") ?: "575"))
+        // Nama versi mengikuti nomor build, tapi angka ratusan yang sudah
+        // penuh pindah ke kelompok minor: 1.0.1015 menjadi 1.1.15. Jadi urutan
+        // versi tetap naik terus tanpa pernah mengulang nomor yang sama.
+        val nomorBuild = (System.getenv("GITHUB_RUN_NUMBER") ?: (System.getenv("REZO_BUILD") ?: "1015")).toIntOrNull() ?: 0
+        versionName = "1." + (nomorBuild / 1000) + "." + (nomorBuild % 1000)
         // Pustaka native dipecah per jenis HP (lihat blok splits di bawah),
         // supaya satu APK tidak membawa kode untuk dua prosesor sekaligus.
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"$googleWebClientId\"")
