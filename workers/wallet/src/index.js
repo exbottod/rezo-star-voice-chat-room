@@ -52,7 +52,11 @@ async function pipe(env, stmts) {
   let err = "";
   for (const res of j.results) {
     if (res.type === "error") {
-      err = String(res.error?.message ?? "turso error");
+      const m = String(res.error?.message ?? "turso error");
+      // Simpan kesalahan pertama saja; kalau transaksi sudah batal, semua
+      // statement berikutnya (termasuk commit) ikut gagal dan pesannya
+      // menyesatkan.
+      if (!err) err = m;
       out.push({ rows: [], affected: 0 });
       continue;
     }
@@ -421,7 +425,7 @@ async function kirimGift(env, uid, p) {
 
   // Satu transaksi: potong coin, tambah diamond dan exp (bonus VIP),
   // lalu catat. Penanda req membuat pengulangan tidak memotong dua kali.
-  const r = await pipe(env, [
+  const r = await pipeTrx(env, [
     { sql: "begin immediate" },
     {
       sql: `update wallets set
@@ -459,7 +463,7 @@ async function kirimGift(env, uid, p) {
     return ok(w);
   }
   // Tidak berubah: bisa karena coin kurang atau permintaan sudah diproses.
-  const cek = await pipe(env, [
+  const cek = await pipeTrx(env, [
     { sql: "select 1 as ada from gift_req where req_id = ?", args: [T(req)] },
   ]);
   if (cek[0].rows.length) return ok(w); // sudah pernah diproses: aman
@@ -482,7 +486,7 @@ async function kreditPenerima(env, uid, p, price, item, room, now, req) {
     try {
       await pastikan(env, r);
       const tanda = `${req}:to:${r}`;
-      await pipe(env, [
+      await pipeTrx(env, [
         { sql: "begin immediate" },
         {
           sql: `update wallets set
