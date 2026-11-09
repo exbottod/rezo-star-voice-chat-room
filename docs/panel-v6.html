@@ -3633,11 +3633,21 @@ async function walletAdmin(p){
   if (OPS_NEW.has(p.op)) {
     // VPS Helipod lebih dulu (sama seperti aplikasi), Cloudflare Worker cadangan.
     // Server Base44 sudah dilepas: kuota integrasinya habis, jawabannya 402.
+    // Kalau dua-duanya tidak terjangkau, sebutkan jalurnya dengan jelas supaya
+    // tidak muncul pesan samar "Failed to fetch".
+    let galatJaringan = "";
     try { res = await kirim(WALLET_VPS); }
-    catch (e) { res = await kirim(WALLET_CADANGAN); }
-    if (!res.ok) {
-      try { const cad = await kirim(WALLET_CADANGAN); if (cad.ok) res = cad; } catch (e) { }
+    catch (e) { galatJaringan = "VPS: " + (e.message || e); }
+    if (!res || !res.ok) {
+      try {
+        const cad = await kirim(WALLET_CADANGAN);
+        if (cad.ok) res = cad;
+        else if (!res) res = cad;
+      } catch (e) {
+        galatJaringan = (galatJaringan ? galatJaringan + " | " : "") + "cadangan: " + (e.message || e);
+      }
     }
+    if (!res) throw new Error("Server tidak terjangkau (" + (galatJaringan || "jaringan kosong") + "). Cek koneksi lalu muat ulang panel.");
   } else {
     res = await kirim(WALLET_API);
   }
