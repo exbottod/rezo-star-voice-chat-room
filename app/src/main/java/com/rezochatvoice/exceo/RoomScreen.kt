@@ -1479,11 +1479,34 @@ private fun RmSeatView(index: Int, seat: Seat?, size: Dp, locked: Boolean = fals
                 ),
                 contentAlignment = Alignment.Center,
             ) {
+                // Gelembung suara: muncul di dalam lingkaran mic, DI BELAKANG avatar,
+                // jadi saat bicara semua orang melihat lingkarannya bergelembung.
+                if (seat != null && (lvl > 0.012f || bicaraEvent)) {
+                    val a = 0.35f + 0.5f * lvl
+                    Box(
+                        Modifier.fillMaxSize().clip(CircleShape).background(
+                            Brush.radialGradient(
+                                listOf(
+                                    Color(0xFF3FE08C).copy(alpha = a.coerceIn(0.25f, 0.85f)),
+                                    Color(0xFF3FE08C).copy(alpha = 0.10f),
+                                ),
+                            ),
+                        ),
+                    )
+                    Box(
+                        Modifier.fillMaxSize().clip(CircleShape)
+                            .border((2f + 3f * lvl).dp, Color(0xFF3FE08C).copy(alpha = 0.9f), CircleShape),
+                    )
+                }
+                // Avatar sedikit mengecil saat bicara supaya gelembung di belakangnya terlihat.
+                val skalaAvatar = if (seat != null && (lvl > 0.012f || bicaraEvent)) 0.84f else 1f
                 when {
                     seat != null && bmp != null ->
-                    Image(bitmap = bmp, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                    Image(bitmap = bmp, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize(skalaAvatar))
                     seat != null ->
-                    Text(seat.name.take(1).uppercase(), color = GoldLight, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+                    Box(Modifier.fillMaxSize(skalaAvatar).clip(CircleShape).background(Color(0xFF0F3D33)), contentAlignment = Alignment.Center) {
+                        Text(seat.name.take(1).uppercase(), color = GoldLight, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+                    }
                     seat == null && locked ->
                         Image(painterResource(R.drawable.ic_lock_mic), null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
                     index == 0 ->
@@ -1521,13 +1544,6 @@ private fun RmSeatView(index: Int, seat: Seat?, size: Dp, locked: Boolean = fals
                 } else {
                     Text(emote.emoji, fontSize = (size.value * 0.6f).sp, modifier = Modifier.align(Alignment.Center))
                 }
-            }
-            if (lvl > 0.012f || bicaraEvent) {
-                Box(
-                    Modifier
-                        .align(Alignment.TopEnd)
-                        .offset(x = (size.value * 0.10f).dp, y = (-size.value * 0.04f).dp),
-                ) { GelembungSuara(size, lvl) }
             }
         }
         VipNameByUid(
