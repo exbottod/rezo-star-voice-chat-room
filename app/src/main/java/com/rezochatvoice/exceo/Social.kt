@@ -727,9 +727,6 @@ fun UserProfileSheet(
                 // Kalau kartu profil dipasang, warna hitam default dihilangkan:
                 // yang terlihat hanya gambar kartu.
                 .background(if (adaKartu) Color.Transparent else Color(0xFF0B0B0B))
-                // Tinggi sheet mengikuti gambar kartu (rasio asli), jadi tidak ada
-                // bagian kartu yang terpotong sama sekali.
-                .then(if (adaKartu) Modifier.heightIn(max = LocalConfiguration.current.screenHeightDp.dp) else Modifier)
                 .blockTouches(),
         ) {
             // Latar kartu profil menutup SELURUH badan sheet, berpangkal di tepi atas.
@@ -741,15 +738,15 @@ fun UserProfileSheet(
                 if (cb.startsWith("vipcard_") && n in 1..9) VipAssets.get(n, "cardbg") else null
             }
             if (kartuBg != null) {
-                // Gambar kartu penuh selebar sheet, rasio asli dipertahankan; tinggi sheet
-                // dikunci mengikuti gambar, jadi tidak ada bagian yang terpotong.
-                Box(Modifier.matchParentSize().clipToBounds()) {
-                    KartuProfilBg(
-                        kartuBg,
-                        Modifier.fillMaxWidth().aspectRatio(748f / 1459f).align(Alignment.TopCenter),
-                        ContentScale.FillBounds,
-                    )
-                }
+                // Gambar kartu menentukan TINGGI sheet: selebar layar dengan rasio asli
+                // (748x1459), jadi sheet naik sampai setinggi gambar dan tidak ada bagian
+                // yang terpotong. Tingginya dibatasi tinggi layar supaya tidak keluar.
+                val tinggiMaks = LocalConfiguration.current.screenHeightDp.dp
+                KartuProfilBg(
+                    kartuBg,
+                    Modifier.fillMaxWidth().aspectRatio(748f / 1459f).heightIn(max = tinggiMaks),
+                    ContentScale.FillBounds,
+                )
             }
             Column(
                 Modifier.fillMaxWidth()

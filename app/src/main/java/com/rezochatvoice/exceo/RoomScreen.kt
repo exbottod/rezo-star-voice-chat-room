@@ -1485,7 +1485,7 @@ private fun RmSeatView(index: Int, seat: Seat?, size: Dp, locked: Boolean = fals
                     val a = 0.35f + 0.5f * lvl
                     Box(
                         Modifier.fillMaxSize().clip(CircleShape).background(
-                            Brush.radialGradient(
+                            androidx.compose.ui.graphics.Brush.radialGradient(
                                 listOf(
                                     Color(0xFF3FE08C).copy(alpha = a.coerceIn(0.25f, 0.85f)),
                                     Color(0xFF3FE08C).copy(alpha = 0.10f),
