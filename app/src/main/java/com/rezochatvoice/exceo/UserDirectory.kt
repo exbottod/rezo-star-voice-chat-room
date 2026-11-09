@@ -749,6 +749,35 @@ object UidAlias {
         }
     }
 
+    /**
+     * Unique ID yang masa aktifnya habis otomatis dilepas dari uidCustom, sehingga
+     * item itu muncul lagi di Store dan bisa dibeli orang lain.
+     */
+    fun bersihKedaluwarsa(uid: String, w: Wallet) {
+        if (uid.isBlank()) return
+        val sekarang = System.currentTimeMillis()
+        kotlinx.coroutines.GlobalScope.launch {
+            try {
+                kotlinx.coroutines.withTimeoutOrNull(7000L) {
+                    val nomor = Rtdb.ref("uidAliasOf/$uid").get().await()
+                        .getValue(String::class.java).orEmpty()
+                    if (nomor.isBlank()) return@withTimeoutOrNull
+                    val itemId = Rtdb.ref("uidCustom/$nomor/itemId").get().await()
+                        .getValue(String::class.java).orEmpty()
+                    val habis = itemId.isNotBlank() && (w.inv[itemId] ?: 0L) <= sekarang
+                    if (habis) {
+                        val pemilik = Rtdb.ref("uidCustom/$nomor/uid").get().await()
+                            .getValue(String::class.java).orEmpty()
+                        if (pemilik == uid) {
+                            try { Rtdb.ref("uidCustom/$nomor").removeValue().await() } catch (e: Exception) { }
+                        }
+                        try { Rtdb.ref("uidAliasOf/$uid").removeValue().await() } catch (e: Exception) { }
+                    }
+                }
+            } catch (e: Exception) { }
+        }
+    }
+
     suspend fun lepas(uid: String) {
         // Semua langkah Firebase diberi batas waktu pendek: kalau RTDB lambat atau
         // menolak, tombol Lepas tetap lanjut ke server dan tidak menggantung.

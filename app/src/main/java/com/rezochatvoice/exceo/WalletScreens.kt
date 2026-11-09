@@ -165,6 +165,8 @@ object WalletRepo {
         val merged = SvipInv.apply(uid, w)
         // ID cantik yang sudah dipakai didaftarkan ulang kalau petanya hilang.
         try { UidAlias.pastikan(uid, merged) } catch (e: Exception) { }
+        // Unique ID yang sudah habis masa aktifnya dikembalikan ke Store.
+        try { UidAlias.bersihKedaluwarsa(uid, merged) } catch (e: Exception) { }
         backupCbs.forEach { try { it(uid, merged) } catch (e: Exception) { } }
     }
 

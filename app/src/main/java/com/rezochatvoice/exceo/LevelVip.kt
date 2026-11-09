@@ -225,6 +225,11 @@ object LvRepo {
         if (nomor.isNotBlank() && StoreCatalog.idSudahDipakai(nomor)) return "ID $nomor sudah dibeli akun lain"
         val r = SupaRepo.buyItem(uid, item)
         r.wallet?.let { WalletRepo.emitBackup(uid, it) }
+        // Unique ID: langsung didaftarkan begitu dibeli, jadi item itu hilang dari
+        // Store saat itu juga dan tidak bisa dibeli orang lain.
+        if (r.error == null && nomor.isNotBlank()) {
+            UidAlias.klaim(nomor, uid, item.id)
+        }
         return r.error
     }
 
