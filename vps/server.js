@@ -14,6 +14,9 @@ const env = {
   // Gateway WhatsApp OTP yang berjalan di mesin ini.
   WA_OTP_URL: process.env.WA_OTP_URL || "http://127.0.0.1:8099",
   WA_OTP_SECRET: process.env.WA_OTP_SECRET || "",
+  // Resend: kunci email hanya ada di server, tidak pernah ikut ke APK.
+  RESEND_KEY: process.env.RESEND_KEY || "",
+  RESEND_DARI: process.env.RESEND_DARI || "",
 };
 if (!env.TURSO_URL || !env.TURSO_TOKEN) {
   console.error("TURSO_URL / TURSO_TOKEN belum diisi");
