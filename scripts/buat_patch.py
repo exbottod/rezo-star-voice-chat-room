@@ -54,6 +54,25 @@ def muat_manifest(path):
     return [pasangan]
 
 
+def rapikan(versi):
+    """Samakan nama versi ke bentuk pendek yang dilaporkan aplikasi.
+
+    Berkas dasar dari workflow lama masih bernama "1.0.1026", sedangkan app
+    melaporkan versi terpasang sebagai "1.1.26". Kalau nama itu dibiarkan,
+    entri patch berlabel "dari 1.0.1026" tidak pernah cocok dengan versi yang
+    dilaporkan HP, jadi dialog patch tidak muncul. Di sini nama panjang
+    diubah ke bentuk pendek supaya cocok.
+    """
+    bagian = str(versi).strip().split(".")
+    if len(bagian) == 3 and all(x.isdigit() for x in bagian):
+        mayor, minor, patch = int(bagian[0]), int(bagian[1]), int(bagian[2])
+        if patch >= 1000:
+            minor += patch // 1000
+            patch %= 1000
+            return "%d.%d.%d" % (mayor, minor, patch)
+    return str(versi).strip()
+
+
 def nomor(versi):
     """Nilai urut versi, sama persis dengan app (AppUpdate.build).
 
@@ -112,6 +131,8 @@ def main():
             e.pop(args.kunci, None)
     daftar = [e for e in daftar if any(k in e for k in ("arm64", "armv7", "universal"))]
 
+    args.versi_lama = rapikan(args.versi_lama) if args.versi_lama else ""
+    args.versi_baru = rapikan(args.versi_baru) if args.versi_baru else ""
     if args.versi_lama and args.versi_lama == args.versi_baru:
         print("Versi lama sama dengan versi baru, patch dilewati.")
         tulis_manifest(args.json, daftar)
