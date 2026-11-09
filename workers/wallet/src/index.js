@@ -1225,6 +1225,7 @@ async function asetUpload(env, b) {
   const berkas = nama + "_" + Date.now().toString(36) + "." + ext;
 
   // 1) Jalur utama: simpan di VPS (Turso). Cepat dan tidak bergantung GitHub.
+  let galatVps = "";
   try {
     await asetPastikan(env);
     await pipe(env, [
@@ -1235,11 +1236,11 @@ async function asetUpload(env, b) {
     ]);
     return json({ ok: 1, url: VPS_ASET + "/" + berkas, path: berkas, simpan: "vps" });
   } catch (e) {
-    // kalau Turso bermasalah, lanjut ke GitHub di bawah
+    galatVps = String(e?.message ?? e);
   }
 
   const gh = String(b.gh || "").trim();
-  if (!gh) throw new Error("Penyimpanan VPS gagal dan token GitHub belum diisi");
+  if (!gh) throw new Error("Penyimpanan VPS gagal (" + galatVps + ") dan token GitHub belum diisi");
   const path = "docs/aset/" + berkas;
   const r = await fetch("https://api.github.com/repos/" + ASET_REPO + "/contents/" + path, {
     method: "PUT",
@@ -2425,7 +2426,7 @@ export default {
     if (url.pathname.toLowerCase().startsWith("/aset/")) {
       const nm = decodeURIComponent(url.pathname.slice("/aset/".length));
       try {
-        await asetPastikan(env);
+        try { await asetPastikan(env); } catch (e0) { /* tabel mungkin belum ada */ }
         const rA = await pipe(env, [
           { sql: "select mime, b64 from aset_file where nama = ?", args: [nm] },
         ]);
@@ -2442,7 +2443,7 @@ export default {
           },
         });
       } catch (e) {
-        return new Response("", { status: 500 });
+        return new Response("aset tidak ditemukan: " + String(e?.message ?? e), { status: 404 });
       }
     }
     if (url.pathname.toLowerCase() === "/aset-upload") {
