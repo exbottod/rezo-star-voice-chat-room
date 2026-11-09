@@ -72,6 +72,34 @@ async function pipe(env, stmts) {
   return out;
 }
 
+/**
+ * Jalankan transaksi (begin ... commit) dengan percobaan ulang.
+ * Kalau "begin immediate" bentrok karena database sedang sibuk, statement
+ * berikutnya berjalan tanpa transaksi dan "commit" gagal dengan pesan
+ * "cannot commit - no transaction is active". Pesan itu menyesatkan, jadi
+ * di sini: bersihkan sisa transaksi, tunggu sebentar, lalu ulangi.
+ */
+async function pipeTrx(env, stmts, percobaan = 4) {
+  let galatTerakhir = null;
+  for (let i = 0; i < percobaan; i++) {
+    try {
+      return await pipe(env, stmts);
+    } catch (e) {
+      galatTerakhir = e;
+      const pesan = String(e?.message ?? e);
+      try { await pipe(env, [{ sql: "rollback" }]); } catch (e2) { /* tidak ada transaksi aktif */ }
+      const bisaUlang = /no transaction is active|database is locked|busy|SQLITE_BUSY|cannot start a transaction|Turso 5\d\d|Turso 429/i.test(pesan);
+      if (!bisaUlang) throw e;
+      await new Promise((r) => setTimeout(r, 150 * (i + 1) + Math.floor(Math.random() * 120)));
+    }
+  }
+  const asli = String(galatTerakhir?.message ?? galatTerakhir);
+  if (/no transaction is active/i.test(asli)) {
+    throw new Error("Server sedang sibuk, coba lagi sebentar");
+  }
+  throw galatTerakhir;
+}
+
 // ---------- Verifikasi token login Firebase ----------
 let jwks = { keys: [], at: 0 };
 
@@ -662,7 +690,7 @@ async function beliVip(env, uid, p) {
     if (!eq.banner || /^vipbn_/.test(eq.banner)) eq.banner = `vipbn_${tier}`;
   }
 
-  const r = await pipe(env, [
+  const r = await pipeTrx(env, [
     { sql: "begin immediate" },
     {
       sql: `update wallets set coins = coins - ?, vip = ?, vip_until = ?, inv = ?, equip = ?, updated_at = ?
@@ -694,7 +722,7 @@ async function beliItem(env, uid, p) {
   const lama = Number(w0.inv?.[id] ?? 0);
   const akhir = Math.max(now, lama) + hari * 86400000;
   const inv = { ...w0.inv, [id]: akhir };
-  const r = await pipe(env, [
+  const r = await pipeTrx(env, [
     { sql: "begin immediate" },
     {
       sql: `update wallets set coins = coins - ?, inv = ?, updated_at = ?
