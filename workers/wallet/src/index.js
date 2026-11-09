@@ -2660,8 +2660,8 @@ export default {
       } catch (e) { return json({ ok: 0, e: "Gagal menyimpan: " + String(e?.message ?? e) }, 500); }
     }
 /** Kirim email lewat Resend. Kunci disimpan di server, bukan di app. */
-async function kirimEmail(env, ke, subjek, isiHtml, isiTeks) {
-  const key = env.RESEND_KEY || env.RESEND_API_KEY || "";
+async function kirimEmail(env, ke, subjek, isiHtml, isiTeks, kunci) {
+  const key = kunci || env.RESEND_KEY || env.RESEND_API_KEY || "";
   if (!key) throw new Error("RESEND_KEY belum diisi di server");
   const dari = env.RESEND_DARI || "REZO <onboarding@resend.dev>";
   const r = await fetch("https://api.resend.com/emails", {
@@ -2678,7 +2678,10 @@ async function kirimEmail(env, ke, subjek, isiHtml, isiTeks) {
       // Uji kirim email. Hanya bisa dengan kunci Resend milik server sendiri.
       if (req.method !== "POST") return json({ ok: 0, e: "Pakai POST" }, 405);
       const keyU = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "").trim();
-      if (!env.RESEND_KEY || keyU !== env.RESEND_KEY) return json({ ok: 0, e: "Kunci tidak cocok" }, 401);
+      const keyE = env.RESEND_KEY || env.RESEND_API_KEY || "";
+      const pakai = keyE || keyU;
+      if (!pakai) return json({ ok: 0, e: "Kunci Resend belum diisi" }, 401);
+      if (keyE && keyU && keyE !== keyU) return json({ ok: 0, e: "Kunci tidak cocok" }, 401);
       let bU = {};
       try { bU = await req.json(); } catch (e) { bU = {}; }
       const keU = String(bU.ke || "").trim();
@@ -2690,8 +2693,9 @@ async function kirimEmail(env, ke, subjek, isiHtml, isiTeks) {
           String(bU.subjek || "Uji email REZO"),
           "<p>Email dari server REZO berhasil terkirim. Sistem email sudah aktif.</p>",
           "Email dari server REZO berhasil terkirim.",
+          pakai,
         );
-        return json({ ok: 1, id: hasil?.id || "" });
+        return json({ ok: 1, id: hasil?.id || "", sumber: keyE ? "server" : "kunci-uji" });
       } catch (e) { return json({ ok: 0, e: String(e?.message ?? e) }, 500); }
     }
     if (url.pathname === "/admin") {
@@ -2802,7 +2806,7 @@ async function kirimEmail(env, ke, subjek, isiHtml, isiTeks) {
       try {
         await pipe(env, [{ sql: "select 1 as ok" }]);
         const modeDb = dbGalat ? "turso (sqlite tidak tersedia: " + dbGalat + ")" : "sqlite-lokal";
-        return json({ ok: 1, v: "turso-2026-11-06-otpwa", db: 1, simpan: modeDb, node: typeof process !== "undefined" ? process.version : "?" });
+        return json({ ok: 1, v: "turso-2026-11-06-otpwa", db: 1, simpan: modeDb, email: (env.RESEND_KEY || env.RESEND_API_KEY) ? 1 : 0, node: typeof process !== "undefined" ? process.version : "?" });
       } catch (e) {
         return json({ ok: 0, v: "turso-2026-11-06-seller", db: String(e?.message ?? e) }, 500);
       }
