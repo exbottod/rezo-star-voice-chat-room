@@ -48,89 +48,99 @@ data class Moment(
 data class MomentComment(val id: String, val uid: String, val name: String, val text: String, val at: Long)
 
 object MomentRepo {
-    private fun db() = FirebaseFirestore.getInstance()
-    private fun ref(id: String) = db().collection("moments").document(id)
+    // Moment disimpan di Realtime Database (kuota terpisah), bukan Firestore.
+    // Dulu posting bisa berhenti di "Memproses..." karena kuota Firestore habis.
+    private const val NODE = "moments"
 
-    fun observe(onChange: (List<Moment>) -> Unit): ListenerRegistration =
-        db().collection("moments").orderBy("createdAt", Query.Direction.DESCENDING).limit(30)
-            .addSnapshotListener { snap, _ ->
-                if (snap != null) {
-                    onChange(
-                        snap.documents.map {
-                            Moment(
-                                id = it.id,
-                                uid = it.getString("uid") ?: "",
-                                name = it.getString("name") ?: "Pengguna",
-                                text = it.getString("text") ?: "",
-                                photoB64 = it.getString("photoB64"),
-                                createdAt = it.getLong("createdAt") ?: 0L,
-                                likes = (it.getLong("likeCount") ?: 0L).toInt().coerceAtLeast(0),
-                                comments = (it.getLong("commentCount") ?: 0L).toInt().coerceAtLeast(0),
-                            )
-                        },
-                    )
-                }
-            }
+    private fun momentDari(snap: com.google.firebase.database.DataSnapshot): Moment? {
+        val uid = snap.child("uid").getValue(String::class.java) ?: return null
+        return Moment(
+            id = snap.key.orEmpty(),
+            uid = uid,
+            name = snap.child("name").getValue(String::class.java) ?: "Pengguna",
+            text = snap.child("text").getValue(String::class.java).orEmpty(),
+            photoB64 = snap.child("photoB64").getValue(String::class.java),
+            createdAt = (snap.child("createdAt").value as? Number)?.toLong() ?: 0L,
+            likes = ((snap.child("likeCount").value as? Number)?.toInt() ?: 0).coerceAtLeast(0),
+            comments = ((snap.child("commentCount").value as? Number)?.toInt() ?: 0).coerceAtLeast(0),
+        )
+    }
 
-    suspend fun byUid(uid: String): List<Moment> =
-        db().collection("moments").whereEqualTo("uid", uid).limit(50).get().await().documents.map {
-            Moment(
-                id = it.id,
-                uid = it.getString("uid") ?: "",
-                name = it.getString("name") ?: "Pengguna",
-                text = it.getString("text") ?: "",
-                photoB64 = it.getString("photoB64"),
-                createdAt = it.getLong("createdAt") ?: 0L,
-                likes = (it.getLong("likeCount") ?: 0L).toInt().coerceAtLeast(0),
-                comments = (it.getLong("commentCount") ?: 0L).toInt().coerceAtLeast(0),
+    fun observe(onChange: (List<Moment>) -> Unit): Reg =
+        Rtdb.listen(Rtdb.ref(NODE)) { snap ->
+            onChange(
+                snap.children.mapNotNull { momentDari(it) }
+                    .sortedByDescending { it.createdAt }.take(30),
             )
-        }.sortedByDescending { it.createdAt }
+        }
+
+    suspend fun byUid(uid: String): List<Moment> = try {
+        kotlinx.coroutines.withTimeoutOrNull(12000L) {
+            val snap = Rtdb.ref(NODE).get().await()
+            snap.children.mapNotNull { momentDari(it) }
+                .filter { it.uid == uid }
+                .sortedByDescending { it.createdAt }
+                .take(50)
+        } ?: emptyList()
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { emptyList() }
 
     suspend fun post(uid: String, name: String, text: String, photoB64: String?): String? = try {
-        db().collection("moments").add(
-            hashMapOf<String, Any?>(
-                "uid" to uid, "name" to name, "text" to text, "photoB64" to photoB64,
-                "createdAt" to System.currentTimeMillis(), "likeCount" to 0, "commentCount" to 0,
-            ),
-        ).await()
-        null
+        val selesai = kotlinx.coroutines.withTimeoutOrNull(25000L) {
+            Rtdb.ref(NODE).push().apply {
+                setValue(
+                    hashMapOf<String, Any?>(
+                        "uid" to uid, "name" to name, "text" to text, "photoB64" to photoB64,
+                        "createdAt" to System.currentTimeMillis(), "likeCount" to 0, "commentCount" to 0,
+                    ),
+                ).await()
+            }
+            true
+        }
+        if (selesai == null) "Server lambat, coba lagi" else null
     } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
         e.message ?: "Gagal posting"
     }
 
-    suspend fun isLiked(id: String, uid: String): Boolean =
-        ref(id).collection("likes").document(uid).get().await().exists()
+    suspend fun isLiked(id: String, uid: String): Boolean = try {
+        Rtdb.ref("$NODE/$id/likes/$uid").get().await().exists()
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { false }
 
     suspend fun setLike(id: String, uid: String, like: Boolean): String? = try {
-        val b = db().batch()
-        val likeRef = ref(id).collection("likes").document(uid)
-        if (like) b.set(likeRef, hashMapOf<String, Any?>("at" to System.currentTimeMillis())) else b.delete(likeRef)
-        b.update(ref(id), "likeCount", FieldValue.increment(if (like) 1L else -1L))
-        b.commit().await()
+        val likeRef = Rtdb.ref("$NODE/$id/likes/$uid")
+        if (like) likeRef.setValue(System.currentTimeMillis()).await()
+        else likeRef.removeValue().await()
+        // Hitung ulang jumlah suka langsung dari daftar likes (tidak bisa melenceng).
+        val jumlah = Rtdb.ref("$NODE/$id/likes").get().await().childrenCount
+        Rtdb.ref("$NODE/$id/likeCount").setValue(jumlah).await()
         null
     } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
         e.message ?: "Gagal"
     }
 
-    fun observeComments(id: String, onChange: (List<MomentComment>) -> Unit): ListenerRegistration =
-        ref(id).collection("comments").orderBy("at").limitToLast(100).addSnapshotListener { snap, _ ->
-            if (snap != null) {
-                onChange(
-                    snap.documents.map {
-                        MomentComment(it.id, it.getString("uid") ?: "", it.getString("name") ?: "", it.getString("text") ?: "", it.getLong("at") ?: 0L)
-                    },
-                )
-            }
+    fun observeComments(id: String, onChange: (List<MomentComment>) -> Unit): Reg =
+        Rtdb.listen(Rtdb.ref("$NODE/$id/comments")) { snap ->
+            onChange(
+                snap.children.mapNotNull { c ->
+                    MomentComment(
+                        id = c.key.orEmpty(),
+                        uid = c.child("uid").getValue(String::class.java).orEmpty(),
+                        name = c.child("name").getValue(String::class.java).orEmpty(),
+                        text = c.child("text").getValue(String::class.java).orEmpty(),
+                        at = (c.child("at").value as? Number)?.toLong() ?: 0L,
+                    )
+                }.sortedBy { it.at }.takeLast(100),
+            )
         }
 
     suspend fun addComment(id: String, uid: String, name: String, text: String): String? = try {
-        val b = db().batch()
-        b.set(
-            ref(id).collection("comments").document(),
-            hashMapOf<String, Any?>("uid" to uid, "name" to name, "text" to text, "at" to System.currentTimeMillis()),
-        )
-        b.update(ref(id), "commentCount", FieldValue.increment(1L))
-        b.commit().await()
+        val nodeComment = Rtdb.ref("$NODE/$id/comments").push()
+        nodeComment.setValue(
+            hashMapOf<String, Any?>(
+                "uid" to uid, "name" to name, "text" to text, "at" to System.currentTimeMillis(),
+            ),
+        ).await()
+        val jumlah = Rtdb.ref("$NODE/$id/comments").get().await().childrenCount
+        Rtdb.ref("$NODE/$id/commentCount").setValue(jumlah).await()
         null
     } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
         e.message ?: "Gagal"
