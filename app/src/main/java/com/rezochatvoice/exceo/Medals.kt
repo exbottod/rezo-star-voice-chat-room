@@ -149,19 +149,19 @@ fun UserMedals(csv: String?, size: Dp = 44.dp, modifier: Modifier = Modifier) {
         it.startsWith("vipt_") || it.startsWith("sx_") || it.startsWith("svm_") || findItem(it) != null
     }.filter { LENCANA_AKTIF || findItem(it)?.slot != "badge" }
     if (ids.isEmpty()) return
-    // Barisan medal rapi: rata kiri, jarak seragam, otomatis pindah baris kalau banyak.
-    if (size <= 36.dp) {
-        // Mode ringkas (header profil): satu baris, tidak membungkus ke bawah.
-        Row(modifier, horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
-            ids.forEach { Box(Modifier.height(size), contentAlignment = Alignment.CenterStart) { MedalIcon(it, size) } }
-        }
-    } else androidx.compose.foundation.layout.FlowRow(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+    // Barisan medal: rata tengah, jarak seragam, dan otomatis pindah baris.
+    // Dulu mode ringkas dipaksa satu baris tanpa membungkus, jadi begitu medal
+    // banyak (atau keyboard terbuka dan layar menyempit) deretannya terpotong
+    // ke pinggir kanan. Sekarang selalu membungkus di dalam lebar yang tersedia.
+    val ringkas = size <= 36.dp
+    androidx.compose.foundation.layout.FlowRow(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(if (ringkas) 5.dp else 6.dp, Alignment.CenterHorizontally),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        maxLines = if (ringkas) 2 else Int.MAX_VALUE,
     ) {
         ids.forEach {
-            Box(Modifier.height(size), contentAlignment = Alignment.CenterStart) { MedalIcon(it, size) }
+            Box(Modifier.height(size), contentAlignment = Alignment.Center) { MedalIcon(it, size) }
         }
     }
 }

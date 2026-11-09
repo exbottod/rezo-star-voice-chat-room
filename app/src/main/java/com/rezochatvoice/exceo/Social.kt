@@ -643,6 +643,7 @@ private fun KartuProfilBg(a: VipAsset, modifier: Modifier = Modifier, scale: Con
  * [topAction] = tombol di pojok kanan atas sheet (mis. menu titik tiga: Kick dari room).
  */
 @Composable
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 fun UserProfileSheet(
     uid: String,
     myUid: String,
@@ -821,14 +822,16 @@ fun UserProfileSheet(
                     ) {
                         Spacer(Modifier.height(6.dp))
                         // Lencana + lencana family sebaris (tidak makan baris sendiri).
-                        Row(
-                            Modifier.fillMaxWidth(),
+                        // Lencana bisa lebih dari satu: dibungkus rapi dan rata tengah
+                        // supaya tidak terpotong ke pinggir, juga saat keyboard terbuka.
+                        androidx.compose.foundation.layout.FlowRow(
+                            Modifier.fillMaxWidth().padding(horizontal = 12.dp),
                             horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
-                            verticalAlignment = Alignment.CenterVertically,
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
-                            // Tag tingkat VIP sudah ada di sebelah level, jadi di sini hanya
-                            // lencana yang dipasang dari toko.
-                            medalIdList(u.badge).mapNotNull { findItem(it) }.forEach { StoreBadgeIcon(it, 24.dp) }
+                            medalIdList(u.badge).mapNotNull { findItem(it) }.forEach { b ->
+                                Box(Modifier.height(24.dp), contentAlignment = Alignment.Center) { StoreBadgeIcon(b, 24.dp) }
+                            }
                             if (u.fam.isNotBlank()) FamTag3D(u.fam)
                         }
                         Spacer(Modifier.height(4.dp))

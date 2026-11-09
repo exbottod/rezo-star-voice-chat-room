@@ -313,14 +313,10 @@ fun ProfileTab(
                         // Medal di atas (rapi, rata kiri), lencana tepat di bawahnya.
                         val myMedals = activeMedalIds(wallet)
                         if (myMedals.isNotEmpty()) {
-                            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
-                                UserMedals(myMedals.joinToString(","), 32.dp)
-                            }
+                            UserMedals(myMedals.joinToString(","), 32.dp, Modifier.fillMaxWidth())
                             Spacer(Modifier.height(4.dp))
                         }
-                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
-                            BadgeRow(wallet.vip, wallet.vipUntil, activeEquip(wallet, "badge"))
-                        }
+                        BadgeRow(wallet.vip, wallet.vipUntil, activeEquip(wallet, "badge"), Modifier.fillMaxWidth())
                         FamTagByUid(FirebaseAuth.getInstance().currentUser?.uid)
                     }
                 }
