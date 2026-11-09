@@ -1187,7 +1187,7 @@ async function stokStaf(env, uid) {
  * tetap tautan CDN GitHub (jsDelivr), bukan penyimpanan lain.
  */
 const ASET_REPO = "exbottod/rezo-star-voice-chat-room";
-const VPS_ASET = "https://43-156-99-4.sslip.io/aset";
+const VPS_ASET = "https://43-156-99-4.sslip.io/berkas";
 const ASET_CABANG = "main";
 /* Penyimpanan aset di VPS (Turso). Unggah jadi cepat karena tidak menunggu
    commit ke GitHub; file dilayani langsung lewat /aset/<nama>. */
@@ -2423,8 +2423,12 @@ export default {
       try { return await sellerApi(env, sesi, b); }
       catch (e) { return gagal(String(e?.message ?? "Server seller sibuk")); }
     }
-    if (url.pathname.toLowerCase().startsWith("/aset/")) {
-      const nm = decodeURIComponent(url.pathname.slice("/aset/".length));
+    if (
+      url.pathname.toLowerCase().startsWith("/berkas/") ||
+      url.pathname.toLowerCase().startsWith("/aset/")
+    ) {
+      const awalan = url.pathname.toLowerCase().startsWith("/berkas/") ? "/berkas/" : "/aset/";
+      const nm = decodeURIComponent(url.pathname.slice(awalan.length));
       try {
         try { await asetPastikan(env); } catch (e0) { /* tabel mungkin belum ada */ }
         const rA = await pipe(env, [
