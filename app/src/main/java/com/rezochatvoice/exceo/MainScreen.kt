@@ -96,6 +96,7 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
     // Coin seller: daftar penjual di Dompet dan panel seller di tab Profil.
     var showSellers by remember { mutableStateOf(false) }
     var showSellerPanel by remember { mutableStateOf(false) }
+    var showAgency by remember { mutableStateOf(false) }
     var commentMoment by remember { mutableStateOf<Moment?>(null) }
     var wallet by remember { mutableStateOf(Wallet()) }
     // Tarik-ulang: dipakai tab Saya dan halaman Dompet. Semua data diambil
@@ -538,6 +539,7 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                             fans = fans,
                             onWalletClick = { showWallet = true },
                             onSellerPanelClick = { showSellerPanel = true },
+                            onAgencyClick = { showAgency = true },
                             onProfileClick = { fullProfileUid = uid },
                             wallet = wallet,
                             onVipClick = { showVip = true },
@@ -655,6 +657,9 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                         )
                     },
                 )
+            }
+            if (showAgency) {
+                AgencyScreen(onBack = { showAgency = false })
             }
             if (showSellerPanel) {
                 SellerPanelScreen(

@@ -155,6 +155,7 @@ fun ProfileTab(
     onFansClick: () -> Unit = {},
     onFollowingClick: () -> Unit = {},
     onSellerPanelClick: () -> Unit = {},
+    onAgencyClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
@@ -423,6 +424,7 @@ fun ProfileTab(
                 if (sellerAktif) {
                     MenuItem("\uD83D\uDCB0", "Panel Seller") { onSellerPanelClick() }
                 }
+                MenuItem("\uD83C\uDFE2", "Agensi") { onAgencyClick() }
                 MenuItem("⚙", tr("Pengaturan"), icon = R.drawable.ic_settings) { onSettingsClick() }
                 MenuItem("❓", tr("Bantuan")) { soon(tr("Bantuan")) }
             }
