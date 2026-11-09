@@ -316,7 +316,13 @@ fun VipTagText(n: Int, modifier: Modifier = Modifier) {
 /** Lencana di bawah level & nama: VIP otomatis + lencana store yang dipakai. */
 @Composable
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
-fun BadgeRow(vip: Int, until: Long, badge: String, modifier: Modifier = Modifier) {
+fun BadgeRow(
+    vip: Int,
+    until: Long,
+    badge: String,
+    modifier: Modifier = Modifier,
+    rataKiri: Boolean = false,
+) {
     if (!LENCANA_AKTIF) return
     val on = vipActive(vip, until)
     val daftar = medalIdList(badge).mapNotNull { findItem(it) }
@@ -325,7 +331,10 @@ fun BadgeRow(vip: Int, until: Long, badge: String, modifier: Modifier = Modifier
     // dan tidak terpotong ke tepi layar.
     androidx.compose.foundation.layout.FlowRow(
         modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+        horizontalArrangement = Arrangement.spacedBy(
+            6.dp,
+            if (rataKiri) Alignment.Start else Alignment.CenterHorizontally,
+        ),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         if (on) VipTag(vip)

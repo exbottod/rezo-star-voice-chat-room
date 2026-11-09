@@ -2080,7 +2080,7 @@ private fun RmChatRow(m: RoomMsg, myUid: String, onProfile: (String) -> Unit) {
             u?.let {
                 if (it.medals.isNotBlank()) {
                     Spacer(Modifier.height(2.dp))
-                    UserMedals(it.medals, 18.dp)
+                    UserMedals(it.medals, 18.dp, Modifier.fillMaxWidth(), rataKiri = true)
                 }
             }
             Spacer(Modifier.height(3.dp))

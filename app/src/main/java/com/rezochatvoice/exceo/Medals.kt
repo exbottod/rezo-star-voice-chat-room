@@ -142,7 +142,16 @@ fun MedalIcon(id: String, size: Dp, tagModifier: Modifier = Modifier) {
 /** Deretan medal kecil (di bawah nama, di chat room, di profil). Kosong = tidak menampilkan apa-apa. */
 @Composable
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
-fun UserMedals(csv: String?, size: Dp = 44.dp, modifier: Modifier = Modifier) {
+fun UserMedals(
+    csv: String?,
+    size: Dp = 44.dp,
+    modifier: Modifier = Modifier,
+    // Di area obrolan (termasuk saat mengetik) deretan disusun rata kiri dan
+    // turun baris seperlunya, supaya semua medal terlihat dan tidak ada yang
+    // terpotong ke tepi layar.
+    rataKiri: Boolean = false,
+    barisMaks: Int = 0,
+) {
     LaunchedEffect(Unit) { StoreCatalog.start(); VipAssets.load() }
     // Aturan sama dengan activeMedalIds: medal VIP, store (sx_), SVIP (svm_), dan bawaan.
     val ids = medalIdList(csv).take(MAX_MEDALS).filter {
@@ -154,11 +163,16 @@ fun UserMedals(csv: String?, size: Dp = 44.dp, modifier: Modifier = Modifier) {
     // banyak (atau keyboard terbuka dan layar menyempit) deretannya terpotong
     // ke pinggir kanan. Sekarang selalu membungkus di dalam lebar yang tersedia.
     val ringkas = size <= 36.dp
+    val sejajar = if (rataKiri) Alignment.Start else Alignment.CenterHorizontally
     androidx.compose.foundation.layout.FlowRow(
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(if (ringkas) 5.dp else 6.dp, Alignment.CenterHorizontally),
+        horizontalArrangement = Arrangement.spacedBy(if (ringkas) 5.dp else 6.dp, sejajar),
         verticalArrangement = Arrangement.spacedBy(4.dp),
-        maxLines = if (ringkas) 2 else Int.MAX_VALUE,
+        maxLines = when {
+            barisMaks > 0 -> barisMaks
+            ringkas && !rataKiri -> 2
+            else -> Int.MAX_VALUE
+        },
     ) {
         ids.forEach {
             Box(Modifier.height(size), contentAlignment = Alignment.Center) { MedalIcon(it, size) }

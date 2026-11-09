@@ -826,7 +826,7 @@ fun UserProfileSheet(
                         // supaya tidak terpotong ke pinggir, juga saat keyboard terbuka.
                         androidx.compose.foundation.layout.FlowRow(
                             Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.Start),
                             verticalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
                             medalIdList(u.badge).mapNotNull { findItem(it) }.forEach { b ->
@@ -835,7 +835,7 @@ fun UserProfileSheet(
                             if (u.fam.isNotBlank()) FamTag3D(u.fam)
                         }
                         Spacer(Modifier.height(4.dp))
-                        UserMedals(u.medals, 40.dp, Modifier.fillMaxWidth())
+                        UserMedals(u.medals, 40.dp, Modifier.fillMaxWidth(), rataKiri = true)
                         Spacer(Modifier.height(6.dp))
                         VipBanner(u)
                         Spacer(Modifier.height(4.dp))
