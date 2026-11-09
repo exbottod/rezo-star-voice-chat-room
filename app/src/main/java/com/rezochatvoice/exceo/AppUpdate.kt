@@ -412,7 +412,11 @@ fun UpdateGate() {
             // dan selamanya memakai versi lama.
             val terlaluLama = AppUpdate.versiDasar.isNotBlank() &&
                 AppUpdate.build(AppUpdate.installedVersion(ctx)) < AppUpdate.build(AppUpdate.versiDasar)
-            if ((kecil != null && kecil.ukuran > 0) || terlaluLama) {
+            // Kalau ternyata tidak ada patch untuk versi yang terpasang (misalnya
+            // pengguna melewatkan beberapa versi), tetap tampilkan dialog dengan
+            // APK penuh. Dulu dialog ditahan menunggu patch yang memang tidak akan
+            // pernah ada, jadi pengguna tidak pernah melihat pemberitahuan update.
+            if ((kecil != null && kecil.ukuran > 0) || terlaluLama || kecil == null) {
                 // "Nanti" hanya menunda untuk versi yang sama selama 6 jam.
                 val skipV = prefs.getString("skip_v", "") ?: ""
                 val skipAt = prefs.getLong("skip_at", 0L)
