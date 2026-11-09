@@ -2504,6 +2504,21 @@ export default {
       }
     }
     if (url.pathname.toLowerCase() === "/aset-upload") {
+      // Jalur cepat: biner mentah (tanpa base64), parameter lewat query string.
+      if (url.searchParams.get("raw") === "1") {
+        const sesiR = await sesiDariToken(url.searchParams.get("t") ?? "");
+        if (!sesiR) return json({ ok: 0, e: "Sesi tidak sah" }, 401);
+        if (sesiR.email !== ADMIN_EMAIL) return json({ ok: 0, e: "Hanya admin" }, 403);
+        try {
+          const buf = Buffer.from(await req.arrayBuffer());
+          return await asetUpload(env, {
+            b64: buf.toString("base64"),
+            name: url.searchParams.get("name") || "aset",
+            ext: url.searchParams.get("ext") || "png",
+            gh: url.searchParams.get("gh") || "",
+          });
+        } catch (e) { return json({ ok: 0, e: String(e?.message ?? e) }, 502); }
+      }
       const bA = await req.json().catch(() => null);
       if (!bA) return json({ ok: 0, e: "Body tidak valid" }, 400);
       const sesiA = await sesiDariToken(bA.t ?? "");

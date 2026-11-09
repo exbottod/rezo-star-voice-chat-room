@@ -3739,9 +3739,15 @@ async function ghUpload(file, name){
   const path = "docs/aset/" + name + "_" + Date.now().toString(36) + "." + ext;
   const bytes = new Uint8Array(await file.arrayBuffer());
   if (bytes.length > 8 * 1024 * 1024) throw new Error("File lebih dari 8 MB. Kecilkan dulu atau pakai URL.");
-  let bin = "";
-  for (let i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192));
-  const b64 = btoa(bin);
+  let b64cache = null;
+  const ambilB64 = () => {
+    if (b64cache === null) {
+      let bin = "";
+      for (let i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192));
+      b64cache = btoa(bin);
+    }
+    return b64cache;
+  };
   // 1) Lewat server VPS. Ini jalur utama: koneksinya dekat dan cepat.
   try {
     const u = auth.currentUser;
@@ -3752,11 +3758,29 @@ async function ghUpload(file, name){
     const jam = setTimeout(() => ctl.abort(), 240000);
     let res;
     try {
-      res = await fetch(ASET_UPLOAD_URL, {
-        method: "POST",
-        signal: ctl.signal,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ t: idToken, gh: tok, name: name, ext: ext, b64: b64 }),
+      // Jalur cepat: kirim file mentah (tanpa base64, ~25% lebih kecil) dan
+      // tampilkan progres nyata supaya kelihatan jalan, bukan seperti macet.
+      const qs = "?raw=1&t=" + encodeURIComponent(idToken) + "&name=" + encodeURIComponent(name) +
+        "&ext=" + encodeURIComponent(ext) + "&gh=" + encodeURIComponent(tok);
+      res = await new Promise((resolve, reject) => {
+        const x = new XMLHttpRequest();
+        x.open("POST", ASET_UPLOAD_URL + qs);
+        x.timeout = 240000;
+        x.setRequestHeader("Content-Type", "application/octet-stream");
+        let terakhir = 0;
+        x.upload.onprogress = ev => {
+          if (!ev.lengthComputable) return;
+          const p = Math.floor(ev.loaded / ev.total * 100);
+          if (p - terakhir >= 20 || p === 100) { terakhir = p; try { toast("Mengunggah " + p + "%"); } catch (e) { } }
+        };
+        x.onload = () => resolve({
+          ok: x.status >= 200 && x.status < 300,
+          status: x.status,
+          json: async () => { try { return JSON.parse(x.responseText); } catch (e) { return {}; } },
+        });
+        x.onerror = () => reject(new Error("Failed to fetch"));
+        x.ontimeout = () => reject(new Error("waktu habis"));
+        x.send(bytes);
       });
     } finally {
       clearTimeout(jam);
@@ -3784,7 +3808,7 @@ async function ghUpload(file, name){
   let gagal = null;
   for (let coba = 0; coba < 2; coba++) {
     try {
-      await ghUploadSekali(tok, path, b64, name);
+      await ghUploadSekali(tok, path, ambilB64(), name);
       gagal = null;
       break;
     } catch (e) {
