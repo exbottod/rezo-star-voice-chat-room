@@ -9,8 +9,7 @@ import http from "node:http";
 import worker from "./index.js";
 
 const env = {
-  TURSO_URL: process.env.TURSO_URL || "",
-  TURSO_TOKEN: process.env.TURSO_TOKEN || "",
+  // Database: SQLite lokal di dalam folder kerja (tanpa layanan luar).
   // Gateway WhatsApp OTP yang berjalan di mesin ini.
   WA_OTP_URL: process.env.WA_OTP_URL || "http://127.0.0.1:8099",
   WA_OTP_SECRET: process.env.WA_OTP_SECRET || "",
@@ -18,11 +17,6 @@ const env = {
   RESEND_KEY: process.env.RESEND_KEY || "",
   RESEND_DARI: process.env.RESEND_DARI || "",
 };
-if (!env.TURSO_URL || !env.TURSO_TOKEN) {
-  console.error("TURSO_URL / TURSO_TOKEN belum diisi");
-  process.exit(1);
-}
-
 const PORT = Number(process.env.PORT || 8080);
 const HOST = process.env.HOST || "127.0.0.1";
 // Permintaan dompet kecil, tapi unggah aset lewat /aset-upload membawa file

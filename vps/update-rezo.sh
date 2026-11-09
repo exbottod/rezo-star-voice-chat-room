@@ -14,6 +14,13 @@ git pull -q
 install -o rezo -g rezo -m 644 workers/wallet/src/index.js "$DIR/index.js"
 install -o rezo -g rezo -m 644 vps/server.js "$DIR/server.js"
 
+# Bersihkan sisa pengaturan Turso; database sekarang SQLite lokal.
+if [ -f /etc/rezo/api.env ] && grep -q '^TURSO' /etc/rezo/api.env; then
+  cp /etc/rezo/api.env /etc/rezo/api.env.bak
+  sed -i '/^TURSO_/d' /etc/rezo/api.env
+  echo "env    : baris TURSO dihapus (cadangan: /etc/rezo/api.env.bak)"
+fi
+
 systemctl restart rezo-api
 sleep 4
 

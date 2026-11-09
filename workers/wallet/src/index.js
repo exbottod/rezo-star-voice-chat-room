@@ -1,5 +1,5 @@
 /**
- * Dompet REZO di Cloudflare Workers + Turso.
+ * Dompet REZO: SQLite lokal di VPS (juga jalan di Cloudflare).
  *
  * Menggantikan smart-processor Supabase. Bentuk jawabannya sama persis
  * ({"ok":1,"w":{...}} atau {"ok":0,"e":"..."}), jadi aplikasi tidak perlu
@@ -12,7 +12,7 @@
 
 const PROJ = "arboreal-cat-511705-p6"; // project Firebase (aud token)
 
-// ---------- Turso lewat HTTP pipeline ----------
+// ---------- Akses database (SQLite lokal) ----------
 const T = (v) => ({ type: "text", value: String(v) });
 const I = (v) => ({ type: "integer", value: String(Math.trunc(Number(v) || 0)) });
 
@@ -29,10 +29,9 @@ async function logGalat(env, uid, aksi, pesan) {
 }
 
 // ---------- Database ----------
-// Sejak kuota tulis Turso habis, database tinggal di VPS sendiri sebagai
-// SQLite. Gratis, tanpa batas kuota, dan tetap jalan walau internet VPS putus.
-// Kalau Node di server belum mendukung node:sqlite, semua kembali memakai
-// Turso seperti sebelumnya (baca tetap jalan).
+// Database tinggal di VPS sendiri sebagai SQLite: tanpa kuota, tanpa layanan
+// luar, dan tetap jalan walau internet VPS putus. Satu-satunya syarat adalah
+// Node di server mendukung modul bawaan node:sqlite (Node 22.13 ke atas).
 const DB_DIR = "/opt/rezo-api/data";
 const DB_FILE = DB_DIR + "/rezo.db";
 let dbSiap = null;
@@ -53,11 +52,6 @@ async function dbLokal(env) {
   if (!dbSiap) {
     dbSiap = (async () => {
       const db = await bukaDbLokal();
-      const cek = db.prepare("select count(*) c from sqlite_master where type='table'").get();
-      // Database baru: salin seluruh isi Turso sekali di awal.
-      if (Number(cek.c) === 0 && env && env.TURSO_URL && env.TURSO_TOKEN) {
-        try { await salinDariTurso(env, db); } catch (e) { console.error("salin awal gagal: " + (e?.message ?? e)); }
-      }
       return db;
     })().catch((e) => { dbSiap = null; dbGalat = String(e?.message ?? e); throw e; });
   }
@@ -93,96 +87,17 @@ function pipeDi(db, stmts) {
   return out;
 }
 
-/** Salin skema + seluruh isi tabel dari Turso ke SQLite lokal. */
-async function salinDariTurso(env, db) {
-  const r = await pipeRemote(env, [
-    { sql: "select type, name, sql from sqlite_master where sql is not null and name not like 'sqlite_%' order by case type when 'table' then 0 else 1 end" },
-  ]);
-  const objs = r[0].rows;
-  for (const o of objs) if (o.type === "table") { try { db.exec(o.sql); } catch (e) { } }
-  let total = 0;
-  for (const o of objs) {
-    if (o.type !== "table") continue;
-    let offset = 0;
-    for (;;) {
-      const rr = await pipeRemote(env, [{ sql: `select * from "${o.name}" limit 500 offset ${offset}` }]);
-      const rows = rr[0].rows;
-      if (!rows.length) break;
-      const cols = Object.keys(rows[0]);
-      const sql = `insert or replace into "${o.name}" (${cols.map((c) => `"${c}"`).join(",")}) values (${cols.map(() => "?").join(",")})`;
-      const st = db.prepare(sql);
-      db.exec("begin");
-      for (const row of rows) st.run(...cols.map((c) => row[c] ?? null));
-      db.exec("commit");
-      total += rows.length;
-      if (rows.length < 500) break;
-      offset += 500;
-    }
-  }
-  for (const o of objs) if (o.type === "index") { try { db.exec(o.sql); } catch (e) { } }
-  console.log("salin dari Turso selesai: " + total + " baris");
-  return total;
-}
 
 async function pipe(env, stmts) {
-  if (!dbGalat) {
-    try {
-      const db = await dbLokal(env);
-      return pipeDi(db, stmts);
-    } catch (e) {
-      // Tanpa dukungan SQLite, pakai Turso seperti dulu.
-    }
+  let db;
+  try {
+    db = await dbLokal(env);
+  } catch (e) {
+    throw new Error("Database lokal tidak bisa dibuka: " + String(e?.message ?? e));
   }
-  return await pipeRemote(env, stmts);
+  return pipeDi(db, stmts);
 }
 
-async function pipeRemote(env, stmts) {
-  const body = {
-    requests: [
-      ...stmts.map((s) => ({
-        type: "execute",
-        stmt: { sql: s.sql, args: (s.args ?? []).map((a) => (a?.type ? a : T(a))) },
-      })),
-      { type: "close" },
-    ],
-  };
-  const r = await fetch(`${env.TURSO_URL}/v2/pipeline`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${env.TURSO_TOKEN}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
-  const j = await r.json().catch(() => null);
-  if (!r.ok || !j?.results) throw new Error(`Turso ${r.status}`);
-  const out = [];
-  let err = "";
-  for (const res of j.results) {
-    if (res.type === "error") {
-      const m = String(res.error?.message ?? "turso error");
-      // Simpan kesalahan pertama saja; kalau transaksi sudah batal, semua
-      // statement berikutnya (termasuk commit) ikut gagal dan pesannya
-      // menyesatkan.
-      if (!err) err = m;
-      out.push({ rows: [], affected: 0 });
-      continue;
-    }
-    const r2 = res.response?.result ?? {};
-    const cols = (r2.cols ?? []).map((c) => c.name);
-    const rows = (r2.rows ?? []).map((row) => {
-      const o = {};
-      row.forEach((cell, i) => {
-        const v = cell?.value;
-        o[cols[i]] = cell?.type === "integer" || cell?.type === "float" ? Number(v) : v;
-      });
-      return o;
-    });
-    out.push({ rows, affected: Number(r2.affected_row_count ?? 0) });
-  }
-  if (err) throw new Error(err);
-  return out;
-}
 
 /**
  * Jalankan transaksi (begin ... commit) dengan percobaan ulang.
@@ -200,7 +115,7 @@ async function pipeTrx(env, stmts, percobaan = 4) {
       galatTerakhir = e;
       const pesan = String(e?.message ?? e);
       try { await pipe(env, [{ sql: "rollback" }]); } catch (e2) { /* tidak ada transaksi aktif */ }
-      const bisaUlang = /no transaction is active|database is locked|busy|SQLITE_BUSY|cannot start a transaction|Turso 5\d\d|Turso 429/i.test(pesan);
+      const bisaUlang = /no transaction is active|database is locked|busy|SQLITE_BUSY|cannot start a transaction/i.test(pesan);
       if (!bisaUlang) throw e;
       await new Promise((r) => setTimeout(r, 150 * (i + 1) + Math.floor(Math.random() * 120)));
     }
@@ -1251,7 +1166,7 @@ async function topupManualRiwayat(env, uid) {
 
 // ---------- Panel admin ----------
 // ================= PANEL MANAGER & ADMIN =================
-// Hak staf disimpan di Turso supaya bisa dicabut kapan saja dari panel
+// Hak staf disimpan di database supaya bisa dicabut kapan saja dari panel
 // developer, dan semua aksi saldo tetap dihitung server.
 
 async function peranStaf(env, uid) {
@@ -1301,7 +1216,7 @@ async function stokStaf(env, uid) {
 const ASET_REPO = "exbottod/rezo-star-voice-chat-room";
 const VPS_ASET = "https://43-156-99-4.sslip.io/berkas";
 const ASET_CABANG = "main";
-/* Penyimpanan aset di VPS (Turso). Unggah jadi cepat karena tidak menunggu
+/* Penyimpanan aset di VPS. Unggah jadi cepat karena tidak menunggu
    commit ke GitHub; file dilayani langsung lewat /aset/<nama>. */
 const ASET_DIR = "/opt/rezo-api/aset";
 
@@ -1373,7 +1288,7 @@ async function asetUpload(env, b) {
   const nama = (String(b.name || "aset").toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 40) || "aset");
   const berkas = nama + "_" + Date.now().toString(36) + "." + ext;
 
-  // 1) Jalur utama: simpan di VPS (Turso). Cepat dan tidak bergantung GitHub.
+  // 1) Jalur utama: simpan di VPS. Cepat dan tidak bergantung GitHub.
   let galatVps = "";
   // 0) Paling cepat: tulis ke disk VPS.
   try {
@@ -2802,13 +2717,13 @@ async function kirimEmail(env, ke, subjek, isiHtml, isiTeks, kunci) {
       return new Response(null, { status: 302, headers: { location: APK_ASLI } });
     }
     if (url.pathname === "/health") {
-      // Sekaligus buktikan sambungan ke Turso hidup.
+      // Sekaligus buktikan database masih bisa dibaca.
       try {
         await pipe(env, [{ sql: "select 1 as ok" }]);
-        const modeDb = dbGalat ? "turso (sqlite tidak tersedia: " + dbGalat + ")" : "sqlite-lokal";
-        return json({ ok: 1, v: "turso-2026-11-06-otpwa", db: 1, simpan: modeDb, email: (env.RESEND_KEY || env.RESEND_API_KEY) ? 1 : 0, node: typeof process !== "undefined" ? process.version : "?" });
+        const modeDb = dbGalat ? "sqlite bermasalah: " + dbGalat : "sqlite-lokal";
+        return json({ ok: 1, v: "rezo-2026-11-09-sqlite", db: 1, simpan: modeDb, email: (env.RESEND_KEY || env.RESEND_API_KEY) ? 1 : 0, node: typeof process !== "undefined" ? process.version : "?" });
       } catch (e) {
-        return json({ ok: 0, v: "turso-2026-11-06-seller", db: String(e?.message ?? e) }, 500);
+        return json({ ok: 0, v: "rezo-2026-11-09-sqlite", db: String(e?.message ?? e) }, 500);
       }
     }
     if (req.method !== "POST") return gagal("Gunakan POST");
@@ -2895,7 +2810,7 @@ async function kirimEmail(env, ke, subjek, isiHtml, isiTeks, kunci) {
         case "hive_uang":
           return await hiveUang(env, uid, p);
         default:
-          return gagal(`aksi ${aksi} belum dipindah ke Turso`);
+          return gagal(`aksi ${aksi} tidak dikenali`);
       }
     } catch (e) {
       return gagal(String(e?.message ?? "Server dompet sibuk"));
