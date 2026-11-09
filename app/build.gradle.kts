@@ -45,7 +45,10 @@ android {
         // penuh pindah ke kelompok minor: 1.0.1015 menjadi 1.1.15. Jadi urutan
         // versi tetap naik terus tanpa pernah mengulang nomor yang sama.
         val nomorBuild = (System.getenv("GITHUB_RUN_NUMBER") ?: (System.getenv("REZO_BUILD") ?: "1015")).toIntOrNull() ?: 0
-        versionName = "1." + (nomorBuild / 1000) + "." + (nomorBuild % 1000)
+        // REZO_VERSI memaksa nama versi tertentu (dipakai workflow lewat input
+        // "versi"), jadi APK dan nama berkas rilis selalu sama.
+        val versiPaksa = System.getenv("REZO_VERSI")?.trim().orEmpty()
+        versionName = versiPaksa.ifBlank { "1." + (nomorBuild / 1000) + "." + (nomorBuild % 1000) }
         // Pustaka native dipecah per jenis HP (lihat blok splits di bawah),
         // supaya satu APK tidak membawa kode untuk dua prosesor sekaligus.
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"$googleWebClientId\"")

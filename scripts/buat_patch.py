@@ -55,10 +55,24 @@ def muat_manifest(path):
 
 
 def nomor(versi):
+    """Nilai urut versi, sama persis dengan app (AppUpdate.build).
+
+    "1.0.1019" -> 1001019 dan "1.1.22" -> 1001022, jadi versi pendek yang baru
+    dianggap LEBIH BARU. Dulu hanya angka terakhir yang dibandingkan, sehingga
+    1.0.1019 dianggap di atas 1.1.22 dan versi_baru di manifest tidak pernah
+    naik ke bentuk pendek.
+    """
     try:
-        return int(str(versi).split(".")[-1])
+        b = [int(x) for x in str(versi).strip().split(".")]
     except Exception:
         return 0
+    mayor = b[0] if len(b) > 0 else 0
+    minor = b[1] if len(b) > 1 else 0
+    patch = b[2] if len(b) > 2 else 0
+    if patch >= 1000:
+        minor += patch // 1000
+        patch %= 1000
+    return (mayor * 1000 + minor) * 1000 + patch
 
 
 def tulis_manifest(path, daftar):

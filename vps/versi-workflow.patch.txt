@@ -1,0 +1,25 @@
+Perubahan workflow yang perlu di-apply (butuh token GitHub dengan izin "workflow").
+
+1) Di .github/workflows/build-debug.yml, bagian "Hitung nomor versi", ganti isinya menjadi:
+
+          N="${{ github.run_number }}"
+          V="${{ github.event.inputs.versi }}"
+          if [ -z "$V" ]; then V="1.$((N / 1000)).$((N % 1000))"; fi
+          echo "VERSION_NAME=$V" >> "$GITHUB_ENV"
+          echo "REZO_VERSI=$V" >> "$GITHUB_ENV"
+          echo "Versi rilis: $V"
+
+2) Pada blok "on:" tambahkan input:
+
+on:
+  workflow_dispatch:
+    inputs:
+      versi:
+        description: "Versi yang dipakai (kosongkan untuk otomatis, mis. 1.1.22)"
+        required: false
+        default: ""
+
+3) Ganti  VER="1.0.${GITHUB_RUN_NUMBER}"  menjadi  VER="${VERSION_NAME}"
+
+4) Ganti pesan commit  "Perbarui isi APK 1.0.${GITHUB_RUN_NUMBER} [skip ci]"
+   menjadi  "Perbarui isi APK ${VERSION_NAME} [skip ci]"
