@@ -28,7 +28,115 @@ async function logGalat(env, uid, aksi, pesan) {
   } catch { /* logging tidak boleh mengganggu transaksi */ }
 }
 
+// ---------- Database ----------
+// Sejak kuota tulis Turso habis, database tinggal di VPS sendiri sebagai
+// SQLite. Gratis, tanpa batas kuota, dan tetap jalan walau internet VPS putus.
+// Kalau Node di server belum mendukung node:sqlite, semua kembali memakai
+// Turso seperti sebelumnya (baca tetap jalan).
+const DB_DIR = "/opt/rezo-api/data";
+const DB_FILE = DB_DIR + "/rezo.db";
+let dbSiap = null;
+let dbGalat = "";
+
+async function bukaDbLokal() {
+  const fs = await import("node:fs");
+  fs.mkdirSync(DB_DIR, { recursive: true });
+  const { DatabaseSync } = await import("node:sqlite");
+  const db = new DatabaseSync(DB_FILE);
+  db.exec("PRAGMA journal_mode=WAL");
+  db.exec("PRAGMA busy_timeout=8000");
+  db.exec("PRAGMA synchronous=NORMAL");
+  return db;
+}
+
+async function dbLokal(env) {
+  if (!dbSiap) {
+    dbSiap = (async () => {
+      const db = await bukaDbLokal();
+      const cek = db.prepare("select count(*) c from sqlite_master where type='table'").get();
+      // Database baru: salin seluruh isi Turso sekali di awal.
+      if (Number(cek.c) === 0 && env && env.TURSO_URL && env.TURSO_TOKEN) {
+        try { await salinDariTurso(env, db); } catch (e) { console.error("salin awal gagal: " + (e?.message ?? e)); }
+      }
+      return db;
+    })().catch((e) => { dbSiap = null; dbGalat = String(e?.message ?? e); throw e; });
+  }
+  return dbSiap;
+}
+
+/** Jalankan sekumpulan statement di SQLite lokal, urut seperti pipeline. */
+function pipeDi(db, stmts) {
+  const out = [];
+  let err = "";
+  for (const s of stmts) {
+    if (err) { out.push({ rows: [], affected: 0 }); continue; }
+    const sql = String(s.sql ?? "");
+    const args = (s.args ?? []).map((a) =>
+      a && typeof a === "object" && "type" in a
+        ? (a.type === "integer" ? Number(a.value) : a.type === "float" ? Number(a.value) : a.value)
+        : a,
+    );
+    try {
+      const st = db.prepare(sql);
+      if (/^\s*(select|with|pragma|explain)/i.test(sql)) {
+        out.push({ rows: st.all(...args), affected: 0 });
+      } else {
+        const r = st.run(...args);
+        out.push({ rows: [], affected: Number(r.changes ?? 0) });
+      }
+    } catch (e) {
+      if (!err) err = String(e?.message ?? e);
+      out.push({ rows: [], affected: 0 });
+    }
+  }
+  if (err) throw new Error(err);
+  return out;
+}
+
+/** Salin skema + seluruh isi tabel dari Turso ke SQLite lokal. */
+async function salinDariTurso(env, db) {
+  const r = await pipeRemote(env, [
+    { sql: "select type, name, sql from sqlite_master where sql is not null and name not like 'sqlite_%' order by case type when 'table' then 0 else 1 end" },
+  ]);
+  const objs = r[0].rows;
+  for (const o of objs) if (o.type === "table") { try { db.exec(o.sql); } catch (e) { } }
+  let total = 0;
+  for (const o of objs) {
+    if (o.type !== "table") continue;
+    let offset = 0;
+    for (;;) {
+      const rr = await pipeRemote(env, [{ sql: `select * from "${o.name}" limit 500 offset ${offset}` }]);
+      const rows = rr[0].rows;
+      if (!rows.length) break;
+      const cols = Object.keys(rows[0]);
+      const sql = `insert or replace into "${o.name}" (${cols.map((c) => `"${c}"`).join(",")}) values (${cols.map(() => "?").join(",")})`;
+      const st = db.prepare(sql);
+      db.exec("begin");
+      for (const row of rows) st.run(...cols.map((c) => row[c] ?? null));
+      db.exec("commit");
+      total += rows.length;
+      if (rows.length < 500) break;
+      offset += 500;
+    }
+  }
+  for (const o of objs) if (o.type === "index") { try { db.exec(o.sql); } catch (e) { } }
+  console.log("salin dari Turso selesai: " + total + " baris");
+  return total;
+}
+
 async function pipe(env, stmts) {
+  if (!dbGalat) {
+    try {
+      const db = await dbLokal(env);
+      return pipeDi(db, stmts);
+    } catch (e) {
+      // Tanpa dukungan SQLite, pakai Turso seperti dulu.
+    }
+  }
+  return await pipeRemote(env, stmts);
+}
+
+async function pipeRemote(env, stmts) {
   const body = {
     requests: [
       ...stmts.map((s) => ({
@@ -2638,7 +2746,8 @@ export default {
       // Sekaligus buktikan sambungan ke Turso hidup.
       try {
         await pipe(env, [{ sql: "select 1 as ok" }]);
-        return json({ ok: 1, v: "turso-2026-11-06-otpwa", db: 1 });
+        const modeDb = dbGalat ? "turso (sqlite tidak tersedia: " + dbGalat + ")" : "sqlite-lokal";
+        return json({ ok: 1, v: "turso-2026-11-06-otpwa", db: 1, simpan: modeDb, node: typeof process !== "undefined" ? process.version : "?" });
       } catch (e) {
         return json({ ok: 0, v: "turso-2026-11-06-seller", db: String(e?.message ?? e) }, 500);
       }
