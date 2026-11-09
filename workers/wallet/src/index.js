@@ -2721,7 +2721,18 @@ async function kirimEmail(env, ke, subjek, isiHtml, isiTeks, kunci) {
       try {
         await pipe(env, [{ sql: "select 1 as ok" }]);
         const modeDb = dbGalat ? "sqlite bermasalah: " + dbGalat : "sqlite-lokal";
-        return json({ ok: 1, v: "rezo-2026-11-09-sqlite", db: 1, simpan: modeDb, email: (env.RESEND_KEY || env.RESEND_API_KEY) ? 1 : 0, node: typeof process !== "undefined" ? process.version : "?" });
+        // Ringkasan data staf: hanya jumlah dan peran, tanpa UID atau nama.
+        let staf = 0, stafAktif = 0, peran = [];
+        try {
+          const r = await pipe(env, [
+            { sql: "select count(*) c, coalesce(sum(active), 0) a from panel_staf" },
+            { sql: "select role, count(*) n from panel_staf group by role" },
+          ]);
+          staf = Number(r[0].rows[0]?.c ?? 0);
+          stafAktif = Number(r[0].rows[0]?.a ?? 0);
+          peran = r[1].rows.map((x) => String(x.role) + ":" + Number(x.n));
+        } catch (e) { /* tabel belum ada */ }
+        return json({ ok: 1, v: "rezo-2026-11-09-sqlite", db: 1, simpan: modeDb, email: (env.RESEND_KEY || env.RESEND_API_KEY) ? 1 : 0, staf, stafAktif, peran, node: typeof process !== "undefined" ? process.version : "?" });
       } catch (e) {
         return json({ ok: 0, v: "rezo-2026-11-09-sqlite", db: String(e?.message ?? e) }, 500);
       }
