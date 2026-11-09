@@ -338,6 +338,95 @@ async function siapSeller(env) {
   siapSel = true;
 }
 
+// ---------- Agensi ----------
+// Agensi mengumpulkan host. Setiap gift yang diterima host dicatat sebagian
+// kecil (rate agensi) sebagai komisi agensi. Perhitungan dilakukan di server,
+// bukan di aplikasi, supaya tidak bisa dipalsukan dari HP.
+let siapAg = false;
+async function siapAgency(env) {
+  if (siapAg) return;
+  await pipe(env, [
+    { sql: `create table if not exists agency (
+        id text primary key,
+        nama text not null default '',
+        owner_uid text not null default '',
+        kode text not null default '',
+        rate integer not null default 10,
+        aktif integer not null default 1,
+        saldo integer not null default 0,
+        created_at integer not null default (unixepoch() * 1000))` },
+    { sql: `create unique index if not exists agency_kode on agency(kode)` },
+    { sql: `create table if not exists agency_host (
+        host_uid text primary key,
+        agency_id text not null,
+        aktif integer not null default 1,
+        sejak integer not null default (unixepoch() * 1000))` },
+    { sql: `create table if not exists agency_earn (
+        agency_id text not null,
+        bulan text not null,
+        coins integer not null default 0,
+        primary key (agency_id, bulan))` },
+    { sql: `create table if not exists agency_req (
+        id integer primary key autoincrement,
+        agency_id text not null,
+        coins integer not null default 0,
+        status text not null default 'menunggu',
+        at integer not null default (unixepoch() * 1000),
+        oleh text not null default '')` },
+  ]);
+  siapAg = true;
+}
+
+/** Bulan berjalan sebagai teks "2026-11" untuk mengelompokkan komisi. */
+function bulanIni(t = Date.now()) {
+  const d = new Date(t);
+  return d.getUTCFullYear() + "-" + String(d.getUTCMonth() + 1).padStart(2, "0");
+}
+
+/** Kode undangan agensi: 6 huruf/angka besar, mudah dibaca ulang. */
+function kodeAgensi() {
+  const abjad = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let s = "";
+  for (let i = 0; i < 6; i++) s += abjad[Math.floor(Math.random() * abjad.length)];
+  return s;
+}
+
+/**
+ * Catat komisi agensi untuk satu penerima gift. Gagal mencatat TIDAK boleh
+ * menggagalkan gift, jadi semua galat ditelan di sini.
+ */
+async function catatKomisiAgency(env, hostUid, nilaiCoin, now) {
+  try {
+    const nilai = Math.trunc(Number(nilaiCoin) || 0);
+    if (nilai <= 0) return;
+    await siapAgency(env);
+    const r = await pipe(env, [
+      {
+        sql: `select h.agency_id, a.rate from agency_host h
+              join agency a on a.id = h.agency_id
+              where h.host_uid = ? and h.aktif = 1 and a.aktif = 1`,
+        args: [T(hostUid)],
+      },
+    ]);
+    const row = r[0].rows[0];
+    if (!row) return;
+    const rate = Math.max(0, Math.min(100, Number(row.rate) || 0));
+    const komisi = Math.floor((nilai * rate) / 100);
+    if (komisi <= 0) return;
+    const bulan = bulanIni(now);
+    await pipeTrx(env, [
+      { sql: "begin immediate" },
+      {
+        sql: `insert into agency_earn (agency_id, bulan, coins) values (?, ?, ?)
+              on conflict (agency_id, bulan) do update set coins = coins + excluded.coins`,
+        args: [T(row.agency_id), T(bulan), I(komisi)],
+      },
+      { sql: "update agency set saldo = saldo + ? where id = ?", args: [I(komisi), T(row.agency_id)] },
+      { sql: "commit" },
+    ]);
+  } catch (e) { /* komisi opsional: jangan ganggu gift */ }
+}
+
 const KOLOM_SELLER = `s.uid, s.store, s.wa, s.wa_link, s.stock, s.urut, s.active,
   coalesce(nullif(s.photo, ''), (select avatar from wave_players w where w.uid = s.uid), '') as photo`;
 
@@ -568,6 +657,8 @@ async function kreditPenerima(env, uid, p, price, item, room, now, req) {
         },
         { sql: "commit" },
       ]);
+      // Komisi agensi dihitung dari nilai gift yang diterima host.
+      await catatKomisiAgency(env, r, each, now);
     } catch (e) {
       try { await pipe(env, [{ sql: "rollback" }]); } catch (e2) { /* tidak ada transaksi aktif */ }
     }
@@ -1394,6 +1485,91 @@ async function panel(env, body) {
     return json({ ok: 1, role: utama.role, manager: utama.manager, coins: utama.coins, stok, panels });
   }
 
+  // ---- Agensi: dipakai pemilik agensi dan host dari dalam aplikasi ----
+  if (aksi === "agency_info") {
+    await siapAgency(env);
+    const bulan = bulanIni();
+    const milik = await pipe(env, [
+      {
+        sql: `select id, nama, kode, rate, aktif, saldo from agency where owner_uid = ? order by created_at limit 1`,
+        args: [T(uid)],
+      },
+    ]);
+    const ag = milik[0].rows[0] || null;
+    const sbgHost = await pipe(env, [
+      {
+        sql: `select h.agency_id, h.sejak, a.nama, a.rate from agency_host h
+              join agency a on a.id = h.agency_id
+              where h.host_uid = ? and h.aktif = 1 and a.aktif = 1`,
+        args: [T(uid)],
+      },
+    ]);
+    let host = [];
+    let komisiBulan = 0;
+    if (ag) {
+      const h = await pipe(env, [
+        {
+          sql: `select h.host_uid, h.sejak from agency_host h
+                where h.agency_id = ? and h.aktif = 1 order by h.sejak desc limit 200`,
+          args: [T(ag.id)],
+        },
+      ]);
+      host = h[0].rows;
+      const e = await pipe(env, [
+        { sql: "select coins from agency_earn where agency_id = ? and bulan = ?", args: [T(ag.id), T(bulan)] },
+      ]);
+      komisiBulan = Number(e[0].rows[0]?.coins ?? 0);
+    }
+    return json({ ok: 1, bulan, agency: ag, komisiBulan, host, sebagaiHost: sbgHost[0].rows[0] || null });
+  }
+
+  if (aksi === "agency_join") {
+    await siapAgency(env);
+    const kode = String(p.kode ?? "").trim().toUpperCase();
+    if (!kode) return gagal("Kode agensi kosong");
+    const ag = await pipe(env, [
+      { sql: "select id, nama, rate, aktif from agency where kode = ?", args: [T(kode)] },
+    ]);
+    const row = ag[0].rows[0];
+    if (!row || !row.aktif) return gagal("Kode agensi tidak ditemukan");
+    const kini = await pipe(env, [
+      { sql: "select agency_id, aktif, sejak from agency_host where host_uid = ?", args: [T(uid)] },
+    ]);
+    const lama = kini[0].rows[0];
+    // Pindah agensi baru boleh setelah 30 hari, supaya agensi tidak saling rebut host.
+    if (lama && lama.aktif && lama.agency_id !== row.id) {
+      const hari = Math.floor((Date.now() - Number(lama.sejak ?? 0)) / 86400000);
+      if (hari < 30) return gagal("Baru bisa pindah agensi setelah 30 hari (sekarang " + hari + " hari)");
+    }
+    await pipe(env, [
+      {
+        sql: `insert into agency_host (host_uid, agency_id, aktif, sejak) values (?, ?, 1, ?)
+              on conflict (host_uid) do update set agency_id = excluded.agency_id, aktif = 1, sejak = excluded.sejak`,
+        args: [T(uid), T(row.id), I(Date.now())],
+      },
+    ]);
+    return json({ ok: 1, agency: { id: row.id, nama: row.nama, rate: row.rate } });
+  }
+
+  if (aksi === "agency_request") {
+    await siapAgency(env);
+    const ag = await pipe(env, [
+      { sql: "select id, saldo from agency where owner_uid = ? and aktif = 1", args: [T(uid)] },
+    ]);
+    const row = ag[0].rows[0];
+    if (!row) return gagal("Kamu bukan pemilik agensi");
+    const minta = Math.trunc(Number(p.coins ?? row.saldo));
+    if (!(minta > 0)) return gagal("Tidak ada komisi untuk dicairkan");
+    if (minta > Number(row.saldo ?? 0)) return gagal("Saldo komisi tidak cukup");
+    await pipe(env, [
+      {
+        sql: "insert into agency_req (agency_id, coins, status, at) values (?, ?, 'menunggu', ?)",
+        args: [T(row.id), I(minta), I(Date.now())],
+      },
+    ]);
+    return json({ ok: 1, minta });
+  }
+
   if (aksi === "ban_check") {
     const r = await pipe(env, [
       { sql: "select reason, oleh from panel_ban where uid = ?", args: [T(uid)] },
@@ -1628,6 +1804,117 @@ async function admin(env, body) {
       ]);
     }
     return json({ ok: 1, seller: await satuSeller(env, who) });
+  }
+
+  // ---- Agensi (khusus developer) ----
+  if (op === "agency_list") {
+    await siapAgency(env);
+    const bulan = bulanIni();
+    const r = await pipe(env, [
+      {
+        sql: `select a.id, a.nama, a.owner_uid, a.kode, a.rate, a.aktif, a.saldo,
+                     (select count(*) from agency_host h where h.agency_id = a.id and h.aktif = 1) as host,
+                     coalesce((select e.coins from agency_earn e where e.agency_id = a.id and e.bulan = ?), 0) as bulan_ini
+              from agency a order by a.created_at desc limit 200`,
+        args: [T(bulan)],
+      },
+    ]);
+    return json({ ok: 1, bulan, agency: r[0].rows });
+  }
+  if (op === "agency_save") {
+    await siapAgency(env);
+    const nama = String(p.nama ?? "").trim().slice(0, 60);
+    const owner = String(p.ownerUid ?? p.owner ?? "").trim();
+    const rate = Math.max(0, Math.min(100, Math.trunc(Number(p.rate ?? 10))));
+    const aktif = p.aktif === undefined ? 1 : (Number(p.aktif) ? 1 : 0);
+    if (!nama) return gagal("Nama agensi wajib diisi");
+    if (owner && !/^[A-Za-z0-9_-]{6,64}$/.test(owner)) return gagal("UID pemilik tidak valid");
+    const id = String(p.id ?? "").trim() || ("ag-" + Date.now().toString(36));
+    const ada = await pipe(env, [{ sql: "select id, kode from agency where id = ?", args: [T(id)] }]);
+    const kode = ada[0].rows[0]?.kode || kodeAgensi();
+    await pipe(env, [
+      {
+        sql: `insert into agency (id, nama, owner_uid, kode, rate, aktif) values (?, ?, ?, ?, ?, ?)
+              on conflict (id) do update set
+                nama = excluded.nama, owner_uid = excluded.owner_uid,
+                rate = excluded.rate, aktif = excluded.aktif`,
+        args: [T(id), T(nama), T(owner), T(kode), I(rate), I(aktif)],
+      },
+    ]);
+    const r = await pipe(env, [
+      { sql: "select id, nama, owner_uid, kode, rate, aktif, saldo from agency where id = ?", args: [T(id)] },
+    ]);
+    return json({ ok: 1, agency: r[0].rows[0] });
+  }
+  if (op === "agency_del") {
+    await siapAgency(env);
+    const id = String(p.id ?? "").trim();
+    if (!id) return gagal("ID agensi kosong");
+    await pipe(env, [
+      { sql: "update agency_host set aktif = 0 where agency_id = ?", args: [T(id)] },
+      { sql: "delete from agency where id = ?", args: [T(id)] },
+    ]);
+    return json({ ok: 1, id });
+  }
+  if (op === "agency_hosts") {
+    await siapAgency(env);
+    const id = String(p.id ?? "").trim();
+    const r = await pipe(env, [
+      {
+        sql: `select h.host_uid, h.sejak, h.aktif,
+                     coalesce((select sum(t.amount) from money_tx t
+                               where t.uid = h.host_uid and t.kind = 'gift_in'), 0) as total_gift
+              from agency_host h where h.agency_id = ? order by h.sejak desc limit 300`,
+        args: [T(id)],
+      },
+    ]);
+    return json({ ok: 1, host: r[0].rows });
+  }
+  if (op === "agency_attach" || op === "agency_detach") {
+    await siapAgency(env);
+    const who = String(p.uid ?? "").trim();
+    if (!/^[A-Za-z0-9_-]{6,64}$/.test(who)) return gagal("UID host tidak valid");
+    if (op === "agency_detach") {
+      await pipe(env, [{ sql: "update agency_host set aktif = 0 where host_uid = ?", args: [T(who)] }]);
+      return json({ ok: 1, uid: who, agency: null });
+    }
+    const id = String(p.id ?? "").trim();
+    const ada = await pipe(env, [{ sql: "select id from agency where id = ?", args: [T(id)] }]);
+    if (!ada[0].rows.length) return gagal("Agensi tidak ditemukan");
+    await pipe(env, [
+      {
+        sql: `insert into agency_host (host_uid, agency_id, aktif, sejak) values (?, ?, 1, ?)
+              on conflict (host_uid) do update set agency_id = excluded.agency_id, aktif = 1`,
+        args: [T(who), T(id), I(Date.now())],
+      },
+    ]);
+    return json({ ok: 1, uid: who, agency: id });
+  }
+  if (op === "agency_req_list") {
+    await siapAgency(env);
+    const r = await pipe(env, [
+      {
+        sql: `select q.id, q.agency_id, q.coins, q.status, q.at, a.nama
+              from agency_req q left join agency a on a.id = q.agency_id
+              order by q.at desc limit 100`,
+      },
+    ]);
+    return json({ ok: 1, req: r[0].rows });
+  }
+  if (op === "agency_req_done") {
+    await siapAgency(env);
+    const id = Math.trunc(Number(p.reqId ?? 0));
+    const r = await pipe(env, [{ sql: "select id, agency_id, coins, status from agency_req where id = ?", args: [I(id)] }]);
+    const row = r[0].rows[0];
+    if (!row) return gagal("Pengajuan tidak ditemukan");
+    if (row.status !== "menunggu") return gagal("Pengajuan sudah diproses");
+    await pipeTrx(env, [
+      { sql: "begin immediate" },
+      { sql: "update agency_req set status = 'dibayar', oleh = ? where id = ?", args: [T(String(p.oleh ?? "admin")), I(id)] },
+      { sql: "update agency set saldo = max(0, saldo - ?) where id = ?", args: [I(row.coins), T(row.agency_id)] },
+      { sql: "commit" },
+    ]);
+    return json({ ok: 1, id, status: "dibayar" });
   }
 
   // ---- Panel developer: atur panel manager/admin ----

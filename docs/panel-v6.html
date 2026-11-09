@@ -604,6 +604,37 @@ label{font-size:12px;color:var(--mut)}
       <div id="pstCoinStatus" class="muted"></div>
     </div>
     <div class="card">
+      <h2>Agensi</h2>
+      <p class="muted">Agensi mengumpulkan host. Setiap gift yang diterima host, sebagian kecil (rate) dicatat sebagai komisi agensi. Pemilik agensi memasukkan kode undangan di app.</p>
+      <label>ID agensi (kosongkan untuk agensi baru)</label>
+      <input type="text" id="agId" placeholder="ag-...">
+      <label>Nama agensi</label>
+      <input type="text" id="agNama" placeholder="Contoh: Agensi Bintang">
+      <label>UID pemilik agensi (angka Firebase)</label>
+      <input type="text" id="agOwner" placeholder="UID akun pemilik">
+      <label>Rate komisi (%)</label>
+      <input type="number" id="agRate" value="10" min="0" max="100">
+      <div class="row">
+        <button class="btn" id="agSave">Simpan agensi</button>
+        <button class="btn out" id="agReload">Muat daftar</button>
+      </div>
+      <div id="agStatus" class="muted" style="min-height:18px;margin-top:6px"></div>
+      <div id="agList" class="muted" style="margin-top:10px">Memuat...</div>
+      <hr style="border:0;border-top:1px solid var(--line);margin:14px 0">
+      <label>Pasang host ke agensi (ID angka atau UID)</label>
+      <input type="text" id="agHostUid" placeholder="ID user / UID host">
+      <label>Agensi</label>
+      <select id="agHostPilih" style="width:100%;padding:12px;border-radius:10px;border:1px solid var(--line);background:#0f0f0f;color:#fff;font-size:14px;margin:4px 0 10px"></select>
+      <div class="row">
+        <button class="btn" id="agAttach">Pasang host</button>
+        <button class="btn bad" id="agDetach">Lepas host</button>
+      </div>
+      <div id="agHostList" class="muted" style="margin-top:10px"></div>
+      <hr style="border:0;border-top:1px solid var(--line);margin:14px 0">
+      <h2 style="font-size:15px">Pengajuan pencairan</h2>
+      <div id="agReqList" class="muted">Memuat...</div>
+    </div>
+    <div class="card">
       <h2>Daftar staf</h2>
       <div id="pstList" class="muted">Memuat...</div>
       <button class="btn out" id="pstToggleDead" style="margin-top:8px;width:100%">Tampilkan yang sudah dicabut</button>
@@ -2828,7 +2859,7 @@ function userCard(el, u, line2){
   row.append(av, box); el.appendChild(row);
 }
 
-const PANEL_BUILD = "2026-11-09b";
+const PANEL_BUILD = "2026-11-09c";
 (function stempelPanel(){
   const cek = () => {
     if (!document.body || document.getElementById("panelBuild")) return;
@@ -5344,10 +5375,145 @@ async function pstFillItems(sel){
 
 function pstSay(msg){ $("pstStatus").textContent = msg || ""; toast(msg || ""); }
 
+/* ---------- Agensi ---------- */
+let agDaftar = [];
+
+function agSay(msg){ const el = $("agStatus"); if (el) el.textContent = msg || ""; }
+
+async function agMuat(){
+  const box = $("agList"); if (!box) return;
+  box.textContent = "Memuat...";
+  try {
+    const r = await walletAdmin({ op: "agency_list" });
+    agDaftar = r.agency || [];
+    const pilih = $("agHostPilih");
+    if (pilih) {
+      pilih.innerHTML = "";
+      agDaftar.forEach(a => {
+        const o = document.createElement("option");
+        o.value = a.id; o.textContent = a.nama + " (" + a.kode + ")";
+        pilih.appendChild(o);
+      });
+    }
+    if (!agDaftar.length) { box.textContent = "Belum ada agensi. Isi form di atas untuk membuat."; agReqMuat(); return; }
+    box.innerHTML = "";
+    agDaftar.forEach(a => {
+      const row = document.createElement("div"); row.className = "item";
+      const info = document.createElement("div"); info.className = "info";
+      const t = document.createElement("b"); t.textContent = a.nama + (a.aktif ? "" : " (nonaktif)");
+      const d = document.createElement("span"); d.className = "muted";
+      d.textContent = "kode " + a.kode + " · " + a.host + " host · rate " + a.rate + "% · komisi bulan ini " + fmtKoin(a.bulan_ini || 0) + " · saldo " + fmtKoin(a.saldo || 0);
+      info.append(t, d);
+      const pakai = document.createElement("button"); pakai.className = "btn out"; pakai.textContent = "Host";
+      pakai.onclick = () => agHostMuat(a.id);
+      const ubah = document.createElement("button"); ubah.className = "btn out"; ubah.textContent = "Ubah";
+      ubah.onclick = () => {
+        $("agId").value = a.id; $("agNama").value = a.nama; $("agOwner").value = a.owner_uid || ""; $("agRate").value = a.rate;
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      };
+      row.append(info, pakai, ubah); box.appendChild(row);
+    });
+    agReqMuat();
+  } catch (e) { box.textContent = "Gagal memuat agensi: " + e.message; }
+}
+
+async function agSimpan(){
+  const nama = ($("agNama").value || "").trim();
+  if (!nama) { agSay("Nama agensi wajib diisi"); return; }
+  agSay("Menyimpan...");
+  try {
+    const body = {
+      op: "agency_save",
+      id: ($("agId").value || "").trim(),
+      nama,
+      ownerUid: ($("agOwner").value || "").trim(),
+      rate: Number($("agRate").value || 10),
+    };
+    // Pemilik boleh diisi UID maupun ID angka.
+    if (body.ownerUid && /^[0-9]+$/.test(body.ownerUid)) {
+      try { body.ownerUid = await cariUidDariId(body.ownerUid); } catch (e) { agSay("ID pemilik tidak ditemukan"); return; }
+    }
+    const r = await walletAdmin(body);
+    agSay("Agensi tersimpan. Kode undangan: " + r.agency.kode);
+    $("agId").value = r.agency.id;
+    agMuat();
+  } catch (e) { agSay("Gagal: " + e.message); }
+}
+
+async function agHostMuat(id){
+  const box = $("agHostList"); if (!box) return;
+  box.textContent = "Memuat host...";
+  try {
+    const r = await walletAdmin({ op: "agency_hosts", id });
+    const host = r.host || [];
+    if (!host.length) { box.textContent = "Belum ada host di agensi ini."; return; }
+    box.innerHTML = "";
+    host.forEach(h => {
+      const row = document.createElement("div"); row.className = "item";
+      const info = document.createElement("div"); info.className = "info";
+      const t = document.createElement("b"); t.textContent = (h.host_uid || "").slice(0, 12) + "…";
+      const d = document.createElement("span"); d.className = "muted";
+      d.textContent = (h.aktif ? "aktif" : "tidak aktif") + " · total gift diterima " + fmtKoin(h.total_gift || 0);
+      info.append(t, d); row.append(info); box.appendChild(row);
+    });
+  } catch (e) { box.textContent = "Gagal memuat host: " + e.message; }
+}
+
+async function agPasang(lepas){
+  const id = $("agHostPilih") ? $("agHostPilih").value : "";
+  let uid = ($("agHostUid").value || "").trim();
+  if (!uid) { agSay("Isi ID atau UID host"); return; }
+  if (/^[0-9]+$/.test(uid)) {
+    try { uid = await cariUidDariId(uid); } catch (e) { agSay("ID host tidak ditemukan"); return; }
+  }
+  try {
+    if (lepas) await walletAdmin({ op: "agency_detach", uid });
+    else await walletAdmin({ op: "agency_attach", id, uid });
+    agSay(lepas ? "Host dilepas dari agensi" : "Host dipasang ke agensi");
+    if (id) agHostMuat(id);
+    agMuat();
+  } catch (e) { agSay("Gagal: " + e.message); }
+}
+
+async function agReqMuat(){
+  const box = $("agReqList"); if (!box) return;
+  try {
+    const r = await walletAdmin({ op: "agency_req_list" });
+    const req = r.req || [];
+    if (!req.length) { box.textContent = "Belum ada pengajuan pencairan."; return; }
+    box.innerHTML = "";
+    req.forEach(q => {
+      const row = document.createElement("div"); row.className = "item";
+      const info = document.createElement("div"); info.className = "info";
+      const t = document.createElement("b"); t.textContent = (q.nama || q.agency_id) + " · " + fmtKoin(q.coins);
+      const d = document.createElement("span"); d.className = "muted";
+      d.textContent = q.status + " · " + new Date(Number(q.at)).toLocaleString("id-ID");
+      info.append(t, d); row.append(info);
+      if (q.status === "menunggu") {
+        const tombol = document.createElement("button"); tombol.className = "btn"; tombol.textContent = "Sudah dibayar";
+        tombol.onclick = async () => {
+          tombol.disabled = true;
+          try { await walletAdmin({ op: "agency_req_done", reqId: q.id }); agReqMuat(); agMuat(); }
+          catch (e) { tombol.disabled = false; toast("Gagal: " + e.message); }
+        };
+        row.append(tombol);
+      }
+      box.appendChild(row);
+    });
+  } catch (e) { box.textContent = "Gagal memuat pengajuan: " + e.message; }
+}
+
 async function pstStart(){
   if (!$("pstItem") || !$("pstList")) { alert("Tab Panel Staf belum termuat. Tutup panel lalu buka lagi."); return; }
   pstFillItems($("pstItem"));
   pstList();
+  agMuat();
+  if ($("agSave") && !$("agSave").onclick) {
+    $("agSave").onclick = agSimpan;
+    $("agReload").onclick = agMuat;
+    $("agAttach").onclick = () => agPasang(false);
+    $("agDetach").onclick = () => agPasang(true);
+  }
 }
 
 let pstShowDead = false;
