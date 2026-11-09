@@ -1191,6 +1191,26 @@ const VPS_ASET = "https://43-156-99-4.sslip.io/berkas";
 const ASET_CABANG = "main";
 /* Penyimpanan aset di VPS (Turso). Unggah jadi cepat karena tidak menunggu
    commit ke GitHub; file dilayani langsung lewat /aset/<nama>. */
+const ASET_DIR = "/opt/rezo-api/aset";
+
+/** Simpan/layani file langsung dari disk VPS. Jauh lebih cepat daripada
+ *  database dan tidak butuh tabel apa pun. Di lingkungan tanpa disk (Cloudflare)
+ *  import fs gagal, jadi pemanggil otomatis lanjut ke cara lain. */
+async function asetFs() {
+  return await import("node:fs/promises");
+}
+
+async function asetSimpanDisk(berkas, b64) {
+  const fs = await asetFs();
+  await fs.mkdir(ASET_DIR, { recursive: true });
+  await fs.writeFile(ASET_DIR + "/" + berkas, Buffer.from(b64, "base64"));
+}
+
+async function asetBacaDisk(berkas) {
+  const fs = await asetFs();
+  return await fs.readFile(ASET_DIR + "/" + berkas);
+}
+
 let asetTabelSiap = null;
 function asetPastikan(env) {
   if (!asetTabelSiap) {
@@ -1226,6 +1246,11 @@ async function asetUpload(env, b) {
 
   // 1) Jalur utama: simpan di VPS (Turso). Cepat dan tidak bergantung GitHub.
   let galatVps = "";
+  // 0) Paling cepat: tulis ke disk VPS.
+  try {
+    await asetSimpanDisk(berkas, b64);
+    return json({ ok: 1, url: VPS_ASET + "/" + berkas, path: berkas, simpan: "disk" });
+  } catch (eDisk) { /* tanpa disk, lanjut ke database */ }
   try {
     await asetPastikan(env);
     await pipe(env, [
@@ -2430,6 +2455,17 @@ export default {
       const awalan = url.pathname.toLowerCase().startsWith("/berkas/") ? "/berkas/" : "/aset/";
       const nm = decodeURIComponent(url.pathname.slice(awalan.length));
       try {
+        try {
+          const buf = await asetBacaDisk(nm);
+          return new Response(buf, {
+            status: 200,
+            headers: {
+              "Content-Type": mimeDariExt((nm.split(".").pop() || "").toLowerCase()),
+              "Cache-Control": "public, max-age=31536000, immutable",
+              "Access-Control-Allow-Origin": "*",
+            },
+          });
+        } catch (eDisk) { /* bukan di disk, lanjut ke database */ }
         try { await asetPastikan(env); } catch (e0) { /* tabel mungkin belum ada */ }
         const rA = await pipe(env, [
           { sql: "select mime, b64 from aset_file where nama = ?", args: [nm] },
