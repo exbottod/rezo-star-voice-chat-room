@@ -8,7 +8,6 @@ RAW="${REPO_RAW:-https://raw.githubusercontent.com/exbottod/rezo-star-voice-chat
 echo "Mengunduh kode dompet terbaru..."
 # Semua berkas yang diimpor index.js harus ikut diunduh, kalau tidak layanan
 # gagal start karena modul hilang.
-curl -fsSL "$RAW/workers/wallet/src/greedy.js" -o "$DIR/greedy.js"
 curl -fsSL "$RAW/workers/wallet/src/index.js" -o "$DIR/index.js"
 curl -fsSL "$RAW/vps/server.js" -o "$DIR/server.js"
 node --check "$DIR/index.js" || { echo "Sintaks index.js salah, layanan tidak direstart"; exit 1; }
