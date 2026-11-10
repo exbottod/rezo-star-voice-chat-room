@@ -56,8 +56,13 @@ object GiftCatalog {
     private var started = false
     private val rtdbMap = HashMap<String, Gift>()   // UTAMA: Realtime Database giftCfg
     private val legacyMap = HashMap<String, Gift>()  // gift lama di Firestore
+    // Gift yang sudah dihapus pemilik: dibuang dari katalog walau datanya masih
+    // tersisa di database (id di node giftHidden, atau nama berawalan "rocket").
+    private val tersembunyi = HashSet<String>()
+    private fun dibuang(g: Gift): Boolean =
+        g.id in tersembunyi || g.name.trim().lowercase().startsWith("rocket")
     private fun apply() {
-        custom = rtdbMap.values + legacyMap.values
+        custom = (rtdbMap.values + legacyMap.values).filterNot { dibuang(it) }
         // Hanya gift yang diunggah sendiri lewat panel. Gift bawaan (GIFTS)
         // sengaja tidak ditampilkan lagi di tab Hadiah.
         list = custom
@@ -67,6 +72,14 @@ object GiftCatalog {
         if (started) return
         started = true
         if (list.isEmpty()) list = emptyList()
+        Rtdb.listen(Rtdb.ref("giftHidden")) { snap ->
+            tersembunyi.clear()
+            for (c in snap.children) {
+                val k = c.key ?: continue
+                if (c.getValue(Boolean::class.java) != false) tersembunyi.add(k)
+            }
+            apply()
+        }
         // REALTIME DATABASE (utama): node giftCfg/{id} - tidak kena kuota Firestore.
         Rtdb.listen(Rtdb.ref("giftCfg")) { snap ->
             rtdbMap.clear()
@@ -507,6 +520,8 @@ fun GiftFxOverlay(roomId: String) {
                 lastKey = if (ts > System.currentTimeMillis() - 8000L) null else key
                 return@listen
             }
+            val namaGift = c?.child("gift")?.getValue(String::class.java).orEmpty()
+            if (namaGift.trim().lowercase().startsWith("rocket")) return@listen
             if (c != null && key != null && key != lastKey) {
                 lastKey = key
                 fx = GlobalBannerData(
