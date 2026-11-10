@@ -62,7 +62,7 @@ import kotlin.random.Random
  * game pihak ketiga. Disimpan di Realtime Database: gameCfg/ownOff.
  */
 object GameCfg {
-    var ownOff by mutableStateOf(false)
+    var ownOff by mutableStateOf(true)
         private set
     private var mulai = false
 
@@ -71,7 +71,7 @@ object GameCfg {
         mulai = true
         try {
             Rtdb.listen(Rtdb.ref("gameCfg")) { s ->
-                ownOff = s.child("ownOff").getValue(Boolean::class.java) ?: false
+                ownOff = s.child("ownOff").getValue(Boolean::class.java) ?: true
             }
         } catch (e: Exception) { }
     }
@@ -134,6 +134,16 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", myAvatarB64: St
         "poker" -> ThreeCardPokerScreen(myUid = myUid, myName = myName, myAvatarB64 = "", onClose = { open = "" })
         "greedy" -> GreedyCatScreen(myUid = myUid, myName = myName.ifBlank { "Player" }, onClose = { open = "" })
         "teenpatti" -> TeenPattiScreen(myUid = myUid, onClose = { open = "" })
+        // Fruit Blaze versi REZO: daftar taruhan diatur dari panel developer,
+        // jadi bisa diubah dari app tanpa menunggu penyedia game.
+        "fruitblaze" -> SlotGameScreen(
+            myUid = myUid,
+            title = "Fruit Blaze",
+            symbols = listOf("\uD83C\uDF4C", "\uD83C\uDF47", "\uD83C\uDF53", "\uD83C\uDF40", "\uD83C\uDF4A", "\u2B50"),
+            onClose = { open = "" },
+            cfgKey = "fruitblaze",
+            chipBawaan = listOf(30L, 300L, 1200L, 6000L, 60000L, 600000L, 6000000L, 1000000000L),
+        )
         else -> Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
             // Bottom sheet "Game Center": area atas tembus pandang, sheet coklat di bawah.
             Box(Modifier.fillMaxSize().clickable(
@@ -199,6 +209,15 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", myAvatarB64: St
                                     GcItem("Slot777", R.drawable.ic_game_slot, "slot777"),
                                     GcItem("GreedyBaby", R.drawable.ic_game_baby, "greedybaby"),
                                     GcItem("FruitsParty", R.drawable.ic_game_fruits, "fruitsparty"),
+                                ),
+                            ) { open = it }
+                        }
+
+                        // ---- Fruit Blaze (REZO): taruhan diatur dari panel
+                        GcSection("Fruit Blaze") {
+                            GcRows(
+                                listOf(
+                                    GcItem("FruitBlaze", R.drawable.ic_game_fruits, "fruitblaze"),
                                 ),
                             ) { open = it }
                         }
