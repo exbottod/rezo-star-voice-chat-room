@@ -133,6 +133,16 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", myAvatarB64: St
         "poker" -> ThreeCardPokerScreen(myUid = myUid, myName = myName, myAvatarB64 = "", onClose = { open = "" })
         "greedy" -> GreedyCatScreen(myUid = myUid, myName = myName.ifBlank { "Player" }, onClose = { open = "" })
         "teenpatti" -> TeenPattiScreen(myUid = myUid, onClose = { open = "" })
+        // Fruit Blaze versi REZO: taruhannya diatur dari panel, jadi bisa
+        // sampai 1B tanpa terikat daftar bet penyedia game pihak ketiga.
+        "fruitblaze" -> SlotGameScreen(
+            myUid = myUid,
+            title = "Fruit Blaze",
+            symbols = listOf("\uD83C\uDF4C", "\uD83C\uDF47", "\uD83C\uDF53", "\uD83C\uDF40", "\uD83C\uDF4A", "\u2B50"),
+            onClose = { open = "" },
+            cfgKey = "fruitblaze",
+            chipBawaan = listOf(30L, 300L, 1200L, 12000L, 1200000L, 1000000000L),
+        )
         else -> Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
             // Bottom sheet "Game Center": area atas tembus pandang, sheet coklat di bawah.
             Box(Modifier.fillMaxSize().clickable(
@@ -198,6 +208,7 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", myAvatarB64: St
                                     GcItem("Slot777", R.drawable.ic_game_slot, "slot777"),
                                     GcItem("GreedyBaby", R.drawable.ic_game_baby, "greedybaby"),
                                     GcItem("FruitsParty", R.drawable.ic_game_fruits, "fruitsparty"),
+                                    GcItem("FruitBlaze", R.drawable.ic_game_fruits, "fruitblaze"),
                                 ),
                             ) { open = it }
                         }
@@ -376,10 +387,24 @@ fun SlotGameScreen(
     title: String,
     symbols: List<String>,
     onClose: () -> Unit,
+    cfgKey: String = "",
+    chipBawaan: List<Long> = listOf(500L, 1000L, 5000L, 10000L),
 ) {
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     var balance by remember { mutableStateOf(0L) }
-    var bet by remember { mutableStateOf(1000L) }
+    var chips by remember { mutableStateOf(chipBawaan) }
+    var bet by remember { mutableStateOf(chipBawaan.firstOrNull() ?: 1000L) }
+    // Nilai taruhan diambil dari panel developer (Bet Game), jadi bisa diubah
+    // tanpa membangun ulang APK. Kalau belum diatur, pakai nilai bawaan game.
+    LaunchedEffect(cfgKey) {
+        if (cfgKey.isNotBlank()) {
+            val l = BetCfg.load(cfgKey, chipBawaan)
+            if (l.isNotEmpty()) {
+                chips = l
+                if (l.none { it == bet }) bet = l.first()
+            }
+        }
+    }
     var reels by remember { mutableStateOf(listOf(symbols[0], symbols[1], symbols[2])) }
     var msg by remember { mutableStateOf("Tekan SPIN untuk mulai") }
     var spinning by remember { mutableStateOf(false) }
@@ -447,7 +472,7 @@ fun SlotGameScreen(
         Text(msg, color = Color(0xFFCFCFCF), fontSize = 13.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(14.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf(500L, 1000L, 5000L, 10000L).forEach { v ->
+            chips.forEach { v ->
                 val on = bet == v
                 Box(
                     Modifier.weight(1f).clip(RoundedCornerShape(10.dp))
