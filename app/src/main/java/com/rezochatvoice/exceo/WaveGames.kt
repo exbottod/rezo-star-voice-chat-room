@@ -188,7 +188,10 @@ object WaveGames {
     suspend fun url(g: Game, embed: String = "full"): String? {
         val t = token() ?: return null
         val enc = URLEncoder.encode(t, "UTF-8")
-        return "$FRONT/games/${g.slug}?appKey=$APP_KEY&gameId=${g.id}&token=$enc&embed=$embed"
+        // Penanda unik per pembukaan: memaksa halaman game mengambil konfigurasi
+        // terbaru (chip taruhan dan batas bet) dari server penyedia.
+        val segar = System.currentTimeMillis()
+        return "$FRONT/games/${g.slug}?appKey=$APP_KEY&gameId=${g.id}&token=$enc&embed=$embed&r=$segar"
     }
 }
 
