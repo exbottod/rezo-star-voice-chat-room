@@ -2040,6 +2040,7 @@ fun FloatingRoomBubble(room: RoomInfo, onClick: () -> Unit) {
 
 /** Baris chat publik: avatar, nama, level, lalu isi pesan. Klik avatar/nama untuk buka profil. */
 @Composable
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 private fun RmChatRow(m: RoomMsg, myUid: String, onProfile: (String) -> Unit) {
     // FIX avatar kosong di chat room: pesan SENDIRI langsung pakai profil lokal
     // (foto, nama, frame, level) tanpa nunggu jaringan; orang lain dari cache.
@@ -2072,9 +2073,20 @@ private fun RmChatRow(m: RoomMsg, myUid: String, onProfile: (String) -> Unit) {
                         VipTag(it.vip)
                     }
                 }
-                if (LENCANA_AKTIF) medalIdList(u?.badge.orEmpty()).mapNotNull { findItem(it) }.forEach {
-                    Spacer(Modifier.width(4.dp))
-                    StoreBadgeIcon(it, 24.dp)
+            }
+            // Lencana ditaruh di baris sendiri dan membungkus ke bawah, jadi
+            // saat lencana banyak (atau layar sempit) tidak ada yang terpotong.
+            if (LENCANA_AKTIF) {
+                val lencana = medalIdList(u?.badge.orEmpty()).mapNotNull { findItem(it) }
+                if (lencana.isNotEmpty()) {
+                    Spacer(Modifier.height(2.dp))
+                    androidx.compose.foundation.layout.FlowRow(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.Start),
+                        verticalArrangement = Arrangement.spacedBy(3.dp),
+                    ) {
+                        lencana.forEach { StoreBadgeIcon(it, 24.dp) }
+                    }
                 }
             }
             u?.let {
