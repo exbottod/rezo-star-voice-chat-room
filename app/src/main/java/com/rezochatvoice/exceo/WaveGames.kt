@@ -585,6 +585,10 @@ private fun WaveGameView(
                     // Bersihkan cache sekali saat layar game dibuka, supaya
                     // daftar chip dan batas taruhan selalu versi terbaru.
                     try { clearCache(true) } catch (e: Exception) { }
+                    // Game menyimpan sebagian pengaturan di penyimpanan lokal
+                    // browser. Itu ikut dibersihkan supaya daftar chip dan
+                    // batas taruhan yang baru langsung dipakai.
+                    try { android.webkit.WebStorage.getInstance().deleteAllData() } catch (e: Exception) { }
                     loadUrl(url)
                     web = this
                     postDelayed({
