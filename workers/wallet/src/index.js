@@ -10,6 +10,8 @@
  * memotong coin dua kali.
  */
 
+import { greedyPlay } from "./greedy.js";
+
 const PROJ = "arboreal-cat-511705-p6"; // project Firebase (aud token)
 
 // ---------- Akses database (SQLite lokal) ----------
@@ -3011,6 +3013,26 @@ async function kirimEmail(env, ke, subjek, isiHtml, isiTeks, kunci) {
         return json({ ok: 1, w: tk });
       }
       return json({ ok: 0, e: "Permintaan token tidak sah" }, 400);
+    }
+    // Game Greedy King milik REZO (server sendiri, chip diatur dari panel).
+    if (url.pathname.toLowerCase().startsWith("/greedy/")) {
+      const asal = req.headers.get("origin") || "*";
+      if (req.method === "OPTIONS") {
+        return new Response(null, {
+          status: 204,
+          headers: {
+            "access-control-allow-origin": asal,
+            "access-control-allow-headers": "authorization, content-type",
+            "access-control-allow-methods": "GET, POST, OPTIONS",
+            "access-control-max-age": "86400",
+          },
+        });
+      }
+      const jawab = await greedyPlay(req, env, { pipe, pipeTrx, json, gagal, T, I, uidDariToken });
+      const kepala = new Headers(jawab.headers);
+      kepala.set("access-control-allow-origin", asal);
+      kepala.set("vary", "origin");
+      return new Response(jawab.body, { status: jawab.status, headers: kepala });
     }
     if (url.pathname.toLowerCase().startsWith("/wave/")) {
       return await wavePlay(req, env);
