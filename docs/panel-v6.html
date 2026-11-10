@@ -2074,6 +2074,7 @@ function pilihTab(k){
   if (key === "bet") betStart();
   if (key === "cb") cbStart();
   if (key === "rocket") rocketStart();
+  if (key === "gift") bersihkanGiftRoket();
   if (key === "bet") gcStart();
   if (key === "topup") { tpBind(); tpLoad(); payLoad(); manualLoad(false); }
   if (key === "staff") pstStart();
@@ -2323,6 +2324,45 @@ async function roomBersihkan(id){
     await roomTulis(id, { announcement: "", online: 0, lockedSeats: null });
     toast("Room dibersihkan ✅");
   } catch (e) { toast("Gagal: " + (e.message || e)); }
+}
+
+
+/* Hapus permanen gift lama berawalan "rocket" (mis. "rocket 3") dari semua
+   sumber: Realtime Database giftCfg, Firestore gifts, dan tandai di giftHidden
+   supaya app versi baru juga menyembunyikannya walau datanya sempat kembali. */
+let giftRoketJalan = false;
+async function bersihkanGiftRoket(){
+  if (giftRoketJalan) return;
+  giftRoketJalan = true;
+  try {
+    const dihapus = [];
+    const rs = await rtdb.ref("giftCfg").get().catch(() => null);
+    if (rs && rs.exists()) {
+      for (const c of rs.children) {
+        const v = c.val() || {};
+        if (String(v.name || c.key).trim().toLowerCase().startsWith("rocket")) {
+          await rtdb.ref("giftHidden/" + c.key).set(true).catch(() => {});
+          await rtdb.ref("giftCfg/" + c.key).remove().catch(() => {});
+          dihapus.push(c.key);
+        }
+      }
+    }
+    const fs = await db.collection("gifts").get().catch(() => null);
+    if (fs) {
+      for (const d of fs.docs) {
+        const n = String((d.data() || {}).name || d.id).trim().toLowerCase();
+        if (n.startsWith("rocket")) {
+          await rtdb.ref("giftHidden/" + d.id).set(true).catch(() => {});
+          await d.ref.delete().catch(() => {});
+          dihapus.push(d.id);
+        }
+      }
+    }
+    if (dihapus.length) toast("Gift roket dihapus: " + dihapus.join(", "));
+  } catch (e) {
+    console.warn("bersihkanGiftRoket", e);
+  }
+  giftRoketJalan = false;
 }
 
 async function roomHapus(id){
