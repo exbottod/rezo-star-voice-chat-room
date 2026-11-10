@@ -37,7 +37,7 @@ object BetCfg {
                             val chips = c.child("chips").children.mapNotNull { ch ->
                                 ch.getValue(Long::class.java) ?: ch.getValue(Int::class.java)?.toLong()
                             }.filter { it > 0L }.distinct().sorted()
-                            if (chips.isEmpty() || chips.size > 6) continue
+                            if (chips.isEmpty() || chips.size > 8) continue
                             val lama = rank[key] ?: 0
                             if (r >= lama) {
                                 memo[key] = chips
@@ -65,7 +65,7 @@ object BetCfg {
                 val list = snap.children.mapNotNull { c ->
                     c.getValue(Long::class.java) ?: c.getValue(Int::class.java)?.toLong()
                 }.filter { it > 0L }.distinct().sorted()
-                if (list.isNotEmpty() && list.size <= 6) {
+                if (list.isNotEmpty() && list.size <= 8) {
                     out = list
                     break
                 }

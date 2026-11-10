@@ -3,6 +3,7 @@ package com.rezochatvoice.exceo
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.res.painterResource
@@ -141,7 +142,7 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", myAvatarB64: St
             symbols = listOf("\uD83C\uDF4C", "\uD83C\uDF47", "\uD83C\uDF53", "\uD83C\uDF40", "\uD83C\uDF4A", "\u2B50"),
             onClose = { open = "" },
             cfgKey = "fruitblaze",
-            chipBawaan = listOf(30L, 300L, 1200L, 12000L, 1200000L, 1000000000L),
+            chipBawaan = listOf(30L, 300L, 1200L, 6000L, 60000L, 600000L, 6000000L, 1000000000L),
         )
         else -> Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
             // Bottom sheet "Game Center": area atas tembus pandang, sheet coklat di bawah.
@@ -471,11 +472,14 @@ fun SlotGameScreen(
         }
         Text(msg, color = Color(0xFFCFCFCF), fontSize = 13.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(14.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             chips.forEach { v ->
                 val on = bet == v
                 Box(
-                    Modifier.weight(1f).clip(RoundedCornerShape(10.dp))
+                    Modifier.width(72.dp).clip(RoundedCornerShape(10.dp))
                         .background(if (on) GoldG else Color(0xFF23232B)).clickable { bet = v }.padding(vertical = 10.dp),
                     contentAlignment = Alignment.Center,
                 ) {
