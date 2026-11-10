@@ -442,9 +442,10 @@ private fun WaveGameView(
             factory = { c ->
                 val wv = WebView(c)
                 val density = c.resources.displayMetrics.density
-                // Sama seperti HivePlay: halaman game dilukis pada lebar desain 720 CSS px,
-                // lalu seluruh halaman diperkecil supaya utuh di layar dan pas di tengah.
-                val desainCss = 720f
+                // Sama seperti HivePlay: lebar desain mengikuti lebar layar HP,
+                // supaya game mengisi layar dan tidak mengecil di HP berlayar kecil.
+                val lebarLayarPx = c.resources.displayMetrics.widthPixels.coerceAtLeast(1)
+                val desainCss = (lebarLayarPx / density).coerceIn(280f, 1200f)
                 var aspek = 9f / 16f // lebar / tinggi
                 var sesuaikan: () -> Unit = {}
                 val fit = android.widget.FrameLayout(c).apply {
@@ -541,6 +542,7 @@ private fun WaveGameView(
                         }
                         override fun onPageFinished(v: WebView?, u: String?) {
                             prog = 100
+                            sisipkanViewport(v)
                             // Sesuaikan bentuk halaman: tinggi asli halaman menentukan skala.
                             fun ukur(v2: WebView?) {
                                 v2?.evaluateJavascript(
@@ -695,4 +697,22 @@ private fun WaveGameView(
             }
         }
     }
+}
+
+/**
+ * Kalau halaman game tidak punya meta viewport, WebView memakai lebar desktop
+ * (~980 px) lalu memperkecil semuanya, sehingga game terlihat kecil di HP.
+ * Di sini meta itu ditambahkan hanya bila belum ada, jadi halaman yang sudah
+ * mengatur sendiri tidak diubah.
+ */
+private fun sisipkanViewport(v: android.webkit.WebView?) {
+    try {
+        v?.evaluateJavascript(
+            "(function(){try{if(!document.querySelector('meta[name=viewport]')){" +
+                "var m=document.createElement('meta');m.setAttribute('name','viewport');" +
+                "m.setAttribute('content','width=device-width, initial-scale=1.0, minimum-scale=0.5, maximum-scale=2.0, user-scalable=yes');" +
+                "(document.head||document.documentElement).appendChild(m);}}catch(e){}})()",
+            null,
+        )
+    } catch (e: Exception) { }
 }

@@ -593,11 +593,13 @@ fun HivePlayScreen(uid: String, game: HiveGames.Game, onClose: () -> Unit) {
             factory = { c ->
                 val wv = WebView(c)
                 val density = c.resources.displayMetrics.density
-                // Halaman game dilukis pada lebar desain 720 (CSS px) dan
-                // TINGGINYA mengikuti bentuk asli halaman. Seluruh halaman lalu
-                // diperkecil supaya utuh masuk layar dan ditaruh pas di tengah,
-                // jadi bagian bawah (tombol taruhan/spin) tidak terpotong.
-                val desainCss = 720f
+                // Lebar desain mengikuti lebar layar HP masing-masing (dalam CSS px),
+                // bukan angka 720 yang sama untuk semua. Dulu game selalu dilukis
+                // pada 720 CSS px lalu diperkecil, jadi di HP kecil hasilnya mengecil
+                // dan menyisakan ruang kosong. Sekarang game mengisi lebar layar,
+                // dan tingginya mengikuti bentuk asli halaman.
+                val lebarLayarPx = c.resources.displayMetrics.widthPixels.coerceAtLeast(1)
+                val desainCss = (lebarLayarPx / density).coerceIn(280f, 1200f)
                 var aspek = if (game.landscape) 16f / 9f else 9f / 16f // lebar / tinggi
                 var atur: (() -> Unit)? = null
                 val fit = android.widget.FrameLayout(c).apply {
@@ -695,6 +697,7 @@ fun HivePlayScreen(uid: String, game: HiveGames.Game, onClose: () -> Unit) {
                     }
                     webViewClient = object : WebViewClient() {
                         override fun onPageFinished(v: WebView?, u: String?) {
+                            sisipkanViewport(v)
                             prog = 100
                             started = true
                             // Baca bentuk asli halaman game, lalu pas-kan ulang.
@@ -917,4 +920,22 @@ private fun TopThreeCard(
             contentAlignment = Alignment.Center,
         ) { Text(tr("Tutup"), color = Color(0xFF1A1206), fontSize = 13.sp, fontWeight = FontWeight.Bold) }
     }
+}
+
+/**
+ * Kalau halaman game tidak punya meta viewport, WebView memakai lebar desktop
+ * (~980 px) lalu memperkecil semuanya, sehingga game terlihat kecil di HP.
+ * Di sini meta itu ditambahkan hanya bila belum ada, jadi halaman yang sudah
+ * mengatur sendiri tidak diubah.
+ */
+private fun sisipkanViewport(v: android.webkit.WebView?) {
+    try {
+        v?.evaluateJavascript(
+            "(function(){try{if(!document.querySelector('meta[name=viewport]')){" +
+                "var m=document.createElement('meta');m.setAttribute('name','viewport');" +
+                "m.setAttribute('content','width=device-width, initial-scale=1.0, minimum-scale=0.5, maximum-scale=2.0, user-scalable=yes');" +
+                "(document.head||document.documentElement).appendChild(m);}}catch(e){}})()",
+            null,
+        )
+    } catch (e: Exception) { }
 }
