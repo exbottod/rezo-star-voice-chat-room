@@ -494,7 +494,9 @@ private fun WaveGameView(
                     settings.javaScriptCanOpenWindowsAutomatically = true
                     settings.setSupportMultipleWindows(false)
                     settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-                    settings.cacheMode = android.webkit.WebSettings.LOAD_DEFAULT
+                    // Tanpa cache: pengaturan taruhan yang diubah di dasbor penyedia
+                    // langsung terpakai saat game dibuka, tidak tertahan halaman lama.
+                    settings.cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE
                     // Sebagian penyedia game menolak UA bawaan WebView. Pakai UA Chrome mobile bersih.
                     settings.userAgentString = "Mozilla/5.0 (Linux; Android 13; SM-G991B) AppleWebKit/537.36 " +
                         "(KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
@@ -580,6 +582,9 @@ private fun WaveGameView(
                             }
                         }
                     }
+                    // Bersihkan cache sekali saat layar game dibuka, supaya
+                    // daftar chip dan batas taruhan selalu versi terbaru.
+                    try { clearCache(true) } catch (e: Exception) { }
                     loadUrl(url)
                     web = this
                     postDelayed({
