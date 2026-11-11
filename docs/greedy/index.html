@@ -4,8 +4,24 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <title>Greedy King</title>
-  <script type="module" crossorigin src="./assets/index-BexTt0G_.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-5H1ztrqF.css">
+<script>
+/* Data pemain datang dari app lewat jembatan RezoBridge (token Firebase, uid,
+   nama, dan daftar chip). Tanpa app, halaman ini tetap terbuka tapi tidak bisa
+   bertaruh karena server dompet butuh token. */
+(function () {
+  var b = window.RezoBridge;
+  function ambil(fn) { try { return b && b[fn] ? b[fn]() : ""; } catch (e) { return ""; } }
+  var api = ambil("api");
+  window.__GREEDY_API__ = "https://43-156-99-4.sslip.io/greedy";
+  window.__GREEDY_TOKEN__ = ambil("token") || window.__GREEDY_TOKEN__ || "";
+  var uid = ambil("uid");
+  var nama = ambil("nama");
+  if (uid) window.__GREEDY_USER__ = { id: String(uid), name: String(nama || "Player") };
+  var chip = ambil("chips");
+  if (chip) { try { window.__GREEDY_CHIPS__ = JSON.parse(chip); } catch (e) {} }
+})();
+</script>
+  <script type="module" crossorigin src="./assets/index-Dq5BBgGP.js"></script>
 </head>
 <body class="bg-night text-cream">
 <div id="root"></div>
