@@ -173,6 +173,16 @@ fun GreedyKingScreen(
                         }
                         webViewClient = pengawas
                         wv = this
+                        // Setelah halaman selesai dimuat: paksa tinggi layar dengan
+                        // piksel nyata, lalu ukur hasilnya. Kalau game tetap tidak
+                        // terlihat, angka ukurannya ditampilkan di layar supaya
+                        // penyebabnya bisa dibaca langsung dari HP.
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            this.evaluateJavascript(SKRIP_UKUR, null)
+                        }, 6000)
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            this.evaluateJavascript(SKRIP_UKUR, null)
+                        }, 13000)
                         wvPegang.value = this
                         // Token ikut di alamat: jembatan JS kadang terlambat siap
                         // sehingga halaman memulai permainan tanpa token.
@@ -248,6 +258,72 @@ private fun tampakSepertiHalaman(v: String): Boolean {
     if (v.contains("/api/")) return false
     return v.endsWith("/") || v.endsWith(".html") || v.endsWith(".htm")
 }
+
+
+/**
+ * Skrip yang dijalankan di dalam halaman game.
+ *
+ * 1. Memaksa tinggi layar memakai piksel nyata, karena 100dvh tidak dikenali
+ *    sebagian WebView sehingga seluruh isi game tingginya nol dan yang terlihat
+ *    hanya latar kuning.
+ * 2. Mengukur hasilnya. Kalau game tetap tidak terlihat, ukuran tersebut
+ *    ditampilkan di layar dalam kotak hitam agar bisa difoto.
+ */
+private const val SKRIP_UKUR = """
+(function () {
+  try {
+    var d = document.documentElement, b = document.body;
+    var r = document.getElementById("root");
+    var vh = window.innerHeight || d.clientHeight || 0;
+    if (vh > 100) d.style.setProperty("--gk-h", vh + "px");
+    var st = document.getElementById("gkPaksa");
+    if (!st) {
+      st = document.createElement("style");
+      st.id = "gkPaksa";
+      st.textContent = "html,body,#root{height:100vh!important;min-height:100vh!important}" +
+        ".h-dvh{height:100vh!important}.min-h-dvh{min-height:100vh!important}" +
+        ".aspect-square{position:relative}";
+      document.head.appendChild(st);
+    }
+    setTimeout(function () {
+      var rr = r ? r.getBoundingClientRect() : null;
+      var dots = document.querySelector(".bg-dots");
+      var dd = dots ? dots.getBoundingClientRect() : null;
+      var im = [].slice.call(document.querySelectorAll("img"));
+      var rusak = im.filter(function (i) { return !(i.complete && i.naturalWidth > 0); });
+      var ketinggian = rr ? Math.round(rr.height) : -1;
+      var perluLapor = ketinggian < 300 || (im.length > 0 && rusak.length === im.length);
+      if (!perluLapor) return;
+      var baris = [
+        "LAYAR: " + window.innerWidth + "x" + window.innerHeight,
+        "ROOT: " + (rr ? Math.round(rr.width) + "x" + ketinggian : "tidak ada"),
+        "KOTAK GAME: " + (dd ? Math.round(dd.width) + "x" + Math.round(dd.height) : "tidak ada"),
+        "GAMBAR: " + (im.length - rusak.length) + "/" + im.length + " termuat",
+        "dvh didukung: " + CSS.supports("height", "100dvh") +
+          " | aspect-ratio: " + CSS.supports("aspect-ratio", "1/1"),
+        "LATAR: " + getComputedStyle(b).backgroundColor,
+        "CSS masuk: " + (document.styleSheets.length > 0),
+        "ALAMAT: " + location.href.slice(0, 52),
+        "TEKS: " + ((r && r.innerText) || "").replace(/\s+/g, " ").slice(0, 40)
+      ];
+      var p = document.getElementById("gkUkur");
+      if (!p) { p = document.createElement("div"); p.id = "gkUkur"; document.body.appendChild(p); }
+      p.style.cssText = "position:fixed;left:0;right:0;top:0;z-index:2147483647;background:#000;" +
+        "color:#7CFC00;font:11px monospace;line-height:1.5;padding:8px;white-space:pre-wrap;" +
+        "border-bottom:2px solid #7CFC00";
+      p.textContent = baris.join("\n");
+    }, 1200);
+  } catch (e) {
+    try {
+      var q = document.createElement("div");
+      q.style.cssText = "position:fixed;left:0;top:0;right:0;z-index:2147483647;background:#7a1020;" +
+        "color:#fff;font:12px monospace;padding:8px;white-space:pre-wrap";
+      q.textContent = "SKRIP UKUR GAGAL: " + e + " | ALAMAT: " + location.href.slice(0, 60);
+      document.body.appendChild(q);
+    } catch (e2) { }
+  }
+})();
+"""
 
 private const val GREEDY_API = "https://43-156-99-4.sslip.io/greedy"
 private const val GREEDY_BAWAAN = "https://exbottod.github.io/rezo-star-voice-chat-room/greedy/"
