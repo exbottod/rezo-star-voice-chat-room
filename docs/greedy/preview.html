@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="id"><head><meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Pratinjau Greedy King</title>
+<link rel="stylesheet" href="style.css" /></head>
+<body class="bg-night text-cream"><div id="root"></div>
+<script>
+/* Pratinjau: data game dipalsukan supaya tampilan bisa diperiksa tanpa server. */
+window.__GREEDY_API__ = "https://palsu.local/greedy";
+window.__GREEDY_TOKEN__ = "pratinjau";
+window.__GREEDY_USER__ = { id: "pratinjau", name: "CEO" };
+window.__GREEDY_CHIPS__ = [100, 500, 1000, 5000, 50000];
+const kini = Date.now();
+window.fetch = function (url, opt) {
+  const body = opt && opt.body ? JSON.parse(opt.body) : {};
+  const jawab = (o) => Promise.resolve(new Response(JSON.stringify(o), { status: 200, headers: { "content-type": "application/json" } }));
+  if (String(url).indexOf("top-winners") >= 0) return jawab([{ id: "1", display_name: "AYIE", win: 5200000 }]);
+  if (String(url).indexOf("round-winners") >= 0) return jawab([{ id: "2", display_name: "Budi", win: 120000 }]);
+  if (body.action === "init") return jawab({ serverNow: kini, name: "CEO", coins: 1250000, history: [] });
+  if (body.action === "bet") return jawab({ ok: 1, coins: 1200000 });
+  if (body.action === "settle") return jawab({ ok: 1, result: "carrot", bet: 5000, win: 25000, coins: 1250000 });
+  return jawab({ ok: 1 });
+};
+</script>
+<script src="bundle.js"></script>
+</body></html>
