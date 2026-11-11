@@ -25,7 +25,7 @@ jobs:
       - name: Hitung nomor versi
         run: |
           N="${{ github.run_number }}"
-          echo "VERSION_NAME=1.0.$N" >> "$GITHUB_ENV"
+          echo "VERSION_NAME=1.$((N / 1000)).$((N % 1000))" >> "$GITHUB_ENV"
           echo "Versi rilis: $(tail -n1 "$GITHUB_ENV")"
 
 
@@ -41,7 +41,6 @@ jobs:
 
       - name: Build release APK
         env:
-          REZO_VERSI: ${{ env.VERSION_NAME }}
           GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_WEB_CLIENT_ID }}
           AGORA_TOKEN_URL: ${{ secrets.AGORA_TOKEN_URL }}
           AGORA_APP_ID: ${{ secrets.AGORA_APP_ID }}
