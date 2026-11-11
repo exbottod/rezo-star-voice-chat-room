@@ -244,7 +244,7 @@ private suspend fun alamatGreedy(): String = suspendCancellableCoroutine { lanju
             lanjut.resume(GREEDY_BAWAAN)
         }
 
-        override fun onCancelled(e: DatabaseError) = lanjut.resume(GREEDY_BAWAAN)
+        override fun onCancelled(e: DatabaseError) = lanjut.resume(GREEDY_LOKAL)
     })
 }
 
