@@ -54,6 +54,9 @@ fun GreedyKingScreen(
     var token by remember { mutableStateOf("") }
     var chips by remember { mutableStateOf("[]") }
     var alamat by remember { mutableStateOf(GREEDY_LOKAL) }
+    // Pegangan WebView dipakai untuk mematikan game (termasuk suaranya) saat
+    // layar ditutup.
+    val wvPegang = remember { mutableStateOf<WebView?>(null) }
 
     LaunchedEffect(myUid) {
         val daftar = try { BetCfg.load("greedyking", listOf(100L, 500L, 1000L, 5000L, 50000L)) }
@@ -67,6 +70,19 @@ fun GreedyKingScreen(
     }
 
     BackHandler(enabled = true) { onClose() }
+
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        onDispose {
+            try {
+                wvPegang.value?.apply {
+                    stopLoading()
+                    loadUrl("about:blank")
+                    destroy()
+                }
+            } catch (e: Exception) { }
+            wvPegang.value = null
+        }
+    }
 
     Box(Modifier.fillMaxSize().background(Color(0xFF0A0F1E))) {
         WebDiagBar(alamat)
@@ -149,6 +165,7 @@ fun GreedyKingScreen(
                         }
                         webViewClient = pengawas
                         wv = this
+                        wvPegang.value = this
                         loadUrl(alamat)
                     }
                 },

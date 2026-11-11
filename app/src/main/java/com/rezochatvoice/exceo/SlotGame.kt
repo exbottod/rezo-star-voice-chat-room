@@ -40,6 +40,7 @@ import java.net.URLEncoder
 @Composable
 fun SlotGameScreen(onClose: () -> Unit) {
     var alamat by remember { mutableStateOf("") }
+    val wvPegang = remember { mutableStateOf<WebView?>(null) }
     var galat by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
@@ -65,6 +66,19 @@ fun SlotGameScreen(onClose: () -> Unit) {
     }
 
     BackHandler(enabled = true) { onClose() }
+
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        onDispose {
+            try {
+                wvPegang.value?.apply {
+                    stopLoading()
+                    loadUrl("about:blank")
+                    destroy()
+                }
+            } catch (e: Exception) { }
+            wvPegang.value = null
+        }
+    }
 
     Box(Modifier.fillMaxSize().background(Color(0xFF07131F))) {
         WebDiagBar(alamat.ifBlank { null })
@@ -96,6 +110,7 @@ fun SlotGameScreen(onClose: () -> Unit) {
                         settings.allowUniversalAccessFromFileURLs = false
                         settings.cacheMode = android.webkit.WebSettings.LOAD_DEFAULT
                         webViewClient = WebViewClient()
+                        wvPegang.value = this
                         loadUrl(alamat)
                     }
                 },
