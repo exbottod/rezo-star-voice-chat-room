@@ -36,7 +36,11 @@
     box.textContent = String(t).slice(0, 600);
   }
   window.__bootErr = tampilErr;
+  // Layar muat hanya dicabut kalau game benar-benar sudah menggambar sesuatu.
+  // Kalau dicabut terlalu cepat, layar jadi kuning kosong tanpa penjelasan.
   window.__bootSelesai = function () {
+    var r = document.getElementById("root");
+    if (!r || r.children.length === 0) return;
     var b = document.getElementById("boot");
     if (b) b.remove();
   };
@@ -53,6 +57,50 @@
   setTimeout(function () {
     if (!window.__reactJalan && msg) msg.textContent = "Kode game belum jalan. Halaman: " + location.href.slice(0, 90);
   }, 10000);
+})();
+</script>
+
+
+<div id="gksebab" style="display:none;position:fixed;inset:0;z-index:2147483647;background:#fbdb2e;color:#3a2b12;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;padding:22px;overflow:auto">
+  <div style="font-size:22px;font-weight:800;margin-bottom:10px">Game belum bisa jalan</div>
+  <div id="gksebabisi" style="font-size:12px;line-height:1.6;background:#fff;border:2px solid #b81f33;border-radius:12px;padding:12px;word-break:break-word;white-space:pre-wrap"></div>
+  <button id="gkcobaLagi" style="margin-top:14px;width:100%;padding:14px;border:0;border-radius:12px;background:#b81f33;color:#fff;font-size:15px;font-weight:700">Coba lagi</button>
+</div>
+<script>
+(function () {
+  var panel = document.getElementById("gksebab");
+  var isi = document.getElementById("gksebabisi");
+  var pesanAkhir = "";
+  function catat(t) { pesanAkhir = String(t || "").slice(0, 400); }
+  window.addEventListener("error", function (e) { catat("Error: " + (e.message || "") ); });
+  window.addEventListener("unhandledrejection", function (e) {
+    var r = e.reason; catat("Gagal: " + ((r && (r.message || r)) || "tidak diketahui"));
+  });
+  function tampilSebab(asli) {
+    var b = window.RezoBridge;
+    function ambil(fn) { try { return b && b[fn] ? b[fn]() : null; } catch (e) { return "gagal"; } }
+    var uid = ambil("uid"), tok = ambil("token");
+    var baris = [
+      "Penyebab: " + (asli || pesanAkhir || "kode game berhenti tanpa pesan"),
+      "",
+      "Alamat halaman: " + location.href.slice(0, 90),
+      "Jembatan app (RezoBridge): " + (b ? "ada" : "tidak ada"),
+      "ID pemain: " + (uid ? "ada (" + String(uid).slice(0, 12) + ")" : "kosong"),
+      "Token: " + (tok ? "ada (" + String(tok).length + " huruf)" : "kosong"),
+      "Isi layar: " + (document.getElementById("root") ? document.getElementById("root").children.length + " bagian" : "tidak ada"),
+    ];
+    isi.textContent = baris.join("\n");
+    panel.style.display = "block";
+    var boot = document.getElementById("boot");
+    if (boot) boot.remove();
+  }
+  window.__gkSebab = tampilSebab;
+  document.getElementById("gkcobaLagi").onclick = function () { location.reload(); };
+  // Kalau game tidak menggambar apa pun, tampilkan penyebabnya, bukan layar kuning kosong.
+  setTimeout(function () {
+    var r = document.getElementById("root");
+    if (!r || r.children.length === 0) tampilSebab(pesanAkhir || "kode game tidak menggambar apa pun dalam 12 detik");
+  }, 12000);
 })();
 </script>
 

@@ -192,13 +192,8 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", myAvatarB64: St
 
                         // ---- Game WaveGames (katalog resmi Wave)
                         if (waveGames.isNotEmpty()) GcSection("Game Wave") {
-                            GcRows(
-                                waveGames
-                                    // Greedy King punya game sendiri di Rezo, jangan
-                                    // dicampur ke daftar Wave.
-                                    .filterNot { it.id == 80 || it.name.contains("greedy", true) }
-                                    .map { g -> GcItem(g.name, 0, "wave:" + g.id, g.image) },
-                            ) { open = it }
+                            // Semua game Wave tetap tampil, tidak ada yang dibuang.
+                            GcRows(waveGames.map { g -> GcItem(g.name, 0, "wave:" + g.id, g.image) }) { open = it }
                         }
 
                         // ---- Daftar peringkat
