@@ -59,8 +59,32 @@ object AppUpdate {
     private const val INFO_URL = "https://exbottod.github.io/rezo-star-voice-chat-room/build-info.json"
     private const val NOTE_URL = "https://exbottod.github.io/rezo-star-voice-chat-room/update-note.txt"
     private const val REL = "https://github.com/exbottod/rezo-star-voice-chat-room/releases/download/terbaru/"
-    /** APK penuh diambil dari rilis GitHub terbaru: selalu versi paling baru. */
-    private const val APK_BASE = REL + "REZO-STAR-universal.apk"
+    /**
+     * APK penuh disajikan VPS sendiri (tanpa login, unduhan lebih ringan
+     * karena hanya untuk jenis HP yang dipakai). GitHub dipakai sebagai
+     * cadangan kalau APK di VPS tertinggal dari versi yang diumumkan.
+     */
+    private const val VPS_UNDUH = "https://43-156-99-4.sslip.io/unduh"
+    private const val APK_CADANGAN = REL + "REZO-STAR-universal.apk"
+
+    /** Alamat APK penuh sesuai prosesor HP: arm64, armv7, atau universal. */
+    private fun apkBase(): String {
+        val abi = try { android.os.Build.SUPPORTED_ABIS.toList() } catch (e: Exception) { emptyList<String>() }
+        return when {
+            abi.any { it.contains("arm64") } -> "$VPS_UNDUH/arm64"
+            abi.any { it.contains("armeabi-v7") || it.contains("armv7") } -> "$VPS_UNDUH/armv7"
+            else -> "$VPS_UNDUH/universal"
+        }
+    }
+
+    /** Benar kalau berkas APK ini lebih baru dari versi yang terpasang. */
+    private fun lebihBaru(ctx: Context, berkas: File): Boolean = try {
+        val baru = ctx.packageManager.getPackageArchiveInfo(berkas.absolutePath, 0)
+        val lama = ctx.packageManager.getPackageInfo(ctx.packageName, 0)
+        val kodeBaru = baru?.let { if (it.versionCode >= 0) it.versionCode else it.longVersionCode } ?: 0L
+        val kodeLama = if (lama.versionCode >= 0) lama.versionCode.toLong() else lama.longVersionCode
+        kodeBaru > kodeLama
+    } catch (e: Exception) { false }
     private const val PATCH_URL = "https://exbottod.github.io/rezo-star-voice-chat-room/patch-info.json"
 
     class Info(val version: String, val notes: String, val url: String, val patch: Patch? = null)
@@ -270,7 +294,7 @@ object AppUpdate {
                 }
             }
             val terpasang = installedVersion(ctx)
-            Info(latest, akhir, APK_BASE, patchInfo(latest, terpasang))
+            Info(latest, akhir, apkBase(), patchInfo(latest, terpasang))
         } catch (e: Exception) { null }
     }
 
@@ -318,6 +342,18 @@ object AppUpdate {
     /** Unduh APK penuh; [onProgress] 0..100. Mengembalikan file, atau null kalau gagal. */
     suspend fun download(ctx: Context, url: String, onProgress: (Int) -> Unit): File? =
         unduh(ctx, url, "REZO-update.apk", 1_000_000L, onProgress)
+
+    /**
+     * Unduh APK penuh lalu pastikan versinya memang lebih baru. Kalau berkas
+     * dari VPS ternyata versi lama (pemasangan akan ditolak Android), ambil
+     * ulang dari rilis GitHub.
+     */
+    suspend fun downloadTerbaru(ctx: Context, url: String, onProgress: (Int) -> Unit): File? {
+        val utama = download(ctx, url, onProgress)
+        if (utama != null && lebihBaru(ctx, utama)) return utama
+        val cadangan = download(ctx, APK_CADANGAN, onProgress)
+        return if (cadangan != null && lebihBaru(ctx, cadangan)) cadangan else cadangan ?: utama
+    }
 
     /**
      * Unduh patch lalu gabungkan dengan APK yang terpasang menjadi APK baru.
@@ -543,7 +579,7 @@ fun UpdateGate() {
                                     } else null
                                     if (f == null) {
                                         progress = 0
-                                        f = AppUpdate.download(ctx, i.url) { progress = it }
+                                        f = AppUpdate.downloadTerbaru(ctx, i.url) { progress = it }
                                     }
                                     if (f == null) {
                                         progress = -1
