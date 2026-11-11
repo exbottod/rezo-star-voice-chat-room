@@ -185,12 +185,19 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", myAvatarB64: St
                             .padding(horizontal = 10.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
+                        // ---- Game milik Rezo sendiri (dompet Rezo, bukan Wave)
+                        GcSection("Game Rezo") {
+                            GcRows(listOf(GcItem("Greedy King", R.drawable.ic_game_cat, "greedyking"))) { open = it }
+                        }
+
                         // ---- Game WaveGames (katalog resmi Wave)
                         if (waveGames.isNotEmpty()) GcSection("Game Wave") {
                             GcRows(
-                                waveGames.map { g ->
-                                    GcItem(g.name, 0, "wave:" + g.id, g.image)
-                                },
+                                waveGames
+                                    // Greedy King punya game sendiri di Rezo, jangan
+                                    // dicampur ke daftar Wave.
+                                    .filterNot { it.id == 80 || it.name.contains("greedy", true) }
+                                    .map { g -> GcItem(g.name, 0, "wave:" + g.id, g.image) },
                             ) { open = it }
                         }
 

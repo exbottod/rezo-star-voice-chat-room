@@ -93,6 +93,7 @@ fun GreedyKingScreen(
                         settings.loadWithOverviewMode = true
                         settings.setSupportZoom(false)
                         settings.cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE
+                        settings.allowFileAccess = true
                         settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
                         settings.userAgentString = "Mozilla/5.0 (Linux; Android 13; SM-G991B) AppleWebKit/537.36 " +
                             "(KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
@@ -106,8 +107,21 @@ fun GreedyKingScreen(
                             },
                             "RezoBridge",
                         )
+                        // Salinan di dalam APK disajikan lewat alamat https lokal.
+                        // Kalau dibuka sebagai file://, skrip modul diblokir dan
+                        // layar cuma jadi kuning kosong tanpa tulisan.
+                        val pemuatAset = androidx.webkit.WebViewAssetLoader.Builder()
+                            .addPathHandler("/assets/", androidx.webkit.WebViewAssetLoader.AssetsPathHandler(c))
+                            .build()
                         // Jaring pengaman: kalau halaman kosong, pindah ke aset.
                         val pengawas = object : WebViewClient() {
+                            override fun shouldInterceptRequest(
+                                view: WebView,
+                                request: android.webkit.WebResourceRequest,
+                            ): android.webkit.WebResourceResponse? {
+                                return try { pemuatAset.shouldInterceptRequest(request.url) } catch (e: Exception) { null }
+                            }
+
                             override fun onReceivedError(
                                 view: WebView,
                                 request: WebResourceRequest,
@@ -175,4 +189,4 @@ private fun tampakSepertiHalaman(v: String): Boolean {
 
 private const val GREEDY_API = "https://43-156-99-4.sslip.io/greedy"
 private const val GREEDY_BAWAAN = "https://exbottod.github.io/rezo-star-voice-chat-room/greedy/"
-private const val GREEDY_LOKAL = "file:///android_asset/greedy/index.html"
+private const val GREEDY_LOKAL = "https://appassets.androidplatform.net/assets/greedy/index.html"
