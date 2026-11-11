@@ -399,6 +399,7 @@ fun WavePlayScreen(
             val u = urlGame
             if (u != null) {
                 WaveGameView(Modifier.fillMaxSize(), game, u, onClose)
+                WebDiagBar(u)
             } else {
                 Column(
                     Modifier.fillMaxSize().padding(24.dp),

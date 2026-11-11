@@ -69,6 +69,7 @@ fun GreedyKingScreen(
     BackHandler(enabled = true) { onClose() }
 
     Box(Modifier.fillMaxSize().background(Color(0xFF0A0F1E))) {
+        WebDiagBar(alamat)
         if (siap) {
             AndroidView(
                 modifier = Modifier.fillMaxSize(),
