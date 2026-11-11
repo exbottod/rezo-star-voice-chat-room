@@ -82,9 +82,15 @@ fun GreedyKingScreen(
                         settings.builtInZoomControls = false
                         settings.displayZoomControls = false
                         settings.allowFileAccess = true
+                        settings.allowFileAccessFromFileURLs = true
+                        settings.allowUniversalAccessFromFileURLs = true
                         settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
                         webViewClient = WebViewClient()
-                        loadDataWithBaseURL("https://rezo.local/", isi, "text/html", "utf-8", null)
+                        // Dimuat dari berkas cache, bukan loadDataWithBaseURL: cara itu
+                        // membuat halaman besar kadang tampil kosong di WebView.
+                        val berkas = java.io.File(c.cacheDir, "greedy-king.html")
+                        berkas.writeText(isi)
+                        loadUrl("file://" + berkas.absolutePath)
                     }
                 },
             )
