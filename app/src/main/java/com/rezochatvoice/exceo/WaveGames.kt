@@ -156,6 +156,9 @@ object WaveGames {
     }
 
     private val fallback = listOf(
+        // Greedy Lion ikut didaftarkan: tanpa ini, saat katalog daring gagal
+        // dimuat game itu hilang dari daftar.
+        Game(1, "Greedy Lion", "greedy", "", 500000),
         Game(82, "Dragon Vs Tiger", "dragonvstiger", "", 500000),
         Game(8, "Fruit Blast Jackpot", "fruitblast", "", 500000),
         Game(16, "Teen Patti", "teenpatti", "", 500000),
