@@ -15,10 +15,47 @@
   var chip = ambil("chips"); if (chip) { try { window.__GREEDY_CHIPS__ = JSON.parse(chip); } catch (e) {} }
 })();
 </script>
-  <script type="module" crossorigin src="./assets/index-DmYWGQZm.js"></script>
+  <script type="module" crossorigin src="./assets/index-Cg0M5SpD.js"></script>
   <link rel="stylesheet" crossorigin href="./assets/index-hN_3FMVj.css">
 </head>
 <body>
+<div id="boot" style="position:fixed;inset:0;z-index:2147483647;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#f7cf4a;color:#3a2b12;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;text-align:center;padding:24px">
+  <div style="font-size:46px;line-height:1">&#128081;</div>
+  <div style="font-weight:800;font-size:19px;letter-spacing:.5px">GREEDY KING</div>
+  <div id="bootmsg" style="font-size:13px;opacity:.75">Menyiapkan game...</div>
+  <div id="booterr" style="display:none;font-size:11px;line-height:1.5;background:#fff;border:2px solid #b81f33;border-radius:12px;padding:10px 12px;max-width:100%;word-break:break-word;text-align:left"></div>
+</div>
+<script>
+(function () {
+  var msg = document.getElementById("bootmsg");
+  var box = document.getElementById("booterr");
+  window.__reactJalan = false;
+  function tampilErr(t) {
+    if (!box) return;
+    box.style.display = "block";
+    box.textContent = String(t).slice(0, 600);
+  }
+  window.__bootErr = tampilErr;
+  window.__bootSelesai = function () {
+    var b = document.getElementById("boot");
+    if (b) b.remove();
+  };
+  window.onerror = function (m, src, l, c, e) {
+    tampilErr("Error: " + m + "\n" + (src || "") + ":" + (l || 0) + "\n" + ((e && e.stack) || ""));
+  };
+  window.addEventListener("unhandledrejection", function (ev) {
+    var r = ev.reason;
+    tampilErr("Gagal: " + ((r && (r.message || r)) || "tidak diketahui"));
+  });
+  setTimeout(function () {
+    if (!window.__reactJalan && msg) msg.textContent = "Masih memuat kode game... (" + location.host + ")";
+  }, 4000);
+  setTimeout(function () {
+    if (!window.__reactJalan && msg) msg.textContent = "Kode game belum jalan. Halaman: " + location.href.slice(0, 90);
+  }, 10000);
+})();
+</script>
+
 <div id="root"></div>
 </body>
 </html>
