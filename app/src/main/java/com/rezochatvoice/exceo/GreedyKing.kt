@@ -239,9 +239,9 @@ private fun pindahKeAsetKalauKosong(view: WebView, url: String?, pindah: () -> U
 private suspend fun alamatGreedy(): String = suspendCancellableCoroutine { lanjut ->
     Rtdb.ref("appCfg/greedyUrl").addListenerForSingleValueEvent(object : ValueEventListener {
         override fun onDataChange(s: DataSnapshot) {
-            // Salinan di dalam APK dipakai lebih dulu: gambar makanan sudah ikut
-            // di APK sehingga tidak bergantung pada internet.
-            lanjut.resume(GREEDY_BAWAAN)
+            // Salinan di dalam APK dipakai lebih dulu: semua gambar game ikut di
+            // dalam APK, jadi tidak bergantung pada internet.
+            lanjut.resume(GREEDY_LOKAL)
         }
 
         override fun onCancelled(e: DatabaseError) = lanjut.resume(GREEDY_LOKAL)
