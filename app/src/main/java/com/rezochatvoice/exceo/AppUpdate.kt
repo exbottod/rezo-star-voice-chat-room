@@ -79,11 +79,15 @@ object AppUpdate {
 
     /** Benar kalau berkas APK ini lebih baru dari versi yang terpasang. */
     private fun lebihBaru(ctx: Context, berkas: File): Boolean = try {
-        val baru = ctx.packageManager.getPackageArchiveInfo(berkas.absolutePath, 0)
-        val lama = ctx.packageManager.getPackageInfo(ctx.packageName, 0)
-        val kodeBaru = baru?.let { if (it.versionCode >= 0) it.versionCode else it.longVersionCode } ?: 0L
-        val kodeLama = if (lama.versionCode >= 0) lama.versionCode.toLong() else lama.longVersionCode
-        kodeBaru > kodeLama
+        val pm = ctx.packageManager
+        val baru = pm.getPackageArchiveInfo(berkas.absolutePath, 0)
+        val lama = pm.getPackageInfo(ctx.packageName, 0)
+        fun kode(i: android.content.pm.PackageInfo?): Long {
+            if (i == null) return 0L
+            return if (android.os.Build.VERSION.SDK_INT >= 28) i.longVersionCode
+            else @Suppress("DEPRECATION") i.versionCode.toLong()
+        }
+        kode(baru) > kode(lama)
     } catch (e: Exception) { false }
     private const val PATCH_URL = "https://exbottod.github.io/rezo-star-voice-chat-room/patch-info.json"
 
