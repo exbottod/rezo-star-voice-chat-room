@@ -3045,6 +3045,59 @@ async function otpCek(env, b) {
   return json({ ok: 1, nomor });
 }
 
+
+/** Unduhan APK: berkas disimpan di /opt/rezo-api/apk oleh skrip update VPS. */
+async function unduhApk(jalur, env) {
+  const DIR = "/opt/rezo-api/apk";
+  const daftar = {
+    "universal": "REZO-STAR-universal.apk",
+    "arm64": "REZO-STAR-arm64.apk",
+    "armv7": "REZO-STAR-armv7.apk",
+  };
+  const nama = jalur.replace(/^\/unduh\/?/i, "").replace(/[^A-Za-z0-9_.-]/g, "");
+  let fs, path;
+  try {
+    fs = await import("node:fs/promises");
+    path = await import("node:path");
+  } catch (e) {
+    return null; // bukan Node (mis. Cloudflare): biarkan ditangani jalur lain
+  }
+  if (!nama) {
+    const versi = await fs.readFile(path.join(DIR, "versi.txt"), "utf8").catch(() => "");
+    const baris = Object.entries(daftar).map(([k, f]) =>
+      `<li><a href="/unduh/${k}">Unduh APK ${k}</a></li>`).join("");
+    const html = `<!DOCTYPE html><html lang="id"><head><meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Unduh REZO</title>
+<style>body{font-family:system-ui,sans-serif;background:#0a0f1e;color:#eef;margin:0;padding:28px}
+h1{font-size:20px}ul{line-height:2.2;padding-left:18px}a{color:#f5c542}</style></head>
+<body><h1>Unduh REZO Chat Voice</h1>
+<p>Versi terbaru: <b>${versi.trim() || "-"}</b></p><ul>${baris}</ul>
+<p style="color:#889">Pilih universal kalau tidak yakin dengan tipe HP.</p></body></html>`;
+    return new Response(html, { status: 200, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
+  }
+  const berkas = daftar[nama] || nama;
+  if (!/^REZO-STAR-[A-Za-z0-9_.-]+\.apk$/.test(berkas)) {
+    return new Response("Berkas tidak dikenal", { status: 404 });
+  }
+  const lokasi = path.join(DIR, berkas);
+  try {
+    const st = await fs.stat(lokasi);
+    const isi = await fs.readFile(lokasi);
+    return new Response(isi, {
+      status: 200,
+      headers: {
+        "content-type": "application/vnd.android.package-archive",
+        "content-length": String(st.size),
+        "content-disposition": `attachment; filename="${berkas}"`,
+        "cache-control": "public, max-age=3600",
+      },
+    });
+  } catch (e) {
+    return new Response("Berkas belum tersedia", { status: 404 });
+  }
+}
+
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
@@ -3257,6 +3310,13 @@ async function kirimEmail(env, ke, subjek, isiHtml, isiTeks, kunci) {
       return json({ ok: 0, e: "Permintaan token tidak sah" }, 400);
     }
     // Game Greedy King milik REZO (server sendiri, chip diatur dari panel).
+    // Unduhan APK langsung dari server sendiri. Tautan GitHub membuka aplikasi
+    // GitHub di HP pengguna, jadi pengguna mendarat di layar login.
+    if (url.pathname === "/unduh" || url.pathname.toLowerCase().startsWith("/unduh/")) {
+      const jawab = await unduhApk(url.pathname, env);
+      if (jawab) return jawab;
+    }
+
     if (url.pathname.toLowerCase().startsWith("/greedy/")) {
       const asal = req.headers.get("origin") || "*";
       if (req.method === "OPTIONS") {

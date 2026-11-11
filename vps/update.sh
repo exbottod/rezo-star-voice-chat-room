@@ -10,6 +10,20 @@ echo "Mengunduh kode dompet terbaru..."
 # gagal start karena modul hilang.
 curl -fsSL "$RAW/workers/wallet/src/index.js" -o "$DIR/index.js"
 curl -fsSL "$RAW/vps/server.js" -o "$DIR/server.js"
+# APK terbaru untuk halaman unduh sendiri (tautan GitHub membuka app GitHub
+# di HP pengguna, jadi mereka mendarat di layar login).
+mkdir -p "$DIR/apk"
+GH="${GH_APK:-https://github.com/exbottod/rezo-star-voice-chat-room/releases/download/terbaru}"
+for f in REZO-STAR-universal.apk REZO-STAR-arm64.apk REZO-STAR-armv7.apk; do
+  if curl -fsSL --max-time 240 "$GH/$f" -o "$DIR/apk/$f"; then
+    echo "APK siap: $f ($(du -h "$DIR/apk/$f" | cut -f1))"
+  else
+    echo "APK gagal diunduh: $f"
+  fi
+done
+curl -fsSL "https://exbottod.github.io/rezo-star-voice-chat-room/build-info.json" \
+  | sed -n 's/.*"versi" *: *"\([^"]*\)".*/\1/p' > "$DIR/apk/versi.txt" || true
+
 node --check "$DIR/index.js" || { echo "Sintaks index.js salah, layanan tidak direstart"; exit 1; }
 systemctl restart rezo-api
 for i in 1 2 3 4 5 6 7 8 9 10; do
