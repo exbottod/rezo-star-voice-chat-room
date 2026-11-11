@@ -193,7 +193,7 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", myAvatarB64: St
                             GcRows(
                                 listOf(
                                     GcItem("Greedy King", R.drawable.ic_game_cat, "greedyking"),
-                                    GcItem("Slot Zeus", R.drawable.ic_game_cat, "slotzeus"),
+                                    GcItem("Slot Zeus", R.drawable.ic_game_zeus, "slotzeus"),
                                 ),
                             ) { open = it }
                         }
