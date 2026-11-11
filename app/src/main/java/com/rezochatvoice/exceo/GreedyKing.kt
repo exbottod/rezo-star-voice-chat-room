@@ -164,8 +164,10 @@ fun GreedyKingScreen(
 private fun pindahKeAsetKalauKosong(view: WebView, url: String?, pindah: () -> Unit) {
     if (url?.startsWith("file://") == true) return
     val minta = "(function(){var r=document.getElementById('root');" +
+        "var im=[].slice.call(document.querySelectorAll('#root img'));" +
+        "var rusak=im.length>0&&im.filter(function(i){return i.complete&&i.naturalWidth>0}).length===0;" +
         "var adaIsi=(r&&r.children.length>0)||(document.body&&document.body.innerText.trim().length>0);" +
-        "return adaIsi?'ada':'kosong';})()"
+        "return (adaIsi&&!rusak)?'ada':'kosong';})()"
     listOf(3000L, 8000L, 15000L).forEach { jeda ->
         Handler(Looper.getMainLooper()).postDelayed({
             view.evaluateJavascript(minta) { hasil ->
@@ -190,10 +192,9 @@ private fun pindahKeAsetKalauKosong(view: WebView, url: String?, pindah: () -> U
 private suspend fun alamatGreedy(): String = suspendCancellableCoroutine { lanjut ->
     Rtdb.ref("appCfg/greedyUrl").addListenerForSingleValueEvent(object : ValueEventListener {
         override fun onDataChange(s: DataSnapshot) {
-            // Halaman internet dipakai lebih dulu supaya perbaikan game bisa
-            // langsung berlaku tanpa memasang ulang APK. Kalau gagal dimuat,
-            // app otomatis pindah ke salinan di dalam APK.
-            lanjut.resume(GREEDY_BAWAAN)
+            // Salinan di dalam APK dipakai lebih dulu: gambar makanan sudah ikut
+            // di APK sehingga tidak bergantung pada internet.
+            lanjut.resume(GREEDY_LOKAL)
         }
 
         override fun onCancelled(e: DatabaseError) = lanjut.resume(GREEDY_LOKAL)
