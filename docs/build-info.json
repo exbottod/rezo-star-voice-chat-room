@@ -1,14 +1,14 @@
 {
   "status": "ok",
   "masalah": [],
-  "versi": "1.1.70",
+  "versi": "1.1.74",
   "ukuran_mb": 68.9,
-  "sha256": "ed5f9eac5808ec1ddf3fa5b96e75a2ecda55a38b49f6b82f15ab642d12d01296",
-  "commit": "1c548df",
-  "waktu": "2026-11-11T10:43:16Z",
+  "sha256": "386248c81db8f62a6ac00a5933e43aef6c2f33ff4b45ba8a00306e65d0abd7a9",
+  "commit": "22c5347",
+  "waktu": "2026-11-11T10:56:39Z",
   "workflow": "https://github.com/exbottod/rezo-star-voice-chat-room/actions",
   "aset_roket": 30,
-  "aset_total": 120,
+  "aset_total": 121,
   "fitur": [
     {
       "nama": "Banner cashback terpisah",
