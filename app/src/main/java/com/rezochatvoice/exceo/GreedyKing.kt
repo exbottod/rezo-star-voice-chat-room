@@ -188,8 +188,10 @@ private fun pindahKeAsetKalauKosong(view: WebView, url: String?, pindah: () -> U
 private suspend fun alamatGreedy(): String = suspendCancellableCoroutine { lanjut ->
     Rtdb.ref("appCfg/greedyUrl").addListenerForSingleValueEvent(object : ValueEventListener {
         override fun onDataChange(s: DataSnapshot) {
-            val v = s.getValue(String::class.java)?.trim().orEmpty()
-            lanjut.resume(if (tampakSepertiHalaman(v)) v else GREEDY_LOKAL)
+            // Salinan di dalam APK selalu dipakai. Alamat dari panel diabaikan
+            // supaya tidak ada halaman lain yang bisa menggantikannya dan
+            // membuat layar kuning polos lagi.
+            lanjut.resume(GREEDY_LOKAL)
         }
 
         override fun onCancelled(e: DatabaseError) = lanjut.resume(GREEDY_LOKAL)

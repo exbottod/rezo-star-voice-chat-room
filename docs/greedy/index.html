@@ -45,10 +45,25 @@
   // Begitu game menggambar apa pun, layar muat dicabut sendiri. Jangan menunggu
   // panggilan dari dalam game, karena kalau game berhenti, layar muat menutupi
   // pesan aslinya dan yang terlihat cuma kuning.
-  var cek = setInterval(function () {
+  // Game dianggap benar-benar tampil hanya kalau ada kotak yang terlihat.
+  // Kalau React sempat menempel tapi isinya kosong, layar muat DIBIARKAN,
+  // supaya tidak pernah lagi jadi kuning polos tanpa tulisan.
+  function sudahTampil() {
     var r = document.getElementById("root");
-    if (r && r.children.length > 0) {
+    if (!r) return false;
+    var k = r.getBoundingClientRect();
+    if (k.width > 120 && k.height > 200) return true;
+    var anak = r.querySelectorAll("div,button,canvas,img,svg,span");
+    for (var i = 0; i < anak.length; i++) {
+      var q = anak[i].getBoundingClientRect();
+      if (q.width > 100 && q.height > 100) return true;
+    }
+    return false;
+  }
+  var cek = setInterval(function () {
+    if (sudahTampil()) {
       clearInterval(cek);
+      window.__gkSudahTampil = true;
       var b = document.getElementById("boot");
       if (b) b.remove();
     }
@@ -107,8 +122,9 @@
   document.getElementById("gkcobaLagi").onclick = function () { location.reload(); };
   // Kalau game tidak menggambar apa pun, tampilkan penyebabnya, bukan layar kuning kosong.
   setTimeout(function () {
-    var r = document.getElementById("root");
-    if (!r || r.children.length === 0) tampilSebab(pesanAkhir || "kode game tidak menggambar apa pun dalam 12 detik");
+    if (!window.__gkSudahTampil) {
+      tampilSebab(pesanAkhir || "kode game berhenti sebelum menggambar apa pun (12 detik)");
+    }
   }, 12000);
 })();
 </script>
