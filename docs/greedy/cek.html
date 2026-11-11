@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="id"><head><meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Cek tampilan game</title>
+<style>
+body{margin:0;padding:16px;background:#0a0f1e;color:#eaf0ff;font:14px/1.6 system-ui,sans-serif}
+h1{font-size:17px;margin:0 0 10px}
+pre{white-space:pre-wrap;word-break:break-word;background:#121a2c;padding:12px;border-radius:10px}
+</style></head><body>
+<h1>Cek tampilan game REZO</h1>
+<pre id="isi">membaca...</pre>
+<script>
+function bisa(nilai) { try { return CSS.supports(nilai) ? "ya" : "tidak"; } catch (e) { return "tidak"; } }
+var w = window, d = document.documentElement;
+var baris = [
+  "Layar: " + w.innerWidth + " x " + w.innerHeight + " (skala " + (w.devicePixelRatio || 1) + ")",
+  "WebView: " + (navigator.userAgent || "-"),
+  "",
+  "aspect-ratio: " + bisa("aspect-ratio: 1 / 1"),
+  "tinggi dvh: " + bisa("height: 100dvh"),
+  "warna rgb baru: " + bisa("background-color: rgb(10 15 30 / 1)"),
+  "clip-path: " + bisa("clip-path: circle(40%)"),
+  "gradien ulang: " + bisa("background-image: repeating-linear-gradient(115deg, #fff 0 12px, transparent 12px 26px)"),
+  "",
+  "Latar halaman: " + getComputedStyle(document.body).backgroundColor,
+  "Warna dasar dokumen: " + getComputedStyle(d).backgroundColor
+];
+document.getElementById("isi").textContent = baris.join("\n");
+</script>
+</body></html>
