@@ -5,26 +5,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <title>Greedy King</title>
 <script>
-/* Data pemain datang dari app lewat jembatan RezoBridge (token Firebase, uid,
-   nama, dan daftar chip). Tanpa app, halaman ini tetap terbuka tapi tidak bisa
-   bertaruh karena server dompet butuh token. */
 (function () {
   var b = window.RezoBridge;
   function ambil(fn) { try { return b && b[fn] ? b[fn]() : ""; } catch (e) { return ""; } }
-  var api = ambil("api");
   window.__GREEDY_API__ = "https://43-156-99-4.sslip.io/greedy";
   window.__GREEDY_TOKEN__ = ambil("token") || window.__GREEDY_TOKEN__ || "";
-  var uid = ambil("uid");
-  var nama = ambil("nama");
+  var uid = ambil("uid"), nama = ambil("nama");
   if (uid) window.__GREEDY_USER__ = { id: String(uid), name: String(nama || "Player") };
-  var chip = ambil("chips");
-  if (chip) { try { window.__GREEDY_CHIPS__ = JSON.parse(chip); } catch (e) {} }
+  var chip = ambil("chips"); if (chip) { try { window.__GREEDY_CHIPS__ = JSON.parse(chip); } catch (e) {} }
 })();
 </script>
-  <script type="module" crossorigin src="./assets/index-BvU5o1Q8.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-CPCQf1FE.css">
+  <script type="module" crossorigin src="./assets/index-DmYWGQZm.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-hN_3FMVj.css">
 </head>
-<body class="bg-night text-cream">
+<body>
 <div id="root"></div>
 </body>
 </html>
