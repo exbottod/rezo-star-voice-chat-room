@@ -42,9 +42,54 @@ function bacaIsi(req) {
   });
 }
 
+
+// ---- Unduhan APK dialirkan langsung dari disk (bukan dimuat 70 MB ke memori).
+// Mendukung Range, jadi unduhan yang terputus bisa dilanjutkan dan tidak
+// menghasilkan berkas terpotong ("Kesalahan parse").
+const fs = await import("node:fs");
+const pathMod = await import("node:path");
+const APK_DIR = "/opt/rezo-api/apk";
+const APK_NAMA = { universal: "REZO-STAR-universal.apk", arm64: "REZO-STAR-arm64.apk", armv7: "REZO-STAR-armv7.apk" };
+
+function layaniApk(req, res) {
+  const u = new URL(req.url, "http://x");
+  const m = u.pathname.match(/^\/unduh\/([A-Za-z0-9_.-]+)$/i);
+  if (!m) return false;
+  const berkas = APK_NAMA[m[1].toLowerCase()] || m[1];
+  if (!/^REZO-STAR-[A-Za-z0-9_.-]+\.apk$/.test(berkas)) return false;
+  const lokasi = pathMod.join(APK_DIR, berkas);
+  let st;
+  try { st = fs.statSync(lokasi); } catch { res.writeHead(404, { "content-type": "text/plain" }); res.end("Berkas belum tersedia"); return true; }
+  const kepala = {
+    "content-type": "application/vnd.android.package-archive",
+    "content-disposition": `attachment; filename="${berkas}"`,
+    "accept-ranges": "bytes",
+    "cache-control": "no-store",
+    "access-control-allow-origin": "*",
+  };
+  let awal = 0, akhir = st.size - 1, status = 200;
+  const r = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || "");
+  if (r && (r[1] !== "" || r[2] !== "")) {
+    if (r[1] === "") { awal = Math.max(0, st.size - Number(r[2])); }
+    else { awal = Number(r[1]); if (r[2] !== "") akhir = Math.min(akhir, Number(r[2])); }
+    if (awal > akhir || awal >= st.size) { res.writeHead(416, { "content-range": `bytes */${st.size}` }); res.end(); return true; }
+    status = 206;
+    kepala["content-range"] = `bytes ${awal}-${akhir}/${st.size}`;
+  }
+  kepala["content-length"] = String(akhir - awal + 1);
+  res.writeHead(status, kepala);
+  if (req.method === "HEAD") { res.end(); return true; }
+  const aliran = fs.createReadStream(lokasi, { start: awal, end: akhir });
+  aliran.on("error", () => res.destroy());
+  res.on("close", () => aliran.destroy());
+  aliran.pipe(res);
+  return true;
+}
+
 const server = http.createServer(async (req, res) => {
   const mulai = Date.now();
   try {
+    if ((req.method === "GET" || req.method === "HEAD") && layaniApk(req, res)) return;
     const isi = req.method === "GET" || req.method === "HEAD" ? undefined : await bacaIsi(req);
     const alamat = `http://${req.headers.host || HOST + ":" + PORT}${req.url}`;
     const permintaan = new Request(alamat, {

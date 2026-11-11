@@ -114,7 +114,10 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", myAvatarB64: St
         balance = SupaRepo.get(myUid).wallet?.coins ?: 0L
     }
 
-    val waveOpen: WaveGames.Game? = if (open.startsWith("wave:")) {
+    // Greedy King (id 80 di katalog Wave) diganti dengan game Rezo sendiri
+    // yang memakai dompet VPS, jadi kotak Wave dan kotak bawah membuka game sama.
+    val bukaGreedyRezo = open == "wave:80" || open == "greedyking"
+    val waveOpen: WaveGames.Game? = if (open.startsWith("wave:") && !bukaGreedyRezo) {
         val gid = open.removePrefix("wave:").toIntOrNull()
         waveGames.firstOrNull { it.id == gid }
     } else null
@@ -124,8 +127,8 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", myAvatarB64: St
         return
     }
 
-    when (open) {
-        "greedyking" -> GreedyKingScreen(
+    when {
+        bukaGreedyRezo -> GreedyKingScreen(
             myUid = myUid,
             myName = myName.ifBlank { "Player" },
             onClose = { open = "" },
