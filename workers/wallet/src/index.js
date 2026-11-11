@@ -506,7 +506,7 @@ const gagal = (e) => json({ ok: 0, e });
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "authorization, content-type, apikey, x-client-info, accept",
+  "Access-Control-Allow-Headers": "authorization, content-type, apikey, x-client-info, accept, x-user-id, x-display-name",
   "Access-Control-Max-Age": "86400",
 };
 const json = (o, status = 200) =>
