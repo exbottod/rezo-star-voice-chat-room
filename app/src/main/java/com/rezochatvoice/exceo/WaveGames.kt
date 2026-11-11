@@ -136,6 +136,11 @@ object WaveGames {
             if (arr != null) for (i in 0 until arr.length()) {
                 val g = arr.optJSONObject(i) ?: continue
                 if (!g.optBoolean("playable", true)) continue
+                // REZO memakai game Greedy King sendiri; entri Wave dengan nama
+                // sama hanya menampilkan layar kuning kosong, jadi dibuang.
+                val slugW = g.optString("routeSlug").lowercase()
+                val namaW = g.optString("name").lowercase()
+                if (g.optInt("gameId") == 80 || slugW.contains("greedy") || namaW.contains("greedy king")) continue
                 out.add(
                     Game(
                         id = g.optInt("gameId"),
@@ -161,7 +166,6 @@ object WaveGames {
         Game(16, "Teen Patti", "teenpatti", "", 500000),
         Game(54, "Crazy Fruit", "crazyfruit", "", 500000),
         Game(77, "Lucky 77", "lucky77", "", 500000),
-        Game(80, "Greedy King", "greedyking", "", 500000),
         Game(81, "Teen Patti Pro", "teenpattipro", "", 500000),
     )
 
