@@ -44,7 +44,7 @@
   <link rel="stylesheet" crossorigin href="./assets/index-DX08ztSK.css">
 </head>
 <body>
-<div id="boot" style="position:fixed;inset:0;z-index:2147483647;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:#f7cf4a;color:#3a2b12;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;text-align:center;padding:22px">
+<div id="boot" style="position:fixed;inset:0;z-index:2147483647;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:#0a0f1e;color:#f3f6ff;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;text-align:center;padding:22px">
   <style>
     #gkRoda{position:relative;width:210px;height:210px}
     #gkCakram{position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 50% 45%,#ffe98a 0%,#f2b53c 55%,#c98a1e 100%);border:7px solid #fff6d0;box-shadow:0 8px 20px rgba(120,70,0,.28),inset 0 0 22px rgba(150,90,0,.25);animation:gkPutar 7s linear infinite}
@@ -200,5 +200,21 @@
 </script>
 
 <div id="root"></div>
+<script>
+/* Jaring pengaman: layar loading tidak boleh menutupi game selamanya. */
+(function () {
+  function tutup() {
+    var b = document.getElementById("boot");
+    if (b && document.getElementById("root") && document.getElementById("root").children.length > 0) {
+      b.style.display = "none";
+    }
+  }
+  setInterval(tutup, 400);
+  window.addEventListener("error", function (e) {
+    var t = document.getElementById("booterr");
+    if (t) { t.style.display = "block"; t.textContent = "Galat: " + ((e && e.message) || "tidak diketahui"); }
+  });
+})();
+</script>
 </body>
 </html>
