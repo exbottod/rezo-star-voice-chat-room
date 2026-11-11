@@ -19,12 +19,50 @@
   <link rel="stylesheet" crossorigin href="./assets/index-DX08ztSK.css">
 </head>
 <body>
-<div id="boot" style="position:fixed;inset:0;z-index:2147483647;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#f7cf4a;color:#3a2b12;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;text-align:center;padding:24px">
-  <div style="font-size:46px;line-height:1">&#128081;</div>
+<div id="boot" style="position:fixed;inset:0;z-index:2147483647;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:#f7cf4a;color:#3a2b12;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;text-align:center;padding:22px">
+  <style>
+    #gkRoda{position:relative;width:210px;height:210px}
+    #gkCakram{position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 50% 45%,#ffe98a 0%,#f2b53c 55%,#c98a1e 100%);border:7px solid #fff6d0;box-shadow:0 8px 20px rgba(120,70,0,.28),inset 0 0 22px rgba(150,90,0,.25);animation:gkPutar 7s linear infinite}
+    #gkCakram img{position:absolute;width:52px;height:52px;left:50%;top:50%;margin:-26px 0 0 -26px;object-fit:contain;filter:drop-shadow(0 3px 4px rgba(0,0,0,.22))}
+    #gkTunjuk{position:absolute;left:50%;top:-14px;transform:translateX(-50%);width:0;height:0;border-left:14px solid transparent;border-right:14px solid transparent;border-top:26px solid #b81f33;filter:drop-shadow(0 2px 3px rgba(0,0,0,.3));z-index:2}
+    #gkAngka{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:92px;height:92px;border-radius:50%;background:rgba(255,250,225,.92);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:22px;color:#8a4a00;box-shadow:inset 0 0 10px rgba(120,70,0,.25)}
+    @keyframes gkPutar{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+  </style>
+  <div id="gkRoda">
+    <div id="gkTunjuk"></div>
+    <div id="gkCakram"></div>
+    <div id="gkAngka">0%</div>
+  </div>
   <div style="font-weight:800;font-size:19px;letter-spacing:.5px">GREEDY KING</div>
-  <div id="bootmsg" style="font-size:13px;opacity:.75">Menyiapkan game...</div>
+  <div id="bootmsg" style="font-size:13px;opacity:.8;max-width:280px;line-height:1.5">Menyiapkan game...</div>
   <div id="booterr" style="display:none;font-size:11px;line-height:1.5;background:#fff;border:2px solid #b81f33;border-radius:12px;padding:10px 12px;max-width:100%;word-break:break-word;text-align:left"></div>
 </div>
+<script>
+(function () {
+  // Roda berisi gambar makanan asli, sama seperti tampilan game.
+  var makanan = ["cabbage","carrot","corn","drumstick","hotdog","pizza","salad","skewer","steak","tomato"];
+  var cakram = document.getElementById("gkCakram");
+  if (cakram) {
+    for (var i = 0; i < makanan.length; i++) {
+      var img = document.createElement("img");
+      img.src = "./assets/images/" + makanan[i] + ".png";
+      img.onerror = function () { this.style.display = "none"; };
+      var sudut = (360 / makanan.length) * i;
+      img.style.transform = "rotate(" + sudut + "deg) translateY(-74px) rotate(" + (-sudut) + "deg)";
+      cakram.appendChild(img);
+    }
+  }
+  var angka = document.getElementById("gkAngka");
+  var n = 0;
+  var naik = setInterval(function () {
+    if (n < 88) { n += 2; if (angka) angka.textContent = n + "%"; }
+  }, 90);
+  window.__gkNaik = naik;
+  window.__gkAngka = function (v) {
+    if (angka) angka.textContent = v + "%";
+  };
+})();
+</script>
 <script>
 (function () {
   var msg = document.getElementById("bootmsg");
@@ -51,12 +89,14 @@
   function sudahTampil() {
     var r = document.getElementById("root");
     if (!r) return false;
-    var k = r.getBoundingClientRect();
-    if (k.width > 120 && k.height > 200) return true;
-    var anak = r.querySelectorAll("div,button,canvas,img,svg,span");
-    for (var i = 0; i < anak.length; i++) {
-      var q = anak[i].getBoundingClientRect();
-      if (q.width > 100 && q.height > 100) return true;
+    // Dianggap tampil hanya kalau ada isi nyata: tulisan, gambar, atau kanvas.
+    // Kotak kosong berukuran besar tidak dihitung, supaya layar tidak pernah
+    // berubah jadi kuning polos tanpa tulisan.
+    if ((r.innerText || "").trim().length > 15) return true;
+    var nyata = r.querySelectorAll("canvas,img,svg,button");
+    for (var i = 0; i < nyata.length; i++) {
+      var q = nyata[i].getBoundingClientRect();
+      if (q.width > 24 && q.height > 24) return true;
     }
     return false;
   }
@@ -81,6 +121,11 @@
   setTimeout(function () {
     if (!window.__reactJalan && msg) msg.textContent = "Kode game belum jalan. Halaman: " + location.href.slice(0, 90);
   }, 10000);
+  // Jaring pengaman terakhir: kalau sampai 8 detik game belum menggambar,
+  // tampilkan sebabnya, jangan biarkan layar kuning tanpa penjelasan.
+  setTimeout(function () {
+    if (!window.__gkSudahTampil && window.__gkSebab) { try { window.__gkSebab(""); } catch (e) {} }
+  }, 8000);
 })();
 </script>
 
