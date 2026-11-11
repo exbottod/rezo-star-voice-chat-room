@@ -1,37 +1,38 @@
 package com.rezochatvoice.exceo
 
+import android.webkit.JavascriptInterface
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import android.graphics.Color as AColor
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.ValueEventListener
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
-import java.io.File
+import kotlin.coroutines.resume
+import android.graphics.Color as AColor
 
 /**
  * Greedy King milik REZO.
  *
- * Berkas game (index.html, bundle.js, style.css) ada di aset app, lalu disalin
- * ke folder cache dengan token & saldo pemain disisipkan, dan dibuka lewat
- * file:// dari cache. Cara ini paling stabil di WebView Android.
+ * Halaman game diambil dari internet (GitHub Pages), jadi perbaikan game bisa
+ * langsung berlaku tanpa membangun APK baru. Alamatnya bisa diganti dari
+ * Realtime Database (appCfg/greedyUrl). Kalau jaringan gagal, app memakai
+ * salinan di dalam aset sebagai cadangan.
  */
 @Composable
 fun GreedyKingScreen(
@@ -40,44 +41,26 @@ fun GreedyKingScreen(
     onClose: () -> Unit,
 ) {
     val ctx = LocalContext.current
-    var folder by remember { mutableStateOf<File?>(null) }
-    var catatan by remember { mutableStateOf("Menyiapkan game...") }
-    var galat by remember { mutableStateOf("") }
-    val chipsBawaan = listOf(100L, 500L, 1000L, 5000L, 50000L)
+    var siap by remember { mutableStateOf(false) }
+    var token by remember { mutableStateOf("") }
+    var chips by remember { mutableStateOf("[]") }
+    var alamat by remember { mutableStateOf(GREEDY_BAWAAN) }
 
     LaunchedEffect(myUid) {
-        try {
-            val chips = try { BetCfg.load("greedyking", chipsBawaan) } catch (e: Exception) { chipsBawaan }
-            catatan = "Chip: " + chips.joinToString(",")
-            val token = FirebaseAuth.getInstance().currentUser
-                ?.getIdToken(false)?.await()?.token ?: throw IllegalStateException("Sesi tidak ditemukan")
-            val dir = File(ctx.cacheDir, "greedy").apply { mkdirs() }
-            ctx.assets.open("greedy/index.html").bufferedReader().use { t ->
-                val isi = t.readText()
-                    .replace("__REZO_API__", GREEDY_API)
-                    .replace("__REZO_TOKEN__", token)
-                    .replace("__REZO_CHIPS__", chips.joinToString(",", "[", "]"))
-                    .replace("__REZO_UID__", myUid)
-                    .replace("__REZO_NAME__", myName.ifBlank { "Player" }.replace("\"", ""))
-                File(dir, "index.html").writeText(isi)
-            }
-            listOf("bundle.js", "style.css").forEach { n ->
-                ctx.assets.open("greedy/$n").use { masuk ->
-                    File(dir, n).outputStream().use { keluar -> masuk.copyTo(keluar) }
-                }
-            }
-            catatan = "Siap: " + File(dir, "index.html").length() + " bita"
-            folder = dir
-        } catch (e: Exception) {
-            galat = e.message ?: "Game tidak bisa dibuka"
-        }
+        val daftar = try { BetCfg.load("greedyking", listOf(100L, 500L, 1000L, 5000L, 50000L)) }
+        catch (e: Exception) { listOf(100L, 500L, 1000L, 5000L, 50000L) }
+        chips = daftar.joinToString(",", "[", "]")
+        token = try {
+            FirebaseAuth.getInstance().currentUser?.getIdToken(false)?.await()?.token.orEmpty()
+        } catch (e: Exception) { "" }
+        alamat = try { alamatGreedy() } catch (e: Exception) { GREEDY_BAWAAN }
+        siap = true
     }
 
     BackHandler(enabled = true) { onClose() }
 
     Box(Modifier.fillMaxSize().background(Color(0xFF0A0F1E))) {
-        val dir = folder
-        if (dir != null && galat.isBlank()) {
+        if (siap) {
             AndroidView(
                 modifier = Modifier.fillMaxSize(),
                 factory = { c ->
@@ -90,41 +73,42 @@ fun GreedyKingScreen(
                         settings.useWideViewPort = true
                         settings.loadWithOverviewMode = true
                         settings.setSupportZoom(false)
-                        settings.allowFileAccess = true
-                        settings.allowFileAccessFromFileURLs = true
-                        settings.allowUniversalAccessFromFileURLs = true
                         settings.cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE
                         settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-                        webViewClient = object : WebViewClient() {
-                            override fun onPageFinished(view: WebView, url: String) {
-                                catatan = "Halaman terbuka"
-                                view.evaluateJavascript("window.__GK_SALAH__ || ''") { hasil ->
-                                    val t = hasil?.replace("\"", "")?.trim().orEmpty()
-                                    if (t.isNotBlank() && t != "null") catatan = "Galat JS: $t"
-                                }
-                            }
-
-                            override fun onReceivedError(
-                                view: WebView,
-                                request: android.webkit.WebResourceRequest,
-                                error: android.webkit.WebResourceError,
-                            ) {
-                                catatan = "Gagal muat: " + error.description
-                            }
-                        }
-                        loadUrl("file://" + File(dir, "index.html").absolutePath)
+                        settings.userAgentString = "Mozilla/5.0 (Linux; Android 13; SM-G991B) AppleWebKit/537.36 " +
+                            "(KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
+                        // Jembatan: halaman membaca token, uid, nama, dan chip dari sini.
+                        val namaAman = myName.ifBlank { "Player" }
+                        addJavascriptInterface(
+                            object {
+                                @JavascriptInterface fun api() = GREEDY_API
+                                @JavascriptInterface fun token() = token
+                                @JavascriptInterface fun uid() = myUid
+                                @JavascriptInterface fun nama() = namaAman
+                                @JavascriptInterface fun chips() = chips
+                            },
+                            "RezoBridge",
+                        )
+                        webViewClient = WebViewClient()
+                        loadUrl(alamat)
                     }
                 },
             )
         }
-        // Keterangan kecil di pojok: kalau game kosong, tulisan ini menunjukkan
-        // di tahap mana ia berhenti.
-        Text(
-            if (galat.isNotBlank()) "Galat: $galat" else catatan,
-            color = Color(0xFF8FA6C8), fontSize = 9.sp,
-            modifier = Modifier.align(Alignment.TopCenter).padding(top = 4.dp),
-        )
     }
 }
 
+/** Alamat halaman game: bisa diatur dari panel lewat appCfg/greedyUrl. */
+private suspend fun alamatGreedy(): String = suspendCancellableCoroutine { lanjut ->
+    Rtdb.ref("appCfg/greedyUrl").addListenerForSingleValueEvent(object : ValueEventListener {
+        override fun onDataChange(s: DataSnapshot) {
+            val v = s.getValue(String::class.java)?.trim().orEmpty()
+            lanjut.resume(if (v.startsWith("http")) v else GREEDY_BAWAAN)
+        }
+
+        override fun onCancelled(e: DatabaseError) = lanjut.resume(GREEDY_BAWAAN)
+    })
+}
+
 private const val GREEDY_API = "https://43-156-99-4.sslip.io/greedy"
+private const val GREEDY_BAWAAN = "https://exbottod.github.io/rezo-star-voice-chat-room/greedy/"

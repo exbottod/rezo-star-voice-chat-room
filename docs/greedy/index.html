@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<title>Greedy King</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body class="bg-night text-cream">
+<div id="root"></div>
+<script>
+/* Konfigurasi datang dari app lewat jembatan RezoBridge (kalau dibuka di app),
+   atau dari window.__GREEDY_* kalau halaman ini dibuka di browser biasa. */
+(function () {
+  var b = window.RezoBridge;
+  function ambil(fn) { try { return b && b[fn] ? b[fn]() : ""; } catch (e) { return ""; } }
+  window.__GREEDY_API__ = ambil("api") || window.__GREEDY_API__ || "";
+  window.__GREEDY_TOKEN__ = ambil("token") || window.__GREEDY_TOKEN__ || "";
+  window.__GREEDY_USER__ = { id: ambil("uid"), name: ambil("nama") || "Player" };
+  var chip = ambil("chips");
+  if (chip) {
+    try { window.__GREEDY_CHIPS__ = JSON.parse(chip); } catch (e) {}
+  }
+  window.__GK_SALAH__ = "";
+  window.onerror = function (m, s, l) {
+    window.__GK_SALAH__ = m + " (baris " + l + ")";
+    var d = document.getElementById("root");
+    if (d) d.innerHTML = '<pre style="color:#ffcc88;padding:14px;font-size:12px;white-space:pre-wrap">' + window.__GK_SALAH__ + "</pre>";
+  };
+  window.addEventListener("unhandledrejection", function (e) {
+    var t = (e && e.reason && (e.reason.message || e.reason)) || "promise gagal";
+    window.__GK_SALAH__ = String(t);
+    var d = document.getElementById("root");
+    if (d && !d.innerHTML) d.innerHTML = '<pre style="color:#ffcc88;padding:14px;font-size:12px;white-space:pre-wrap">' + t + "</pre>";
+  });
+})();
+</script>
+<script src="bundle.js"></script>
+</body>
+</html>
