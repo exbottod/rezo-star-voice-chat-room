@@ -9,22 +9,30 @@
 <body class="bg-night text-cream">
 <div id="root"></div>
 <script>
-window.__GREEDY_API__ = "__REZO_API__";
-window.__GREEDY_TOKEN__ = "__REZO_TOKEN__";
-window.__GREEDY_CHIPS__ = __REZO_CHIPS__;
-window.__GREEDY_USER__ = { id: "__REZO_UID__", name: "__REZO_NAME__" };
-window.__GK_SALAH__ = "";
-window.onerror = function (m, s, l) {
-  window.__GK_SALAH__ = m + " (baris " + l + ")";
-  var d = document.getElementById("root");
-  if (d) d.innerHTML = '<pre style="color:#ffcc88;padding:14px;font-size:12px;white-space:pre-wrap">' + window.__GK_SALAH__ + "</pre>";
-};
-window.addEventListener("unhandledrejection", function (e) {
-  var t = (e && e.reason && (e.reason.message || e.reason)) || "promise gagal";
-  window.__GK_SALAH__ = String(t);
-  var d = document.getElementById("root");
-  if (d && !d.innerHTML) d.innerHTML = '<pre style="color:#ffcc88;padding:14px;font-size:12px;white-space:pre-wrap">' + t + "</pre>";
-});
+/* Versi cadangan di dalam APK. Konfigurasi diambil dari jembatan RezoBridge
+   supaya tetap jalan walau tanpa internet saat memuat halaman. */
+(function () {
+  var b = window.RezoBridge;
+  function ambil(fn) { try { return b && b[fn] ? b[fn]() : ""; } catch (e) { return ""; } }
+  window.__GREEDY_API__ = ambil("api") || "https://43-156-99-4.sslip.io/greedy";
+  window.__GREEDY_TOKEN__ = ambil("token") || "";
+  window.__GREEDY_USER__ = { id: ambil("uid") || "", name: ambil("nama") || "Player" };
+  var chip = ambil("chips");
+  var daftar = [100, 500, 1000, 5000, 50000];
+  if (chip) { try { var p = JSON.parse(chip); if (Array.isArray(p) && p.length) daftar = p; } catch (e) {} }
+  window.__GREEDY_CHIPS__ = daftar;
+  window.__GK_SALAH__ = "";
+  function tampilkanError(teks) {
+    window.__GK_SALAH__ = String(teks);
+    var d = document.getElementById("root");
+    if (d) d.innerHTML = '<pre style="color:#ffcc88;padding:14px;font-size:12px;white-space:pre-wrap">' + teks + "</pre>";
+  }
+  window.onerror = function (m, s, l) { tampilkanError(m + " (baris " + l + ")"); };
+  window.addEventListener("unhandledrejection", function (e) {
+    var t = (e && e.reason && (e.reason.message || e.reason)) || "promise gagal";
+    tampilkanError(t);
+  });
+})();
 </script>
 <script src="bundle.js"></script>
 </body>
