@@ -59,6 +59,8 @@ object AppUpdate {
     private const val INFO_URL = "https://exbottod.github.io/rezo-star-voice-chat-room/build-info.json"
     private const val NOTE_URL = "https://exbottod.github.io/rezo-star-voice-chat-room/update-note.txt"
     private const val REL = "https://github.com/exbottod/rezo-star-voice-chat-room/releases/download/terbaru/"
+    /** APK penuh disajikan server sendiri (tanpa login), bukan GitHub. */
+    private const val APK_BASE = "https://43-156-99-4.sslip.io/unduh/"
     private const val PATCH_URL = "https://exbottod.github.io/rezo-star-voice-chat-room/patch-info.json"
 
     class Info(val version: String, val notes: String, val url: String, val patch: Patch? = null)
@@ -268,7 +270,7 @@ object AppUpdate {
                 }
             }
             val terpasang = installedVersion(ctx)
-            Info(latest, akhir, REL + apkName(), patchInfo(latest, terpasang))
+            Info(latest, akhir, APK_BASE + kunci(), patchInfo(latest, terpasang))
         } catch (e: Exception) { null }
     }
 
