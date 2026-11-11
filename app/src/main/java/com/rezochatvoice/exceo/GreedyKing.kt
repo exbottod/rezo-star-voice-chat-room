@@ -53,7 +53,7 @@ fun GreedyKingScreen(
     var siap by remember { mutableStateOf(false) }
     var token by remember { mutableStateOf("") }
     var chips by remember { mutableStateOf("[]") }
-    var alamat by remember { mutableStateOf(GREEDY_LOKAL) }
+    var alamat by remember { mutableStateOf(GREEDY_BAWAAN) }
     // Pegangan WebView dipakai untuk mematikan game (termasuk suaranya) saat
     // layar ditutup.
     val wvPegang = remember { mutableStateOf<WebView?>(null) }
@@ -65,7 +65,7 @@ fun GreedyKingScreen(
         token = try {
             FirebaseAuth.getInstance().currentUser?.getIdToken(false)?.await()?.token.orEmpty()
         } catch (e: Exception) { "" }
-        alamat = try { alamatGreedy() } catch (e: Exception) { GREEDY_LOKAL }
+        alamat = try { alamatGreedy() } catch (e: Exception) { GREEDY_BAWAAN }
         siap = true
     }
 
@@ -102,11 +102,11 @@ fun GreedyKingScreen(
                     }
 
                     fun pakaiJaringan() {
-                        // Sengaja tidak lagi memakai halaman internet: halaman
-                        // itulah yang muncul sebagai layar kosong. Kalau salinan
-                        // APK gagal, pesan galat dari halaman yang ditampilkan.
+                        // Halaman internet dipakai lagi sebagai cadangan: perbaikan
+                        // game di sana langsung terpakai tanpa APK baru.
                         if (jatuhKeJaringan[0]) return
                         jatuhKeJaringan[0] = true
+                        wv?.loadUrl(denganToken(GREEDY_BAWAAN, token, myUid, namaAman))
                     }
 
                     WebView(c).apply {
@@ -231,10 +231,10 @@ private suspend fun alamatGreedy(): String = suspendCancellableCoroutine { lanju
         override fun onDataChange(s: DataSnapshot) {
             // Salinan di dalam APK dipakai lebih dulu: gambar makanan sudah ikut
             // di APK sehingga tidak bergantung pada internet.
-            lanjut.resume(GREEDY_LOKAL)
+            lanjut.resume(GREEDY_BAWAAN)
         }
 
-        override fun onCancelled(e: DatabaseError) = lanjut.resume(GREEDY_LOKAL)
+        override fun onCancelled(e: DatabaseError) = lanjut.resume(GREEDY_BAWAAN)
     })
 }
 
