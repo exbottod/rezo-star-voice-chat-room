@@ -51,7 +51,16 @@ fun SlotGameScreen(onClose: () -> Unit) {
         if (token.isBlank()) {
             galat = "Sesi login tidak ditemukan. Keluar lalu masuk lagi, kemudian buka game ini."
         } else {
-            alamat = "$SLOT_BASE?t=" + URLEncoder.encode(token, "UTF-8")
+            // Taruhan diambil dari panel developer (tab Bet Game). Kalau panel
+            // belum diatur, dipakai nilai bawaan.
+            val chip = try {
+                BetCfg.load("slotzeus", listOf(100L, 250L, 500L, 1000L, 2500L, 5000L))
+            } catch (e: Exception) {
+                listOf(100L, 250L, 500L, 1000L, 2500L, 5000L)
+            }
+            val bet = chip.filter { it > 0L }.take(8).joinToString(",")
+            alamat = "$SLOT_BASE?bets=" + URLEncoder.encode(bet, "UTF-8") +
+                "&t=" + URLEncoder.encode(token, "UTF-8")
         }
     }
 

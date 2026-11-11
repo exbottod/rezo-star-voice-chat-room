@@ -48,6 +48,25 @@
     if (j && j.ok && typeof j.saldo === "number") saldoAwal = j.saldo;
   } catch (e) {}
   window.__REZO_SALDO__ = saldoAwal;
+
+  // Taruhan dari panel developer (tab Bet Game). Angkanya dalam koin REZO,
+  // sedangkan game memakai satuan uang game (1 uang game = 100 koin).
+  var betPanel = [];
+  try {
+    var qb = new URLSearchParams(location.search);
+    betPanel = (qb.get("bets") || "")
+      .split(",")
+      .map(function (x) { return Number(String(x).trim()); })
+      .filter(function (x) { return isFinite(x) && x > 0; })
+      .slice(0, 8);
+  } catch (e) {}
+  if (betPanel.length) {
+    var koinGame = betPanel.map(function (x) { return Math.round((x / SKALA) * 100) / 100; }).sort(function (a, b) { return a - b; });
+    try { window._iCoinBets = koinGame; } catch (e) {}
+    window.__REZO_BETS__ = koinGame;
+    // Kas hadiah game dibuat lega supaya taruhan besar tidak dipaksa kalah.
+    try { if (typeof SLOT_CASH !== "undefined") SLOT_CASH = 100000000; } catch (e) {}
+  }
   window.RezoSlot = {
     saldo: function () { return window.__REZO_SALDO__; },
     segarkan: function () {
