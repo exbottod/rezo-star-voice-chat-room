@@ -62,7 +62,7 @@ fun GreedyKingScreen(
         token = try {
             FirebaseAuth.getInstance().currentUser?.getIdToken(false)?.await()?.token.orEmpty()
         } catch (e: Exception) { "" }
-        alamat = try { alamatGreedy() } catch (e: Exception) { GREEDY_BAWAAN }
+        alamat = try { alamatGreedy() } catch (e: Exception) { GREEDY_LOKAL }
         siap = true
     }
 
@@ -75,12 +75,19 @@ fun GreedyKingScreen(
                 factory = { c ->
                     val namaAman = myName.ifBlank { "Player" }
                     val jatuhKeAset = booleanArrayOf(false)
+                    val jatuhKeJaringan = booleanArrayOf(false)
                     var wv: WebView? = null
 
                     fun pakaiAset() {
                         if (jatuhKeAset[0]) return
                         jatuhKeAset[0] = true
                         wv?.loadUrl(GREEDY_LOKAL)
+                    }
+
+                    fun pakaiJaringan() {
+                        if (jatuhKeJaringan[0]) return
+                        jatuhKeJaringan[0] = true
+                        wv?.loadUrl(GREEDY_BAWAAN)
                     }
 
                     WebView(c).apply {
@@ -132,7 +139,9 @@ fun GreedyKingScreen(
 
                             override fun onPageFinished(view: WebView, url: String?) {
                                 super.onPageFinished(view, url)
-                                pindahKeAsetKalauKosong(view, url) { pakaiAset() }
+                                pindahKeAsetKalauKosong(view, url) {
+                                    if (url?.contains("appassets") == true) pakaiJaringan() else pakaiAset()
+                                }
                             }
                         }
                         webViewClient = pengawas
@@ -154,11 +163,21 @@ private fun pindahKeAsetKalauKosong(view: WebView, url: String?, pindah: () -> U
     val minta = "(function(){var r=document.getElementById('root');" +
         "var adaIsi=(r&&r.children.length>0)||(document.body&&document.body.innerText.trim().length>0);" +
         "return adaIsi?'ada':'kosong';})()"
-    listOf(3000L, 8000L).forEach { jeda ->
+    listOf(3000L, 8000L, 15000L).forEach { jeda ->
         Handler(Looper.getMainLooper()).postDelayed({
             view.evaluateJavascript(minta) { hasil ->
                 val bersih = hasil?.lowercase().orEmpty()
-                if (bersih.contains("kosong") && !bersih.contains("ada")) pindah()
+                val kosong = bersih.contains("kosong") && !bersih.contains("ada")
+                if (kosong && jeda >= 15000L) {
+                    // Sudah dua kali pindah alamat dan tetap kosong: beri tulisan
+                    // supaya layar tidak lagi cuma kuning tanpa keterangan.
+                    val alamatTampil = (url ?: "-").replace("'", "")
+                    val skrip = "document.body.insertAdjacentHTML('beforeend','" +
+                        "<div style=\"position:fixed;left:0;right:0;bottom:0;padding:14px;background:#7a1020;" +
+                        "color:#fff;font:14px sans-serif;text-align:center\">Game belum bisa dimuat di HP ini. " +
+                        "Tutup lalu buka lagi menu Greedy King. Alamat: " + alamatTampil + "</div>');"
+                    view.evaluateJavascript(skrip, null)
+                } else if (kosong) pindah()
             }
         }, jeda)
     }
@@ -169,10 +188,10 @@ private suspend fun alamatGreedy(): String = suspendCancellableCoroutine { lanju
     Rtdb.ref("appCfg/greedyUrl").addListenerForSingleValueEvent(object : ValueEventListener {
         override fun onDataChange(s: DataSnapshot) {
             val v = s.getValue(String::class.java)?.trim().orEmpty()
-            lanjut.resume(if (tampakSepertiHalaman(v)) v else GREEDY_BAWAAN)
+            lanjut.resume(if (tampakSepertiHalaman(v)) v else GREEDY_LOKAL)
         }
 
-        override fun onCancelled(e: DatabaseError) = lanjut.resume(GREEDY_BAWAAN)
+        override fun onCancelled(e: DatabaseError) = lanjut.resume(GREEDY_LOKAL)
     })
 }
 
