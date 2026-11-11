@@ -2568,7 +2568,12 @@ async function slotPlay(req, env, h) {
   if (req.method === "OPTIONS") return new Response(null, { status: 204 });
   const SKALA = 100; // 1 uang game = 100 koin REZO
   const tok = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
-  const uid = tok ? await uidDariToken(tok) : "";
+  // Terima token aplikasi (Firebase) dan token pendek Wave, supaya permainan
+  // dan pengujian bisa memakai keduanya.
+  let uid = tok ? await uidDariToken(tok) : "";
+  if (!uid && tok) {
+    try { uid = await waveUidDariToken(env, tok); } catch (e) { uid = ""; }
+  }
   if (!uid) return json({ ok: 0, e: "Sesi tidak sah" }, 401);
   const saldoKoin = async () => {
     const r = await pipe(env, [{ sql: "select coins from wallets where uid = ?", args: [T(uid)] }]);
