@@ -118,6 +118,7 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", myAvatarB64: St
     // Game Wave tetap membuka halaman Wave-nya masing-masing, termasuk
     // Greedy King #80, supaya tidak ikut tertukar dengan game Rezo.
     val bukaGreedyRezo = open == "greedyking"
+    val bukaSlotZeus = open == "slotzeus"
     val waveOpen: WaveGames.Game? = if (open.startsWith("wave:") && !bukaGreedyRezo) {
         val gid = open.removePrefix("wave:").toIntOrNull()
         waveGames.firstOrNull { it.id == gid }
@@ -129,6 +130,7 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", myAvatarB64: St
     }
 
     when {
+        bukaSlotZeus -> SlotGameScreen(onClose = { open = "" })
         bukaGreedyRezo -> GreedyKingScreen(
             myUid = myUid,
             myName = myName.ifBlank { "Player" },
@@ -188,7 +190,12 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", myAvatarB64: St
                     ) {
                         // ---- Game milik Rezo sendiri (dompet Rezo, bukan Wave)
                         GcSection("Game Rezo") {
-                            GcRows(listOf(GcItem("Greedy King", R.drawable.ic_game_cat, "greedyking"))) { open = it }
+                            GcRows(
+                                listOf(
+                                    GcItem("Greedy King", R.drawable.ic_game_cat, "greedyking"),
+                                    GcItem("Slot Zeus", R.drawable.ic_game_cat, "slotzeus"),
+                                ),
+                            ) { open = it }
                         }
 
                         // ---- Game WaveGames (katalog resmi Wave)

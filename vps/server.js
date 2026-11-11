@@ -86,10 +86,61 @@ function layaniApk(req, res) {
   return true;
 }
 
+// ---- Game slot (Zeus Treasures) dilayani langsung dari disk.
+const SLOT_DIR = process.env.SLOT_DIR || "/opt/rezo-api/slot";
+const JENIS = {
+  ".html": "text/html; charset=utf-8", ".js": "application/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8", ".png": "image/png", ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp", ".svg": "image/svg+xml",
+  ".mp3": "audio/mpeg", ".ogg": "audio/ogg", ".wav": "audio/wav", ".m4a": "audio/mp4",
+  ".json": "application/json", ".ico": "image/x-icon", ".woff": "font/woff", ".woff2": "font/woff2",
+  ".ttf": "font/ttf",
+};
+
+function layaniSlot(req, res) {
+  const u = new URL(req.url, "http://x");
+  if (!/^\/slot(\/|$)/i.test(u.pathname)) return false;
+  let rel;
+  try { rel = decodeURIComponent(u.pathname.replace(/^\/slot/i, "")); } catch { rel = ""; }
+  rel = pathMod.normalize(rel || "/");
+  if (rel.endsWith("/") || rel.endsWith("\\")) rel += "index.html";
+  const lokasi = pathMod.join(SLOT_DIR, rel);
+  if (!lokasi.startsWith(SLOT_DIR)) { res.writeHead(403); res.end("Terlarang"); return true; }
+  let st;
+  try { st = fs.statSync(lokasi); } catch { res.writeHead(404, { "content-type": "text/plain" }); res.end("Tidak ada"); return true; }
+  if (st.isDirectory()) { res.writeHead(404); res.end("Tidak ada"); return true; }
+  const ext = pathMod.extname(lokasi).toLowerCase();
+  const gambar = ["/sprites/", "/sounds/", "/css/"].some((x) => rel.includes(x));
+  const kepala = {
+    "content-type": JENIS[ext] || "application/octet-stream",
+    "accept-ranges": "bytes",
+    "access-control-allow-origin": "*",
+    "cache-control": gambar ? "public, max-age=604800" : "no-store",
+  };
+  let awal = 0, akhir = st.size - 1, status = 200;
+  const r = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || "");
+  if (r && (r[1] !== "" || r[2] !== "")) {
+    if (r[1] === "") awal = Math.max(0, st.size - Number(r[2]));
+    else { awal = Number(r[1]); if (r[2] !== "") akhir = Math.min(akhir, Number(r[2])); }
+    if (awal > akhir || awal >= st.size) { res.writeHead(416, { "content-range": `bytes */${st.size}` }); res.end(); return true; }
+    status = 206;
+    kepala["content-range"] = `bytes ${awal}-${akhir}/${st.size}`;
+  }
+  kepala["content-length"] = String(akhir - awal + 1);
+  res.writeHead(status, kepala);
+  if (req.method === "HEAD") { res.end(); return true; }
+  const aliran = fs.createReadStream(lokasi, { start: awal, end: akhir });
+  aliran.on("error", () => res.destroy());
+  res.on("close", () => aliran.destroy());
+  aliran.pipe(res);
+  return true;
+}
+
 const server = http.createServer(async (req, res) => {
   const mulai = Date.now();
   try {
     if ((req.method === "GET" || req.method === "HEAD") && layaniApk(req, res)) return;
+    if ((req.method === "GET" || req.method === "HEAD") && layaniSlot(req, res)) return;
     const isi = req.method === "GET" || req.method === "HEAD" ? undefined : await bacaIsi(req);
     const alamat = `http://${req.headers.host || HOST + ":" + PORT}${req.url}`;
     const permintaan = new Request(alamat, {

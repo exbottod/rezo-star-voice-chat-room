@@ -2558,6 +2558,41 @@ function waveTokPastikan(env) {
   return waveTokSiap;
 }
 
+/**
+ * Slot Zeus: hanya mengurus uang. Putaran dan hasil tetap dihitung game di
+ * dalam APK, lalu selisihnya dicatat di sini. Kemenangan dibatasi agar satu
+ * permintaan tidak bisa menguras dompet.
+ */
+async function slotPlay(req, env, h) {
+  const { pipe, json, T, I, uidDariToken } = h;
+  if (req.method === "OPTIONS") return new Response(null, { status: 204 });
+  const SKALA = 100; // 1 uang game = 100 koin REZO
+  const tok = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
+  const uid = tok ? await uidDariToken(tok) : "";
+  if (!uid) return json({ ok: 0, e: "Sesi tidak sah" }, 401);
+  const saldoKoin = async () => {
+    const r = await pipe(env, [{ sql: "select coins from wallets where uid = ?", args: [T(uid)] }]);
+    return Math.max(0, Math.trunc(Number(r[0].rows[0]?.coins ?? 0)));
+  };
+  const url = new URL(req.url);
+  if (url.pathname.toLowerCase().endsWith("/info")) {
+    const koin = await saldoKoin();
+    return json({ ok: 1, koin, saldo: Math.round((koin / SKALA) * 100) / 100 });
+  }
+  if (req.method !== "POST") return json({ ok: 0, e: "Gunakan POST" }, 405);
+  const b = await req.json().catch(() => ({}));
+  let bet = Math.max(0, Math.round(Number(b.bet || 0) * SKALA));
+  let win = Math.max(0, Math.round(Number(b.win || 0) * SKALA));
+  bet = Math.min(bet, 50000);
+  win = Math.min(win, Math.max(1, bet) * 500);
+  await pipe(env, [{ sql: "insert or ignore into wallets (uid) values (?)", args: [T(uid)] }]);
+  const r = await pipe(env, [
+    { sql: "update wallets set coins = max(0, coins - ? + ?) where uid = ?", args: [I(bet), I(win), T(uid)] },
+  ]);
+  const koin = await saldoKoin();
+  return json({ ok: 1, koin, saldo: Math.round((koin / SKALA) * 100) / 100, bet, win });
+}
+
 async function waveTokenBaru(env, uid, ttlDetik) {
   await waveTokPastikan(env);
   const tok = "wg" + crypto.randomUUID().replace(/-/g, "").slice(0, 30);
@@ -3317,6 +3352,15 @@ async function kirimEmail(env, ke, subjek, isiHtml, isiTeks, kunci) {
       if (jawab) return jawab;
     }
 
+    // Game slot (Zeus Treasures) memakai saldo dompet yang sama.
+    if (url.pathname.toLowerCase().startsWith("/slot/")) {
+      const jawab = await slotPlay(req, env, { pipe, json, T, I, uidDariToken });
+      const kepala = new Headers(jawab.headers);
+      kepala.set("access-control-allow-origin", "*");
+      kepala.set("access-control-allow-headers", "authorization, content-type");
+      kepala.set("access-control-allow-methods", "GET, POST, OPTIONS");
+      return new Response(jawab.body, { status: jawab.status, headers: kepala });
+    }
     if (url.pathname.toLowerCase().startsWith("/greedy/")) {
       const asal = req.headers.get("origin") || "*";
       if (req.method === "OPTIONS") {

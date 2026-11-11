@@ -24,6 +24,31 @@ done
 curl -fsSL "https://exbottod.github.io/rezo-star-voice-chat-room/build-info.json" \
   | sed -n 's/.*"versi" *: *"\([^"]*\)".*/\1/p' > "$DIR/apk/versi.txt" || true
 
+# ---- Game slot Zeus Treasures ----
+# Gambar game besar diambil dari sumber aslinya, lalu bagian yang menghubungkan
+# ke dompet REZO diambil dari repo ini.
+SLOT="$DIR/slot"
+if [ ! -f "$SLOT/index.html" ] || [ "${SLOT_SEGAR:-0}" = "1" ]; then
+  echo "Menyiapkan game slot..."
+  [ -d "$SLOT" ] && find "$SLOT" -mindepth 1 -delete
+  [ -d "$DIR/slot-unduh" ] && find "$DIR/slot-unduh" -mindepth 1 -delete
+  mkdir -p "$SLOT" "$DIR/slot-unduh"
+  if curl -fsSL --max-time 420 "https://github.com/marksantiago290/Slot-Machine-HTML5/archive/refs/heads/main.zip" -o "$DIR/slot-unduh/slot.zip"; then
+    if command -v unzip >/dev/null 2>&1; then
+      unzip -q "$DIR/slot-unduh/slot.zip" -d "$DIR/slot-unduh"
+    else
+      python3 -m zipfile -e "$DIR/slot-unduh/slot.zip" "$DIR/slot-unduh"
+    fi
+    cp -r "$DIR/slot-unduh/Slot-Machine-HTML5-main/game/." "$SLOT/" || true
+    curl -fsSL "$RAW/slot-patch/index.html" -o "$SLOT/index.html"
+    curl -fsSL "$RAW/slot-patch/js/rezo_hook.js" -o "$SLOT/js/rezo_hook.js"
+    find "$DIR/slot-unduh" -mindepth 1 -delete
+    echo "Game slot siap: $(du -sh "$SLOT" | cut -f1)"
+  else
+    echo "Game slot gagal diunduh, dilewati"
+  fi
+fi
+
 node --check "$DIR/index.js" || { echo "Sintaks index.js salah, layanan tidak direstart"; exit 1; }
 systemctl restart rezo-api
 for i in 1 2 3 4 5 6 7 8 9 10; do
