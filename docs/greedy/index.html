@@ -3,15 +3,36 @@
 <head>
 <script>
 (function(){
-  // Tinggi layar nyata dalam piksel, dipakai kalau 100dvh tidak dikenali.
-  function atur(){
-    var h = window.innerHeight || document.documentElement.clientHeight || 0;
-    if (h > 100) document.documentElement.style.setProperty("--gk-h", h + "px");
+  // Tinggi layar nyata dalam piksel. Dipasang langsung ke html, body, #root
+  // dan pembungkus game, karena di sebagian WebView 100dvh bernilai 0 sehingga
+  // seluruh isi game tingginya nol dan yang terlihat cuma latar kuning.
+  function tinggi(){
+    var h = window.innerHeight || document.documentElement.clientHeight || screen.height || 0;
+    if (h < 100) return;
+    var px = h + "px";
+    var d = document.documentElement, b = document.body;
+    d.style.setProperty("--gk-h", px);
+    d.style.height = px;
+    if (b) { b.style.height = px; b.style.minHeight = px; }
+    var r = document.getElementById("root");
+    if (r) { r.style.height = px; r.style.minHeight = px; }
+    var iso = document.querySelectorAll(".h-dvh,.min-h-dvh");
+    for (var i = 0; i < iso.length; i++) {
+      iso[i].style.height = px; iso[i].style.minHeight = px;
+    }
   }
-  atur();
-  window.addEventListener("resize", atur);
-  window.addEventListener("orientationchange", atur);
-  setTimeout(atur, 300); setTimeout(atur, 1500);
+  tinggi();
+  window.addEventListener("resize", tinggi);
+  window.addEventListener("orientationchange", tinggi);
+  document.addEventListener("DOMContentLoaded", tinggi);
+  // React menggambar belakangan, jadi diulang sampai elemennya ada.
+  var n = 0;
+  var ulang = setInterval(function(){ tinggi(); if (++n > 80) clearInterval(ulang); }, 150);
+  var mo = new MutationObserver(tinggi);
+  document.addEventListener("DOMContentLoaded", function(){
+    var r = document.getElementById("root");
+    if (r) mo.observe(r, {childList:true, subtree:true});
+  });
 })();
 </script>
 <meta charset="utf-8" />
