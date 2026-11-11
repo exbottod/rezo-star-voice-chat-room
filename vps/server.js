@@ -103,6 +103,9 @@ function layaniSlot(req, res) {
   let rel;
   try { rel = decodeURIComponent(u.pathname.replace(/^\/slot/i, "")); } catch { rel = ""; }
   rel = pathMod.normalize(rel || "/");
+  // Dua alamat ini milik dompet (bukan berkas game), jadi diteruskan ke kode dompet.
+  const polos = rel.replace(/^[\\/]+/, "").replace(/[\\/]+$/, "").toLowerCase();
+  if (polos === "info" || polos === "settle") return false;
   if (rel.endsWith("/") || rel.endsWith("\\")) rel += "index.html";
   const lokasi = pathMod.join(SLOT_DIR, rel);
   if (!lokasi.startsWith(SLOT_DIR)) { res.writeHead(403); res.end("Terlarang"); return true; }
