@@ -49,6 +49,14 @@ if [ ! -f "$SLOT/index.html" ] || [ "${SLOT_SEGAR:-0}" = "1" ]; then
   fi
 fi
 
+# Dua berkas sambungan dompet selalu diperbarui supaya perubahan taruhan dari
+# panel langsung terpakai tanpa mengunduh ulang seluruh game.
+if [ -f "$SLOT/index.html" ]; then
+  curl -fsSL "$RAW/slot-patch/index.html" -o "$SLOT/index.html" || true
+  curl -fsSL "$RAW/slot-patch/js/rezo_hook.js" -o "$SLOT/js/rezo_hook.js" || true
+  echo "Sambungan dompet slot diperbarui"
+fi
+
 node --check "$DIR/index.js" || { echo "Sintaks index.js salah, layanan tidak direstart"; exit 1; }
 systemctl restart rezo-api
 for i in 1 2 3 4 5 6 7 8 9 10; do
