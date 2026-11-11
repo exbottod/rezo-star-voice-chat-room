@@ -4,36 +4,26 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <title>Greedy King</title>
-<link rel="stylesheet" href="style.css" />
-</head>
-<body class="bg-night text-cream">
-<div id="root"></div>
 <script>
-/* Versi cadangan di dalam APK. Konfigurasi diambil dari jembatan RezoBridge
-   supaya tetap jalan walau tanpa internet saat memuat halaman. */
+/* Data pemain datang dari app lewat jembatan RezoBridge (token Firebase, uid,
+   nama, dan daftar chip). Tanpa app, halaman ini tetap terbuka tapi tidak bisa
+   bertaruh karena server dompet butuh token. */
 (function () {
   var b = window.RezoBridge;
   function ambil(fn) { try { return b && b[fn] ? b[fn]() : ""; } catch (e) { return ""; } }
-  window.__GREEDY_API__ = ambil("api") || "https://43-156-99-4.sslip.io/greedy";
-  window.__GREEDY_TOKEN__ = ambil("token") || "";
-  window.__GREEDY_USER__ = { id: ambil("uid") || "", name: ambil("nama") || "Player" };
+  var api = ambil("api");
+  window.__GREEDY_API__ = "https://43-156-99-4.sslip.io/greedy";
+  window.__GREEDY_TOKEN__ = ambil("token") || window.__GREEDY_TOKEN__ || "";
+  var uid = ambil("uid");
+  var nama = ambil("nama");
+  if (uid) window.__GREEDY_USER__ = { id: String(uid), name: String(nama || "Player") };
   var chip = ambil("chips");
-  var daftar = [100, 500, 1000, 5000, 50000];
-  if (chip) { try { var p = JSON.parse(chip); if (Array.isArray(p) && p.length) daftar = p; } catch (e) {} }
-  window.__GREEDY_CHIPS__ = daftar;
-  window.__GK_SALAH__ = "";
-  function tampilkanError(teks) {
-    window.__GK_SALAH__ = String(teks);
-    var d = document.getElementById("root");
-    if (d) d.innerHTML = '<pre style="color:#ffcc88;padding:14px;font-size:12px;white-space:pre-wrap">' + teks + "</pre>";
-  }
-  window.onerror = function (m, s, l) { tampilkanError(m + " (baris " + l + ")"); };
-  window.addEventListener("unhandledrejection", function (e) {
-    var t = (e && e.reason && (e.reason.message || e.reason)) || "promise gagal";
-    tampilkanError(t);
-  });
+  if (chip) { try { window.__GREEDY_CHIPS__ = JSON.parse(chip); } catch (e) {} }
 })();
 </script>
-<script src="bundle.js"></script>
+  <script type="module" crossorigin src="./assets/index-Dq5BBgGP.js"></script>
+</head>
+<body class="bg-night text-cream">
+<div id="root"></div>
 </body>
 </html>
