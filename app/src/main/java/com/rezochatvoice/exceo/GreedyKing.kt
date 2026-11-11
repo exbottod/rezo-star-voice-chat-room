@@ -1,6 +1,11 @@
 package com.rezochatvoice.exceo
 
+import android.annotation.SuppressLint
+import android.os.Handler
+import android.os.Looper
 import android.webkit.JavascriptInterface
+import android.webkit.WebResourceError
+import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.compose.BackHandler
@@ -31,9 +36,13 @@ import android.graphics.Color as AColor
  *
  * Halaman game diambil dari internet (GitHub Pages), jadi perbaikan game bisa
  * langsung berlaku tanpa membangun APK baru. Alamatnya bisa diganti dari
- * Realtime Database (appCfg/greedyUrl). Kalau jaringan gagal, app memakai
- * salinan di dalam aset sebagai cadangan.
+ * Realtime Database (appCfg/greedyUrl).
+ *
+ * Penting: kalau halaman gagal dimuat (jaringan putus) atau halaman terbuka
+ * tapi tidak menghasilkan apa pun (layar hitam), app otomatis pindah ke
+ * salinan di dalam aset APK. Dulu app berhenti di layar hitam tanpa pesan.
  */
+@SuppressLint("SetJavaScriptEnabled")
 @Composable
 fun GreedyKingScreen(
     myUid: String,
@@ -64,6 +73,16 @@ fun GreedyKingScreen(
             AndroidView(
                 modifier = Modifier.fillMaxSize(),
                 factory = { c ->
+                    val namaAman = myName.ifBlank { "Player" }
+                    val jatuhKeAset = booleanArrayOf(false)
+                    var wv: WebView? = null
+
+                    fun pakaiAset() {
+                        if (jatuhKeAset[0]) return
+                        jatuhKeAset[0] = true
+                        wv?.loadUrl(GREEDY_LOKAL)
+                    }
+
                     WebView(c).apply {
                         setBackgroundColor(AColor.parseColor("#0A0F1E"))
                         settings.javaScriptEnabled = true
@@ -77,8 +96,6 @@ fun GreedyKingScreen(
                         settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
                         settings.userAgentString = "Mozilla/5.0 (Linux; Android 13; SM-G991B) AppleWebKit/537.36 " +
                             "(KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
-                        // Jembatan: halaman membaca token, uid, nama, dan chip dari sini.
-                        val namaAman = myName.ifBlank { "Player" }
                         addJavascriptInterface(
                             object {
                                 @JavascriptInterface fun api() = GREEDY_API
@@ -89,7 +106,23 @@ fun GreedyKingScreen(
                             },
                             "RezoBridge",
                         )
-                        webViewClient = WebViewClient()
+                        // Jaring pengaman: kalau halaman kosong, pindah ke aset.
+                        val pengawas = object : WebViewClient() {
+                            override fun onReceivedError(
+                                view: WebView,
+                                request: WebResourceRequest,
+                                error: WebResourceError,
+                            ) {
+                                if (request.isForMainFrame) pakaiAset()
+                            }
+
+                            override fun onPageFinished(view: WebView, url: String?) {
+                                super.onPageFinished(view, url)
+                                pindahKeAsetKalauKosong(view, url) { pakaiAset() }
+                            }
+                        }
+                        webViewClient = pengawas
+                        wv = this
                         loadUrl(alamat)
                     }
                 },
@@ -98,17 +131,48 @@ fun GreedyKingScreen(
     }
 }
 
+/**
+ * Kalau setelah beberapa detik halaman tidak menampilkan apa pun, buka salinan
+ * di aset. Ini yang membuat layar hitam tidak lagi mentok tanpa jalan keluar.
+ */
+private fun pindahKeAsetKalauKosong(view: WebView, url: String?, pindah: () -> Unit) {
+    if (url?.startsWith("file://") == true) return
+    val minta = "(function(){var r=document.getElementById('root');" +
+        "var adaIsi=(r&&r.children.length>0)||(document.body&&document.body.innerText.trim().length>0);" +
+        "return adaIsi?'ada':'kosong';})()"
+    listOf(3000L, 8000L).forEach { jeda ->
+        Handler(Looper.getMainLooper()).postDelayed({
+            view.evaluateJavascript(minta) { hasil ->
+                val bersih = hasil?.lowercase().orEmpty()
+                if (bersih.contains("kosong") && !bersih.contains("ada")) pindah()
+            }
+        }, jeda)
+    }
+}
+
 /** Alamat halaman game: bisa diatur dari panel lewat appCfg/greedyUrl. */
 private suspend fun alamatGreedy(): String = suspendCancellableCoroutine { lanjut ->
     Rtdb.ref("appCfg/greedyUrl").addListenerForSingleValueEvent(object : ValueEventListener {
         override fun onDataChange(s: DataSnapshot) {
             val v = s.getValue(String::class.java)?.trim().orEmpty()
-            lanjut.resume(if (v.startsWith("http")) v else GREEDY_BAWAAN)
+            lanjut.resume(if (tampakSepertiHalaman(v)) v else GREEDY_BAWAAN)
         }
 
         override fun onCancelled(e: DatabaseError) = lanjut.resume(GREEDY_BAWAAN)
     })
 }
 
+/**
+ * Hanya terima alamat yang memang halaman game. Kalau yang tersimpan di panel
+ * ternyata alamat API (misal berakhiran /greedy), halaman hanya menampilkan
+ * JSON/kosong, jadi kita pakai alamat bawaan.
+ */
+private fun tampakSepertiHalaman(v: String): Boolean {
+    if (!v.startsWith("http")) return false
+    if (v.contains("/api/")) return false
+    return v.endsWith("/") || v.endsWith(".html") || v.endsWith(".htm")
+}
+
 private const val GREEDY_API = "https://43-156-99-4.sslip.io/greedy"
 private const val GREEDY_BAWAAN = "https://exbottod.github.io/rezo-star-voice-chat-room/greedy/"
+private const val GREEDY_LOKAL = "file:///android_asset/greedy/index.html"
