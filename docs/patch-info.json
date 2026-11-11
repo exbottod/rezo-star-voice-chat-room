@@ -1,6 +1,70 @@
 {
-  "versi_baru": "1.1.63",
+  "versi_baru": "1.1.64",
   "patch": [
+    {
+      "dari": "1.1.63",
+      "ke": "1.1.64",
+      "arm64": {
+        "file": "patch-1.1.63-to-1.1.64-arm64.bin",
+        "ukuran": 4022834,
+        "sha256": "2d5d53a3456eaafc90b8ba0b7c2d51e9ee03247544710c24697728ed85f8c26b",
+        "apk_ukuran": 53861187
+      },
+      "armv7": {
+        "file": "patch-1.1.63-to-1.1.64-armv7.bin",
+        "ukuran": 4030044,
+        "sha256": "7424e0769115b9bd01c26b3f6902a36c278f58c15829a9bb4c094337f8a3ecdb",
+        "apk_ukuran": 52012336
+      }
+    },
+    {
+      "dari": "1.1.15",
+      "ke": "1.1.64",
+      "arm64": {
+        "file": "patch-1.0.1015-to-1.1.64-arm64.bin",
+        "ukuran": 4106750,
+        "sha256": "2d5d53a3456eaafc90b8ba0b7c2d51e9ee03247544710c24697728ed85f8c26b",
+        "apk_ukuran": 53861187
+      },
+      "armv7": {
+        "file": "patch-1.0.1015-to-1.1.64-armv7.bin",
+        "ukuran": 4107966,
+        "sha256": "7424e0769115b9bd01c26b3f6902a36c278f58c15829a9bb4c094337f8a3ecdb",
+        "apk_ukuran": 52012336
+      }
+    },
+    {
+      "dari": "1.1.16",
+      "ke": "1.1.64",
+      "arm64": {
+        "file": "patch-1.0.1016-to-1.1.64-arm64.bin",
+        "ukuran": 4105917,
+        "sha256": "2d5d53a3456eaafc90b8ba0b7c2d51e9ee03247544710c24697728ed85f8c26b",
+        "apk_ukuran": 53861187
+      },
+      "armv7": {
+        "file": "patch-1.0.1016-to-1.1.64-armv7.bin",
+        "ukuran": 4109389,
+        "sha256": "7424e0769115b9bd01c26b3f6902a36c278f58c15829a9bb4c094337f8a3ecdb",
+        "apk_ukuran": 52012336
+      }
+    },
+    {
+      "dari": "1.1.19",
+      "ke": "1.1.64",
+      "arm64": {
+        "file": "patch-1.0.1019-to-1.1.64-arm64.bin",
+        "ukuran": 4106609,
+        "sha256": "2d5d53a3456eaafc90b8ba0b7c2d51e9ee03247544710c24697728ed85f8c26b",
+        "apk_ukuran": 53861187
+      },
+      "armv7": {
+        "file": "patch-1.0.1019-to-1.1.64-armv7.bin",
+        "ukuran": 4107573,
+        "sha256": "7424e0769115b9bd01c26b3f6902a36c278f58c15829a9bb4c094337f8a3ecdb",
+        "apk_ukuran": 52012336
+      }
+    },
     {
       "dari": "1.1.60",
       "ke": "1.1.63",
@@ -80,47 +144,19 @@
         "sha256": "b6b317c7dee54ef0d369634b0b4aab85612dd29fac113f44ce3d9c052be323b3",
         "apk_ukuran": 52010936
       }
-    },
-    {
-      "dari": "1.1.54",
-      "ke": "1.1.63",
-      "arm64": {
-        "file": "patch-1.1.54-to-1.1.63-arm64.bin",
-        "ukuran": 3996014,
-        "sha256": "d8efe19cc49fb520e2deba62c58105c0d9452c9b0c1f0bea4651e93c1575ab1e"
-      },
-      "armv7": {
-        "file": "patch-1.1.54-to-1.1.63-armv7.bin",
-        "ukuran": 4009134,
-        "sha256": "b14cc7dde6256023e8f24c1d2c4f334800a4bf69e9528635950b11accd26c56a"
-      }
-    },
-    {
-      "dari": "1.1.57",
-      "ke": "1.1.63",
-      "arm64": {
-        "file": "patch-1.1.57-to-1.1.63-arm64.bin",
-        "ukuran": 4005654,
-        "sha256": "d8efe19cc49fb520e2deba62c58105c0d9452c9b0c1f0bea4651e93c1575ab1e"
-      },
-      "armv7": {
-        "file": "patch-1.1.57-to-1.1.63-armv7.bin",
-        "ukuran": 4004322,
-        "sha256": "b14cc7dde6256023e8f24c1d2c4f334800a4bf69e9528635950b11accd26c56a"
-      }
     }
   ],
-  "versi_lama": "1.1.60",
+  "versi_lama": "1.1.63",
   "arm64": {
-    "file": "patch-1.1.60-to-1.1.63-arm64.bin",
-    "ukuran": 3977046,
-    "sha256": "d8efe19cc49fb520e2deba62c58105c0d9452c9b0c1f0bea4651e93c1575ab1e",
-    "apk_ukuran": 53861206
+    "file": "patch-1.1.63-to-1.1.64-arm64.bin",
+    "ukuran": 4022834,
+    "sha256": "2d5d53a3456eaafc90b8ba0b7c2d51e9ee03247544710c24697728ed85f8c26b",
+    "apk_ukuran": 53861187
   },
   "armv7": {
-    "file": "patch-1.1.60-to-1.1.63-armv7.bin",
-    "ukuran": 3993269,
-    "sha256": "b14cc7dde6256023e8f24c1d2c4f334800a4bf69e9528635950b11accd26c56a",
-    "apk_ukuran": 52012342
+    "file": "patch-1.1.63-to-1.1.64-armv7.bin",
+    "ukuran": 4030044,
+    "sha256": "7424e0769115b9bd01c26b3f6902a36c278f58c15829a9bb4c094337f8a3ecdb",
+    "apk_ukuran": 52012336
   }
 }
