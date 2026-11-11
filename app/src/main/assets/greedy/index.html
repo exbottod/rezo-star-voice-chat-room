@@ -39,11 +39,20 @@
   // Layar muat hanya dicabut kalau game benar-benar sudah menggambar sesuatu.
   // Kalau dicabut terlalu cepat, layar jadi kuning kosong tanpa penjelasan.
   window.__bootSelesai = function () {
-    var r = document.getElementById("root");
-    if (!r || r.children.length === 0) return;
     var b = document.getElementById("boot");
     if (b) b.remove();
   };
+  // Begitu game menggambar apa pun, layar muat dicabut sendiri. Jangan menunggu
+  // panggilan dari dalam game, karena kalau game berhenti, layar muat menutupi
+  // pesan aslinya dan yang terlihat cuma kuning.
+  var cek = setInterval(function () {
+    var r = document.getElementById("root");
+    if (r && r.children.length > 0) {
+      clearInterval(cek);
+      var b = document.getElementById("boot");
+      if (b) b.remove();
+    }
+  }, 300);
   window.onerror = function (m, src, l, c, e) {
     tampilErr("Error: " + m + "\n" + (src || "") + ":" + (l || 0) + "\n" + ((e && e.stack) || ""));
   };
