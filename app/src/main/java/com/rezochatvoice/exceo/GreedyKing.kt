@@ -53,7 +53,7 @@ fun GreedyKingScreen(
     var siap by remember { mutableStateOf(false) }
     var token by remember { mutableStateOf("") }
     var chips by remember { mutableStateOf("[]") }
-    var alamat by remember { mutableStateOf(GREEDY_BAWAAN) }
+    var alamat by remember { mutableStateOf(GREEDY_LOKAL) }
 
     LaunchedEffect(myUid) {
         val daftar = try { BetCfg.load("greedyking", listOf(100L, 500L, 1000L, 5000L, 50000L)) }
@@ -86,9 +86,11 @@ fun GreedyKingScreen(
                     }
 
                     fun pakaiJaringan() {
+                        // Sengaja tidak lagi memakai halaman internet: halaman
+                        // itulah yang muncul sebagai layar kosong. Kalau salinan
+                        // APK gagal, pesan galat dari halaman yang ditampilkan.
                         if (jatuhKeJaringan[0]) return
                         jatuhKeJaringan[0] = true
-                        wv?.loadUrl(GREEDY_BAWAAN)
                     }
 
                     WebView(c).apply {
