@@ -1,6 +1,19 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
+<script>
+(function(){
+  // Tinggi layar nyata dalam piksel, dipakai kalau 100dvh tidak dikenali.
+  function atur(){
+    var h = window.innerHeight || document.documentElement.clientHeight || 0;
+    if (h > 100) document.documentElement.style.setProperty("--gk-h", h + "px");
+  }
+  atur();
+  window.addEventListener("resize", atur);
+  window.addEventListener("orientationchange", atur);
+  setTimeout(atur, 300); setTimeout(atur, 1500);
+})();
+</script>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <title>Greedy King</title>
