@@ -21,9 +21,21 @@
 (function () {
   var b = window.RezoBridge;
   function ambil(fn) { try { return b && b[fn] ? b[fn]() : ""; } catch (e) { return ""; } }
+  // Parameter di alamat adalah sumber utama; jembatan RezoBridge hanya cadangan.
+  // Dulu token dari jembatan bisa kosong sehingga server menolak sesi.
+  var q = {};
+  try {
+    (location.search || "").replace(/^\?/, "").split("&").forEach(function (pasangan) {
+      if (!pasangan) return;
+      var i = pasangan.indexOf("=");
+      var k = i < 0 ? pasangan : pasangan.slice(0, i);
+      var v = i < 0 ? "" : pasangan.slice(i + 1);
+      q[decodeURIComponent(k)] = decodeURIComponent(v);
+    });
+  } catch (e) {}
   window.__GREEDY_API__ = "https://43-156-99-4.sslip.io/greedy";
-  window.__GREEDY_TOKEN__ = ambil("token") || window.__GREEDY_TOKEN__ || "";
-  var uid = ambil("uid"), nama = ambil("nama");
+  window.__GREEDY_TOKEN__ = q.t || ambil("token") || window.__GREEDY_TOKEN__ || "";
+  var uid = q.u || ambil("uid"), nama = q.n || ambil("nama");
   if (uid) window.__GREEDY_USER__ = { id: String(uid), name: String(nama || "Player") };
   var chip = ambil("chips"); if (chip) { try { window.__GREEDY_CHIPS__ = JSON.parse(chip); } catch (e) {} }
 })();

@@ -158,6 +158,14 @@ fun GreedyKingScreen(
 
                             override fun onPageFinished(view: WebView, url: String?) {
                                 super.onPageFinished(view, url)
+                                // Segarkan token di halaman supaya tombol coba lagi
+                                // memakai sesi yang benar.
+                                val tAman = token.replace("'", "")
+                                view.evaluateJavascript(
+                                    "window.__GREEDY_TOKEN__='" + tAman + "';" +
+                                        "if(window.__GREEDY_TOKEN__){var b=document.querySelector('button');}",
+                                    null,
+                                )
                                 pindahKeAsetKalauKosong(view, url) {
                                     if (url?.contains("appassets") == true) pakaiJaringan() else pakaiAset()
                                 }
@@ -166,12 +174,24 @@ fun GreedyKingScreen(
                         webViewClient = pengawas
                         wv = this
                         wvPegang.value = this
-                        loadUrl(alamat)
+                        // Token ikut di alamat: jembatan JS kadang terlambat siap
+                        // sehingga halaman memulai permainan tanpa token.
+                        loadUrl(denganToken(alamat, token, myUid, namaAman))
                     }
                 },
             )
         }
     }
+}
+
+/** Tambahkan token, uid, dan nama ke alamat halaman game. */
+private fun denganToken(alamat: String, token: String, uid: String, nama: String): String {
+    if (token.isBlank()) return alamat
+    val pemisah = if (alamat.contains("?")) "&" else "?"
+    val t = java.net.URLEncoder.encode(token, "UTF-8")
+    val u = java.net.URLEncoder.encode(uid, "UTF-8")
+    val n = java.net.URLEncoder.encode(nama, "UTF-8")
+    return alamat + pemisah + "t=" + t + "&u=" + u + "&n=" + n
 }
 
 /**
