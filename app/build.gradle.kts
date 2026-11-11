@@ -48,7 +48,10 @@ android {
         // REZO_VERSI memaksa nama versi tertentu (dipakai workflow lewat input
         // "versi"), jadi APK dan nama berkas rilis selalu sama.
         val versiPaksa = System.getenv("REZO_VERSI")?.trim().orEmpty()
-        versionName = versiPaksa.ifBlank { "1.0." + nomorBuild }
+        versionName = versiPaksa.ifBlank {
+            // 1.0.1103 ditulis 1.1.103 supaya nomor versi terbaca naik, bukan turun.
+            "1." + (nomorBuild / 1000) + "." + (nomorBuild % 1000)
+        }
         // Pustaka native dipecah per jenis HP (lihat blok splits di bawah),
         // supaya satu APK tidak membawa kode untuk dua prosesor sekaligus.
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"$googleWebClientId\"")
