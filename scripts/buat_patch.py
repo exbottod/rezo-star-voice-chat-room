@@ -28,7 +28,7 @@ def sha256(path):
     return h.hexdigest()
 
 
-MAKS_PASANGAN = 5
+MAKS_PASANGAN = 14
 
 
 def muat_manifest(path):
