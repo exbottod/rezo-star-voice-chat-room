@@ -134,8 +134,22 @@ fun GreedyKingScreen(
                                 // WebView. Di sebagian HP permintaan dari halaman
                                 // lokal tidak pernah sampai, sehingga game berhenti
                                 // di "Loading your profile".
-                                @JavascriptInterface fun minta(metode: String, jalur: String, isi: String): String =
-                                    mintaDompet(metode, jalur, isi, token)
+                                // Versi tidak menunggu: permintaan dikerjakan di
+                                // latar, hasilnya dikirim balik ke halaman. Kalau
+                                // ditunggu, animasi loading berhenti karena thread
+                                // halaman ikut terhenti.
+                                @JavascriptInterface fun mintaAsync(id: String, metode: String, jalur: String, isi: String) {
+                                    val wvAktif = wvPegang.value
+                                    Thread {
+                                        val hasil = mintaDompet(metode, jalur, isi, token)
+                                        try {
+                                            val kutip = org.json.JSONObject.quote(hasil)
+                                            wvAktif?.post {
+                                                wvAktif.evaluateJavascript("window.__gkBalas&&window.__gkBalas('$id',$kutip)", null)
+                                            }
+                                        } catch (e: Exception) { }
+                                    }.start()
+                                }
                             },
                             "RezoBridge",
                         )

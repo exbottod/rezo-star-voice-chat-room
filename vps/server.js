@@ -97,15 +97,29 @@ const JENIS = {
   ".ttf": "font/ttf",
 };
 
+// Halaman Greedy Rezo disajikan dari disk juga, supaya perbaikan tampilan bisa
+// langsung berlaku tanpa memasang ulang APK.
+const GREEDY_DIR = process.env.GREEDY_DIR || "/opt/rezo-api/greedy-play";
+
 function layaniSlot(req, res) {
+  return layaniBerkas(req, res, "slot", SLOT_DIR, ["info", "settle"]);
+}
+
+function layaniGreedyPlay(req, res) {
+  return layaniBerkas(req, res, "greedy-play", GREEDY_DIR, []);
+}
+
+function layaniBerkas(req, res, prefiks, akar, lewati) {
   const u = new URL(req.url, "http://x");
-  if (!/^\/slot(\/|$)/i.test(u.pathname)) return false;
+  if (!new RegExp("^/" + prefiks + "(/|$)", "i").test(u.pathname)) return false;
   let rel;
-  try { rel = decodeURIComponent(u.pathname.replace(/^\/slot/i, "")); } catch { rel = ""; }
+  try { rel = decodeURIComponent(u.pathname.replace(new RegExp("^/" + prefiks, "i"), "")); } catch { rel = ""; }
+  const DIR = akar;
+  const SLOT_DIR = akar;
   rel = pathMod.normalize(rel || "/");
   // Dua alamat ini milik dompet (bukan berkas game), jadi diteruskan ke kode dompet.
   const polos = rel.replace(/^[\\/]+/, "").replace(/[\\/]+$/, "").toLowerCase();
-  if (polos === "info" || polos === "settle") return false;
+  if (lewati.includes(polos)) return false;
   if (rel.endsWith("/") || rel.endsWith("\\")) rel += "index.html";
   const lokasi = pathMod.join(SLOT_DIR, rel);
   if (!lokasi.startsWith(SLOT_DIR)) { res.writeHead(403); res.end("Terlarang"); return true; }
@@ -144,6 +158,7 @@ const server = http.createServer(async (req, res) => {
   try {
     if ((req.method === "GET" || req.method === "HEAD") && layaniApk(req, res)) return;
     if ((req.method === "GET" || req.method === "HEAD") && layaniSlot(req, res)) return;
+    if ((req.method === "GET" || req.method === "HEAD") && layaniGreedyPlay(req, res)) return;
     const isi = req.method === "GET" || req.method === "HEAD" ? undefined : await bacaIsi(req);
     const alamat = `http://${req.headers.host || HOST + ":" + PORT}${req.url}`;
     const permintaan = new Request(alamat, {

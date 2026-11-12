@@ -64,23 +64,40 @@
 <script>
 (function(){
   // Permintaan ke server dompet dikerjakan app lewat jembatan Android, karena
-  // di sebagian HP permintaan dari halaman lokal tidak pernah sampai ke server
-  // dan game berhenti di "Loading your profile".
+  // di sebagian HP permintaan dari halaman lokal tidak pernah sampai. Jawaban
+  // dikirim balik tanpa menunggu, supaya animasi loading tetap berjalan.
   var asli = window.fetch;
   var DASAR = "https://43-156-99-4.sslip.io";
+  var urut = 0;
+  var tunggu = {};
+  window.__gkBalas = function (id, teks) {
+    var selesai = tunggu[id];
+    delete tunggu[id];
+    if (selesai) selesai(teks);
+  };
   window.fetch = function (alamat, opsi) {
     try {
       var url = typeof alamat === "string" ? alamat : (alamat && alamat.url) || "";
       var jembatan = window.RezoBridge;
-      if (url.indexOf(DASAR) === 0 && jembatan && jembatan.minta) {
+      if (url.indexOf(DASAR) === 0 && jembatan && jembatan.mintaAsync) {
         var metode = (opsi && opsi.method) || "GET";
         var isi = (opsi && opsi.body) ? String(opsi.body) : "";
         var jalur = url.slice(DASAR.length) || "/";
-        var teks = jembatan.minta(metode, jalur, isi);
-        return Promise.resolve(new Response(teks || "{}", {
-          status: 200,
-          headers: { "Content-Type": "application/json" }
-        }));
+        return new Promise(function (selesai) {
+          var id = String(++urut);
+          tunggu[id] = function (teks) {
+            selesai(new Response(teks || "{}", {
+              status: 200,
+              headers: { "Content-Type": "application/json" }
+            }));
+          };
+          try {
+            jembatan.mintaAsync(id, metode, jalur, isi);
+          } catch (e) {
+            delete tunggu[id];
+            selesai(new Response('{"ok":0,"error":"jembatan gagal"}', { status: 200 }));
+          }
+        });
       }
     } catch (e) { }
     return asli.apply(this, arguments);
