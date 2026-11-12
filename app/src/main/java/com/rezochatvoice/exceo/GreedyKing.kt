@@ -130,6 +130,12 @@ fun GreedyKingScreen(
                                 @JavascriptInterface fun uid() = myUid
                                 @JavascriptInterface fun nama() = namaAman
                                 @JavascriptInterface fun chips() = chips
+                                // Permintaan ke server dompet dikerjakan app, bukan
+                                // WebView. Di sebagian HP permintaan dari halaman
+                                // lokal tidak pernah sampai, sehingga game berhenti
+                                // di "Loading your profile".
+                                @JavascriptInterface fun minta(metode: String, jalur: String, isi: String): String =
+                                    mintaDompet(metode, jalur, isi, token)
                             },
                             "RezoBridge",
                         )
@@ -324,6 +330,39 @@ private const val SKRIP_UKUR = """
   }
 })();
 """
+
+
+/**
+ * Permintaan HTTP dari dalam game, dikerjakan app.
+ *
+ * Halaman game berada di alamat lokal (appassets). Di beberapa HP, permintaan
+ * dari halaman seperti itu ke server dompet tidak pernah selesai. Dengan
+ * mengerjakannya di app, permintaan memakai jalur yang sama dengan aplikasi
+ * biasa, jadi tetap jalan. Hasilnya dikembalikan sebagai teks JSON.
+ */
+private fun mintaDompet(metode: String, jalur: String, isi: String, token: String): String {
+    val dasar = "https://43-156-99-4.sslip.io"
+    val url = if (jalur.startsWith("http")) jalur else dasar + jalur
+    return try {
+        val c = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+        c.requestMethod = if (metode.isBlank()) "GET" else metode.uppercase()
+        c.connectTimeout = 15000
+        c.readTimeout = 15000
+        if (token.isNotBlank()) c.setRequestProperty("Authorization", "Bearer $token")
+        c.setRequestProperty("Accept", "application/json")
+        if (metode.uppercase() != "GET" && isi.isNotBlank()) {
+            c.doOutput = true
+            c.setRequestProperty("Content-Type", "application/json")
+            c.outputStream.use { it.write(isi.toByteArray(Charsets.UTF_8)) }
+        }
+        val kode = c.responseCode
+        val teks = (if (kode in 200..299) c.inputStream else c.errorStream)
+            ?.bufferedReader()?.use { it.readText() }.orEmpty()
+        if (teks.isBlank()) """{"ok":0,"error":"Server menjawab kosong ($kode)"}""" else teks
+    } catch (e: Exception) {
+        """{"ok":0,"error":"${(e.message ?: "jaringan gagal").replace("\"", "'")}"}"""
+    }
+}
 
 private const val GREEDY_API = "https://43-156-99-4.sslip.io/greedy"
 private const val GREEDY_BAWAAN = "https://exbottod.github.io/rezo-star-voice-chat-room/greedy/"

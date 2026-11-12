@@ -61,6 +61,32 @@
   var chip = ambil("chips"); if (chip) { try { window.__GREEDY_CHIPS__ = JSON.parse(chip); } catch (e) {} }
 })();
 </script>
+<script>
+(function(){
+  // Permintaan ke server dompet dikerjakan app lewat jembatan Android, karena
+  // di sebagian HP permintaan dari halaman lokal tidak pernah sampai ke server
+  // dan game berhenti di "Loading your profile".
+  var asli = window.fetch;
+  var DASAR = "https://43-156-99-4.sslip.io";
+  window.fetch = function (alamat, opsi) {
+    try {
+      var url = typeof alamat === "string" ? alamat : (alamat && alamat.url) || "";
+      var jembatan = window.RezoBridge;
+      if (url.indexOf(DASAR) === 0 && jembatan && jembatan.minta) {
+        var metode = (opsi && opsi.method) || "GET";
+        var isi = (opsi && opsi.body) ? String(opsi.body) : "";
+        var jalur = url.slice(DASAR.length) || "/";
+        var teks = jembatan.minta(metode, jalur, isi);
+        return Promise.resolve(new Response(teks || "{}", {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        }));
+      }
+    } catch (e) { }
+    return asli.apply(this, arguments);
+  };
+})();
+</script>
   <script defer src="./assets/index-BJNBfRFH.js"></script>
   <link rel="stylesheet" crossorigin href="./assets/index-DX08ztSK.css">
 </head>
