@@ -105,6 +105,26 @@ window.XMLHttpRequest.prototype.open = function(m, u){
 })();
 """
 
+/** Dipakai kalau halaman game ternyata tampil dengan lebar desktop (~980 px). */
+private const val JS_LEBAR = """
+(function(){
+  try{
+    var de = document.documentElement;
+    var vw = window.innerWidth || 0;
+    var cw = de ? de.clientWidth : 0;
+    if (vw <= 0 || cw <= vw + 40) return;
+    var m = document.querySelector('meta[name=viewport]');
+    if (!m) {
+      m = document.createElement('meta');
+      m.setAttribute('name','viewport');
+      (document.head || de).appendChild(m);
+    }
+    m.setAttribute('content','width=device-width, initial-scale=1.0, minimum-scale=0.5, maximum-scale=2.0, user-scalable=yes');
+    window.scrollTo(0, 0);
+  }catch(e){}
+})();
+"""
+
 object WaveGames {
     // App key PRODUKSI akun REZO di WaveGames (organization id 18).
     // Kunci testing: 9UMGnQcSpE.
@@ -212,7 +232,7 @@ fun WaveGamesScreen(
     var loading by remember { mutableStateOf(true) }
     var playing by remember { mutableStateOf<Pair<WaveGames.Game, String>?>(null) }
     var err by remember { mutableStateOf("") }
-    var fullMode by remember { mutableStateOf(false) }
+    var fullMode by remember { mutableStateOf(true) }
 
     LaunchedEffect(Unit) {
         WaveGames.prepare(myName, myAvatarB64.orEmpty())
@@ -448,42 +468,16 @@ private fun WaveGameView(
             modifier = Modifier.fillMaxSize(),
             factory = { c ->
                 val wv = WebView(c)
-                val density = c.resources.displayMetrics.density
-                // Sama seperti HivePlay: lebar desain mengikuti lebar layar HP,
-                // supaya game mengisi layar dan tidak mengecil di HP berlayar kecil.
-                val lebarLayarPx = c.resources.displayMetrics.widthPixels.coerceAtLeast(1)
-                val desainCss = (lebarLayarPx / density).coerceIn(280f, 1200f)
-                var aspek = 9f / 16f // lebar / tinggi
-                var sesuaikan: () -> Unit = {}
-                val fit = android.widget.FrameLayout(c).apply {
-                    setBackgroundColor(android.graphics.Color.BLACK)
-                    addView(
-                        wv,
-                        android.widget.FrameLayout.LayoutParams(
-                            (desainCss * density).toInt(),
-                            (desainCss / aspek * density).toInt(),
-                            android.view.Gravity.CENTER,
-                        ),
-                    )
-                    fun applyFit() {
-                        if (width <= 0 || height <= 0) return
-                        val lp = wv.layoutParams as android.widget.FrameLayout.LayoutParams
-                        val wPx = (desainCss * density).toInt().coerceAtLeast(1)
-                        val hPx = (desainCss / aspek * density).toInt().coerceAtLeast(1)
-                        if (lp.width != wPx || lp.height != hPx) {
-                            lp.width = wPx
-                            lp.height = hPx
-                            lp.gravity = android.view.Gravity.CENTER
-                            wv.layoutParams = lp
-                        }
-                        val sc = minOf(width.toFloat() / wPx, height.toFloat() / hPx)
-                        wv.scaleX = sc
-                        wv.scaleY = sc
-                    }
-                    addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> applyFit() }
-                    post { applyFit() }
-                    sesuaikan = { applyFit() }
-                }
+                // Halaman game Wave sudah memakai meta viewport width=device-width,
+                // jadi di Chrome HP isinya selebar layar lalu mengalir ke bawah.
+                // WebView cukup dibuat selebar dan setinggi wadahnya, tanpa diukur
+                // lalu diperkecil: cara lama itu membuat game tampil kecil dan
+                // tidak sama dengan tampilan aslinya di wavegames.online.
+                wv.layoutParams = android.view.ViewGroup.LayoutParams(
+                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                )
+                wv.setBackgroundColor(android.graphics.Color.BLACK)
                 wv.apply {
                     settings.javaScriptEnabled = true
                     settings.domStorageEnabled = true
@@ -501,6 +495,10 @@ private fun WaveGameView(
                     settings.javaScriptCanOpenWindowsAutomatically = true
                     settings.setSupportMultipleWindows(false)
                     settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                    // Skala awal mengikuti lebar WebView (seperti Chrome), dan ukuran
+                    // teks tidak ikut membesar kalau font sistem HP disetel besar.
+                    settings.setInitialScale(0)
+                    settings.textZoom = 100
                     // Tanpa cache: pengaturan taruhan yang diubah di dasbor penyedia
                     // langsung terpakai saat game dibuka, tidak tertahan halaman lama.
                     settings.cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE
@@ -552,20 +550,10 @@ private fun WaveGameView(
                         override fun onPageFinished(v: WebView?, u: String?) {
                             prog = 100
                             sisipkanViewport(v)
-                            // Sesuaikan bentuk halaman: tinggi asli halaman menentukan skala.
-                            fun ukur(v2: WebView?) {
-                                v2?.evaluateJavascript(
-                                    "(function(){try{var h=Math.max(document.documentElement?document.documentElement.scrollHeight:0, document.body?document.body.scrollHeight:0);return ''+h}catch(e){return '0'}})()",
-                                ) { out ->
-                                    val h = out.trim().removeSurrounding("\"").toFloatOrNull() ?: 0f
-                                    if (h > 200f && h < 6000f) {
-                                        aspek = (desainCss / h).coerceIn(0.35f, 2.6f)
-                                        sesuaikan()
-                                    }
-                                }
-                            }
-                            v?.postDelayed({ ukur(v) }, 900)
-                            v?.postDelayed({ ukur(v) }, 3000)
+                            // Kalau halaman ini ternyata memakai lebar desktop,
+                            // dorong sekali lagi jadi selebar layar HP.
+                            v?.evaluateJavascript(JS_LEBAR, null)
+                            v?.postDelayed({ v?.evaluateJavascript(JS_LEBAR, null) }, 1200)
                         }
                         override fun onReceivedError(
                             v: WebView?,
@@ -619,7 +607,7 @@ private fun WaveGameView(
                         }
                     }, 15000)
                 }
-                fit
+                wv
             },
             onRelease = { web?.destroy() },
         )
