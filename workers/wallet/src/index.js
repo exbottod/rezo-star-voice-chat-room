@@ -86,7 +86,12 @@ async function greedyPlay(req, env, h) {
   const url = new URL(req.url);
 
   const token = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
-  const uid = token ? await uidDariToken(token) : "";
+  // Token aplikasi (Firebase) atau token pendek Wave, supaya permainan dan
+  // pengujian bisa memakai keduanya.
+  let uid = token ? await uidDariToken(token) : "";
+  if (!uid && token) {
+    try { uid = await waveUidDariToken(env, token); } catch (e) { uid = ""; }
+  }
   if (!uid) return json({ ok: 0, error: "Sesi tidak sah" }, 401);
 
   const siap = async () => {
