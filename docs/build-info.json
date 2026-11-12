@@ -1,73 +1,16 @@
 {
-  "status": "ok",
-  "masalah": [],
-  "versi": "1.1.144",
-  "ukuran_mb": 67.7,
-  "sha256": "9124da44565934fa4fcbed2239145b12be54386f37f45fc39e5f57e3de49b7a0",
-  "commit": "07f473b",
-  "waktu": "2026-11-12T12:24:57+07:00",
+  "status": "gagal",
+  "masalah": [
+    "e: file:///home/runner/work/rezo-star-voice-chat-room/rezo-star-voice-chat-room/app/src/main/java/com/rezochatvoice/exceo/WaveGames.kt:500:30 Unresolved reference 'setInitialScale'.",
+    "* What went wrong:"
+  ],
+  "versi": "1.1.145",
+  "ukuran_mb": 0,
+  "sha256": "",
+  "commit": "402d48c",
+  "waktu": "2026-11-12T15:47:04Z",
   "workflow": "https://github.com/exbottod/rezo-star-voice-chat-room/actions",
-  "aset_roket": 30,
-  "aset_total": 88,
-  "fitur": [
-    {
-      "nama": "Banner cashback terpisah",
-      "ada": true
-    },
-    {
-      "nama": "Banner gift biasa",
-      "ada": true
-    },
-    {
-      "nama": "Animasi cashback di avatar",
-      "ada": true
-    },
-    {
-      "nama": "Tombol kombo cashback",
-      "ada": true
-    },
-    {
-      "nama": "Roket level 1-5 di room",
-      "ada": true
-    },
-    {
-      "nama": "Peluncuran roket cadangan",
-      "ada": true
-    },
-    {
-      "nama": "Sambung ulang suara otomatis",
-      "ada": true
-    },
-    {
-      "nama": "Tukar diamond nominal sendiri",
-      "ada": true
-    },
-    {
-      "nama": "Papan peringkat roket",
-      "ada": true
-    }
-  ],
-  "roket_level": [
-    {
-      "level": 1,
-      "ada": true
-    },
-    {
-      "level": 2,
-      "ada": true
-    },
-    {
-      "level": 3,
-      "ada": true
-    },
-    {
-      "level": 4,
-      "ada": true
-    },
-    {
-      "level": 5,
-      "ada": true
-    }
-  ],
-  "catatan": "Update error game Wave"
+  "aset_roket": 0,
+  "aset_total": 0,
+  "fitur": []
 }
