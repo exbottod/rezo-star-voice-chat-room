@@ -497,7 +497,7 @@ private fun WaveGameView(
                     settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
                     // Skala awal mengikuti lebar WebView (seperti Chrome), dan ukuran
                     // teks tidak ikut membesar kalau font sistem HP disetel besar.
-                    settings.setInitialScale(0)
+                    setInitialScale(0)
                     settings.textZoom = 100
                     // Tanpa cache: pengaturan taruhan yang diubah di dasbor penyedia
                     // langsung terpakai saat game dibuka, tidak tertahan halaman lama.
