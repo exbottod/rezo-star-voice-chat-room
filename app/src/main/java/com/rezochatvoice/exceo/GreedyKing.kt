@@ -259,9 +259,10 @@ private fun pindahKeAsetKalauKosong(view: WebView, url: String?, pindah: () -> U
 private suspend fun alamatGreedy(): String = suspendCancellableCoroutine { lanjut ->
     Rtdb.ref("appCfg/greedyUrl").addListenerForSingleValueEvent(object : ValueEventListener {
         override fun onDataChange(s: DataSnapshot) {
-            // Salinan di dalam APK dipakai lebih dulu: semua gambar game ikut di
-            // dalam APK, jadi tidak bergantung pada internet.
-            lanjut.resume(GREEDY_LOKAL)
+            // Halaman disajikan dari server dompet sendiri, jadi alamat halaman
+            // dan alamat API sama persis. Permintaan data tidak melewati jalur
+            // antar-situs yang sering gagal di WebView.
+            lanjut.resume(GREEDY_SERVER)
         }
 
         override fun onCancelled(e: DatabaseError) = lanjut.resume(GREEDY_LOKAL)
@@ -381,3 +382,4 @@ private fun mintaDompet(metode: String, jalur: String, isi: String, token: Strin
 private const val GREEDY_API = "https://43-156-99-4.sslip.io/greedy"
 private const val GREEDY_BAWAAN = "https://exbottod.github.io/rezo-star-voice-chat-room/greedy/"
 private const val GREEDY_LOKAL = "https://appassets.androidplatform.net/assets/greedy/index.html"
+private const val GREEDY_SERVER = "https://43-156-99-4.sslip.io/greedy-play/index.html"

@@ -79,7 +79,10 @@
     try {
       var url = typeof alamat === "string" ? alamat : (alamat && alamat.url) || "";
       var jembatan = window.RezoBridge;
-      if (url.indexOf(DASAR) === 0 && jembatan && jembatan.mintaAsync) {
+      // Kalau halaman ini sudah dilayani dari server yang sama, pakai jalur
+      // biasa; jembatan hanya dipakai untuk halaman yang dibuka dari dalam APK.
+      var sesamaAsal = location.host && DASAR.indexOf(location.host) > -1;
+      if (!sesamaAsal && url.indexOf(DASAR) === 0 && jembatan && jembatan.mintaAsync) {
         var metode = (opsi && opsi.method) || "GET";
         var isi = (opsi && opsi.body) ? String(opsi.body) : "";
         var jalur = url.slice(DASAR.length) || "/";

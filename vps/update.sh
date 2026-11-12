@@ -57,6 +57,25 @@ if [ -f "$SLOT/index.html" ]; then
   echo "Sambungan dompet slot diperbarui"
 fi
 
+
+# ---- Halaman Greedy Rezo ----
+# Disajikan dari server yang sama dengan dompet, supaya permintaan dari halaman
+# game tidak lagi lewat jalur antar-situs yang sering gagal di WebView.
+GREEDY="$DIR/greedy-play"
+mkdir -p "$GREEDY/assets/images"
+if curl -fsSL "$RAW/docs/greedy/index.html" -o "$GREEDY/index.html"; then
+  for f in $(grep -o 'assets/index-[A-Za-z0-9]*\.\(js\|css\)' "$GREEDY/index.html" | sort -u); do
+    mkdir -p "$GREEDY/$(dirname "$f")"
+    curl -fsSL "$RAW/docs/greedy/$f" -o "$GREEDY/$f" || echo "Gagal unduh $f"
+  done
+  for g in cabbage carrot corn drumstick hotdog pizza salad skewer steak tomato icon; do
+    curl -fsSL "$RAW/docs/greedy/assets/images/$g.png" -o "$GREEDY/assets/images/$g.png" || true
+  done
+  echo "Halaman Greedy siap: $(du -sh "$GREEDY" | cut -f1)"
+else
+  echo "Halaman Greedy gagal diunduh, dilewati"
+fi
+
 node --check "$DIR/index.js" || { echo "Sintaks index.js salah, layanan tidak direstart"; exit 1; }
 systemctl restart rezo-api
 for i in 1 2 3 4 5 6 7 8 9 10; do
