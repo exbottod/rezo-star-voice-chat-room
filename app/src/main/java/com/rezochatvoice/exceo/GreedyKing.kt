@@ -115,8 +115,11 @@ fun GreedyKingScreen(
                         settings.domStorageEnabled = true
                         settings.databaseEnabled = true
                         settings.mediaPlaybackRequiresUserGesture = false
-                        settings.useWideViewPort = true
-                        settings.loadWithOverviewMode = true
+                        // Skala bawaan: halaman mengikuti lebar HP. Kalau mode
+                        // lebar dipakai, halaman digambar selebar 980 lalu
+                        // dikecilkan, sehingga susunan gambar terlihat berantakan.
+                        settings.useWideViewPort = false
+                        settings.loadWithOverviewMode = false
                         settings.setSupportZoom(false)
                         settings.cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE
                         settings.allowFileAccess = true
