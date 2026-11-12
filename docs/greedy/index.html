@@ -243,6 +243,12 @@
     var uid = ambil("uid"), tok = ambil("token");
     var baris = [
       "Penyebab: " + (asli || pesanAkhir || "kode game berhenti tanpa pesan"),
+      "Layar game: " + (function () {
+        var r = document.getElementById("root");
+        var t = ((r && r.innerText) || "").replace(/\s+/g, " ").trim();
+        return t ? t.slice(-70) : "(kosong)";
+      })(),
+
       "",
       "Alamat halaman: " + location.href.slice(0, 90),
       "Jembatan app (RezoBridge): " + (b ? "ada" : "tidak ada"),
@@ -281,6 +287,52 @@
     var t = document.getElementById("booterr");
     if (t) { t.style.display = "block"; t.textContent = "Galat: " + ((e && e.message) || "tidak diketahui"); }
   });
+})();
+</script>
+<script>
+/* Pengawas kemacetan.
+   Layar muat tidak boleh berhenti di persentase tertentu tanpa penjelasan.
+   Kalau game masih memuat setelah 15 detik, halaman dicoba sekali lagi
+   otomatis (jaringan/jembatan kadang gagal sekali di awal). Kalau tetap
+   macet, penyebabnya ditampilkan supaya tidak mentok di 6% selamanya. */
+(function () {
+  var mulai = Date.now();
+  var selesai = false, sudahUlang = false;
+  function teks() {
+    var r = document.getElementById("root");
+    return ((r && r.innerText) || "").replace(/\s+/g, " ").trim();
+  }
+  function persen(t) {
+    var m = t.match(/LOADING\s+(\d+)\s*%/i);
+    return m ? parseInt(m[1], 10) : -1;
+  }
+  function pernahUlang() {
+    try { return sessionStorage.getItem("gk_ulang") === "1"; } catch (e) { return true; }
+  }
+  function tandaiUlang() {
+    try { sessionStorage.setItem("gk_ulang", "1"); } catch (e) {}
+  }
+  setInterval(function () {
+    if (selesai) return;
+    var t = teks(), p = persen(t);
+    if (p < 0) return;
+    if (p >= 100) { selesai = true; return; }
+    var detik = Math.round((Date.now() - mulai) / 1000);
+    if (detik < 15) return;
+    if (!sudahUlang && !pernahUlang()) {
+      sudahUlang = true;
+      tandaiUlang();
+      location.reload();
+      return;
+    }
+    selesai = true;
+    try {
+      window.__gkSebab && window.__gkSebab(
+        "Game berhenti di " + p + "% setelah " + detik + " detik. Status: " +
+        t.slice(-60) + " | Token: " + String((window.__GREEDY_TOKEN__ || "").length) + " huruf"
+      );
+    } catch (e) {}
+  }, 2000);
 })();
 </script>
 </body>

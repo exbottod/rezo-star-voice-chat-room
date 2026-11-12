@@ -63,7 +63,9 @@ fun GreedyKingScreen(
         catch (e: Exception) { listOf(100L, 500L, 1000L, 5000L, 50000L) }
         chips = daftar.joinToString(",", "[", "]")
         token = try {
-            FirebaseAuth.getInstance().currentUser?.getIdToken(false)?.await()?.token.orEmpty()
+            // Paksa segarkan token: token lama yang kedaluwarsa ditolak server
+            // ("Sesi tidak sah") dan game berhenti di layar muat.
+            FirebaseAuth.getInstance().currentUser?.getIdToken(true)?.await()?.token.orEmpty()
         } catch (e: Exception) { "" }
         alamat = try { alamatGreedy() } catch (e: Exception) { GREEDY_BAWAAN }
         siap = true
@@ -98,7 +100,11 @@ fun GreedyKingScreen(
                     fun pakaiAset() {
                         if (jatuhKeAset[0]) return
                         jatuhKeAset[0] = true
-                        wv?.loadUrl(GREEDY_LOKAL)
+                        // Token, uid, dan nama tetap dibawa ke salinan di aset.
+                        // Dulu alamat aset dibuka tanpa parameter, sehingga kalau
+                        // jembatan JS belum siap game berhenti di 6% "Connecting"
+                        // karena tidak punya sesi.
+                        wv?.loadUrl(denganToken(GREEDY_LOKAL, token, myUid, namaAman))
                     }
 
                     fun pakaiJaringan() {
