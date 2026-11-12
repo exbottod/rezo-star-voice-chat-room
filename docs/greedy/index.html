@@ -290,41 +290,28 @@
 })();
 </script>
 <script>
-/* Pengawas kemacetan.
-   Layar muat tidak boleh berhenti di persentase tertentu tanpa penjelasan.
-   Kalau game masih memuat setelah 15 detik, halaman dicoba sekali lagi
-   otomatis (jaringan/jembatan kadang gagal sekali di awal). Kalau tetap
-   macet, penyebabnya ditampilkan supaya tidak mentok di 6% selamanya. */
+/* Pengawas kemacetan (cadangan).
+   Tulisan "LOADING 6%" berasal dari React, jadi kalau angkanya tidak naik
+   berarti timer halaman berhenti. Pengawas utama ada di sisi app (Kotlin)
+   karena tidak ikut berhenti; skrip ini hanya menampilkan penyebabnya supaya
+   layar tidak mentok di 6% tanpa keterangan. */
 (function () {
   var mulai = Date.now();
-  var selesai = false, sudahUlang = false;
+  var selesai = false;
   function teks() {
     var r = document.getElementById("root");
     return ((r && r.innerText) || "").replace(/\s+/g, " ").trim();
   }
   function persen(t) {
-    var m = t.match(/LOADING\s+(\d+)\s*%/i);
+    var m = t.match(/LOADING\s*(\d+)\s*%/i);
     return m ? parseInt(m[1], 10) : -1;
-  }
-  function pernahUlang() {
-    try { return sessionStorage.getItem("gk_ulang") === "1"; } catch (e) { return true; }
-  }
-  function tandaiUlang() {
-    try { sessionStorage.setItem("gk_ulang", "1"); } catch (e) {}
   }
   setInterval(function () {
     if (selesai) return;
     var t = teks(), p = persen(t);
-    if (p < 0) return;
-    if (p >= 100) { selesai = true; return; }
+    if (p < 0 || p >= 100) return;
     var detik = Math.round((Date.now() - mulai) / 1000);
     if (detik < 15) return;
-    if (!sudahUlang && !pernahUlang()) {
-      sudahUlang = true;
-      tandaiUlang();
-      location.reload();
-      return;
-    }
     selesai = true;
     try {
       window.__gkSebab && window.__gkSebab(

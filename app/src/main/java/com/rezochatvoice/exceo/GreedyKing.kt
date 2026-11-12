@@ -213,9 +213,76 @@ fun GreedyKingScreen(
                             this.evaluateJavascript(SKRIP_UKUR, null)
                         }, 13000)
                         wvPegang.value = this
+                        // Timer di dalam halaman bisa berhenti (mis. karena WebView
+                        // lain memanggil pauseTimers). Akibatnya animasi loading dan
+                        // permintaan data diam di 6% "Connecting" selamanya.
+                        resumeTimers()
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            try { resumeTimers() } catch (e: Exception) { }
+                        }, 3000)
                         // Token ikut di alamat: jembatan JS kadang terlambat siap
                         // sehingga halaman memulai permainan tanpa token.
                         loadUrl(denganToken(alamat, token, myUid, namaAman))
+                        // Pengawas kemacetan dari sisi app. Memakai Handler dan
+                        // evaluateJavascript, jadi tetap berjalan walaupun timer di
+                        // halaman berhenti. Kalau angka "LOADING n%" tidak bergerak,
+                        // halaman dimuat ulang; kalau tetap macet, penyebabnya
+                        // ditampilkan supaya tidak mentok di 6% tanpa keterangan.
+                        var sudahUlang = 0
+                        var angkaTerakhir = -2
+                        var diam = 0
+                        val cekMacet = "(function(){var r=document.getElementById('root');" +
+                            "var t=((r&&r.innerText)||'').replace(/\\s+/g,' ');" +
+                            "var m=t.match(/LOADING\\s*(\\d+)\\s*%/i);" +
+                            "var e=document.getElementById('gksebab');" +
+                            "var p=m?parseInt(m[1]):-1;" +
+                            "var s=!!(e&&e.style.display==='block');" +
+                            "return p+'|'+(s?1:0)+'|'+t.slice(-70);})()"
+                        val pengawasMacet = object : Runnable {
+                            var putaran = 0
+                            override fun run() {
+                                putaran++
+                                val aktif = wvPegang.value ?: return
+                                aktif.evaluateJavascript(cekMacet) { hasil ->
+                                    val nilai = try {
+                                        org.json.JSONTokener(hasil ?: "\"\"").nextValue() as String
+                                    } catch (e: Exception) {
+                                        ""
+                                    }
+                                    val bagi = nilai.split("|", limit = 3)
+                                    val persen = bagi.getOrNull(0)?.toIntOrNull() ?: -1
+                                    val panel = bagi.getOrNull(1) == "1"
+                                    if (persen < 0 || persen >= 100 || panel) {
+                                        diam = 0
+                                    } else if (persen == angkaTerakhir) {
+                                        diam++
+                                    } else {
+                                        diam = 0
+                                        angkaTerakhir = persen
+                                    }
+                                    if (diam >= 3 && sudahUlang < 2) {
+                                        sudahUlang++
+                                        diam = 0
+                                        angkaTerakhir = -2
+                                        val sasaran = if (jatuhKeAset[0]) GREEDY_LOKAL else alamat
+                                        aktif.loadUrl(denganToken(sasaran, token, myUid, namaAman))
+                                    } else if (diam >= 8) {
+                                        val alasan = "Game berhenti di " + persen +
+                                            "% setelah " + (putaran * 2500 / 1000) +
+                                            " detik. Tutup lalu buka ulang menu Greedy King; " +
+                                            "kalau masih berhenti, kirim gambar layar ini."
+                                        aktif.evaluateJavascript(
+                                            "window.__gkSebab&&window.__gkSebab(" +
+                                                org.json.JSONObject.quote(alasan) + ")", null,
+                                        )
+                                    }
+                                }
+                                if (putaran < 24) {
+                                    Handler(Looper.getMainLooper()).postDelayed(this, 2500)
+                                }
+                            }
+                        }
+                        Handler(Looper.getMainLooper()).postDelayed(pengawasMacet, 5000)
                     }
                 },
             )
