@@ -1267,6 +1267,23 @@ async function beriCoin(env, uid, coins, kind, itemId) {
   return n;
 }
 
+async function beriDiamond(env, uid, diamonds, kind) {
+  const n = Math.trunc(Number(diamonds) || 0);
+  if (n <= 0) return 0;
+  const now = Date.now();
+  await pastikan(env, uid);
+  await pipe(env, [
+    { sql: "begin immediate" },
+    { sql: "update wallets set diamonds = diamonds + ?, updated_at = ? where uid = ?", args: [I(n), I(now), T(uid)] },
+    {
+      sql: `insert into money_tx (uid, kind, item_id, amount, created_at) values (?, ?, ?, ?, ?)`,
+      args: [T(uid), T(kind), null, I(n), I(now)],
+    },
+    { sql: "commit" },
+  ]);
+  return n;
+}
+
 async function beriVip(env, uid, tier, days) {
   const t = Math.trunc(Number(tier) || 0);
   if (!(t >= 1 && t <= 9) || days <= 0) return null;
@@ -1463,7 +1480,19 @@ function barisTier(cfg, value) {
 // tidak pernah muncul di layar.
 const CB_DEFAULT = {
   on: true,
-  t1: { min: 0, rows: [{ v: 1, w: 60 }, { v: 2, w: 25 }, { v: 3, w: 10 }, { v: 5, w: 5 }] },
+  // Undian per 100.000 kiriman (RTP cashback 80% + 5% diamond penerima = 85%).
+  // 100x = JP, 1000x = JP MAX, keduanya dibuat jarang.
+  t1: {
+    min: 0,
+    rows: [
+      { v: 0, w: 65688 },    // zonk        65,7%
+      { v: 1, w: 30000 },    // 1x          30%
+      { v: 10, w: 4200 },    // 10x         4,2%
+      { v: 50, w: 100 },     // 50x         0,1%
+      { v: 100, w: 10 },     // JP 100x     1 dari 10.000
+      { v: 1000, w: 2 },     // JP MAX      1 dari 50.000
+    ],
+  },
   recvPct: 5,
   jpMin: 1000,
 };
@@ -1479,22 +1508,24 @@ async function cashbackGift(env, uid, p) {
   if (nilai <= 0) return gagal("Nilai gift tidak valid");
 
   const baris = undiBaris(barisTier(cfg, nilai));
-  const mult = Math.max(0, Math.min(500, Math.floor(baris.v)));
-  // Total cashback = harga gift x pengali dari panel, TANPA dipotong.
-  // Pecahan hanya untuk animasi (aset angka maksimal 10.000), jadi isinya
-  // potongan dari total dan jumlah akhirnya tetap total penuh.
+  // 0 = zonk (tidak dapat cashback). 100x = JP, 1000x = JP MAX.
+  const mult = Math.max(0, Math.min(1000, Math.floor(baris.v)));
   const target = Math.max(0, nilai * mult);
   const parts = pecahCashback(target);
   const amount = target;
 
-  const paid = await beriCoin(env, uid, amount, "cashback", null);
+  const paid = mult > 0 ? await beriCoin(env, uid, amount, "cashback", null) : 0;
+
+  // Bonus penerima: 5% dari harga gift, MASUK KE DIAMOND (bukan koin).
   const pct = Math.max(0, Math.min(100, Number(cfg.recvPct ?? 5)));
   const to = String(p.to ?? "").trim();
   const bonus = to ? Math.floor((nilai * pct) / 100) : 0;
-  const recv = bonus > 0 && to !== uid ? await beriCoin(env, to, bonus, "cashback_recv", null) : 0;
+  const recv = bonus > 0 && to !== uid ? await beriDiamond(env, to, bonus, "cashback_recv") : 0;
+
   const jpMin = Math.max(0, Math.floor(Number(cfg.jpMin ?? 1000)));
-  return json({ ok: 1, amount: paid, mult, parts: parts.slice(0, 5), pecahan: parts[0] ?? baris.v,
-    recv, jp: paid >= jpMin ? 1 : 0, asset: "" });
+  const jp = mult >= 100 || paid >= jpMin ? 1 : 0;
+  return json({ ok: 1, amount: paid, mult, parts: parts.slice(0, 5), pecahan: parts[0] ?? 0,
+    recv, jp, zonk: paid <= 0 && mult <= 0 ? 1 : 0, asset: "" });
 }
 
 // ---------- Topup manual DANA ----------

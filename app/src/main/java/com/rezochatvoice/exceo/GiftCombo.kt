@@ -211,6 +211,7 @@ object GiftComboSend {
                         "combo" to GiftCombo.combo.toLong(),
                         "asset" to "",
                         "jp" to jp,
+                        "zonk" to false,
                         "ts" to System.currentTimeMillis(),
                     ),
                 )

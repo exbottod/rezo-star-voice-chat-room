@@ -1,6 +1,7 @@
 package com.rezochatvoice.exceo
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -70,6 +71,7 @@ data class CbPop(
     val recv: Long,
     val mult: Int,
     val jp: Boolean,
+    val zonk: Boolean,
     val ts: Long,
 )
 
@@ -115,7 +117,8 @@ fun CashbackPopOverlay(roomId: String, myUid: String) {
             if (k == lastKey[0]) return@listen
             lastKey[0] = k
             val cb = c.child("cb").getValue(Long::class.java) ?: 0L
-            if (cb <= 0L) return@listen
+            // Zonk tetap diputar (tidak dapat cashback); gift tanpa cashback dilewati.
+            if (cb <= 0L && c.child("zonk").getValue(Boolean::class.java) != true) return@listen
             val price = c.child("price").getValue(Long::class.java) ?: 0L
             // Saldo sebelum transaksi = saldo sekarang + harga gift - cashback.
             startBal = if (bal >= 0L) (bal + price - cb).coerceAtLeast(0L) else -1L
@@ -130,6 +133,7 @@ fun CashbackPopOverlay(roomId: String, myUid: String) {
                 recv = c.child("recv").getValue(Long::class.java) ?: 0L,
                 mult = (c.child("mult").getValue(Long::class.java) ?: 0L).toInt(),
                 jp = c.child("jp").getValue(Boolean::class.java) ?: false,
+                zonk = c.child("zonk").getValue(Boolean::class.java) ?: (cb <= 0L),
                 ts = ts,
             )
         }
@@ -213,7 +217,7 @@ private fun CashbackPopOnce(p: CbPop, startBal: Long, endBal: Long, onDone: () -
         // ---------- 2. Koin menyebar dari tengah ----------
         Canvas(Modifier.fillMaxSize()) {
             val s = t.value * (POP_MS / 1000f)
-            if (s > 0.42f) {
+            if (s > 0.42f && p.cb > 0L) {
                 val k = s - 0.42f
                 val life = (1f - k / 1.70f).coerceIn(0f, 1f)
                 if (life > 0f) {
@@ -265,8 +269,12 @@ private fun CashbackPopOnce(p: CbPop, startBal: Long, endBal: Long, onDone: () -
                     horizontalArrangement = Arrangement.Center,
                 ) {
                     Text(
-                        if (p.jp) tr("JACKPOT CASHBACK") else tr("CASHBACK"),
-                        color = Color(0xFFFFF0C0),
+                        when {
+                            p.cb <= 0L -> tr("ZONK")
+                            p.jp -> tr("JACKPOT CASHBACK")
+                            else -> tr("CASHBACK")
+                        },
+                        color = if (p.cb > 0L) Color(0xFFFFF0C0) else Color(0xFFC6C9D6),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                     )
@@ -282,15 +290,15 @@ private fun CashbackPopOnce(p: CbPop, startBal: Long, endBal: Long, onDone: () -
                 }
                 Row(verticalAlignment = Alignment.Bottom) {
                     Text(
-                        "+${fmtNum(p.cb)}",
-                        color = Color(0xFFFFC43C),
+                        if (p.cb > 0L) "+${fmtNum(p.cb)}" else "0",
+                        color = if (p.cb > 0L) Color(0xFFFFC43C) else Color(0xFFC6C9D6),
                         fontSize = 30.sp,
                         fontWeight = FontWeight.Black,
                         maxLines = 1,
                     )
                     Text(
-                        tr(" koin"),
-                        color = Color(0xFFFFEBA0),
+                        if (p.cb > 0L) tr(" koin") else tr(" · belum beruntung"),
+                        color = if (p.cb > 0L) Color(0xFFFFEBA0) else Color(0xFFC6C9D6),
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(bottom = 5.dp),
@@ -323,7 +331,7 @@ private fun CashbackPopOnce(p: CbPop, startBal: Long, endBal: Long, onDone: () -
                 .padding(horizontal = 16.dp, vertical = 8.dp),
         ) {
             val nama = p.toName.ifBlank { tr("penerima") }
-            val isi = if (p.recv > 0L) tr("+${fmtNum(p.recv)} koin ke $nama") else tr("ke $nama")
+            val isi = if (p.recv > 0L) tr("💎 +${fmtNum(p.recv)} ke $nama") else tr("ke $nama")
             Text(isi, color = Color(0xFFA5FFCD), fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1)
         }
 
@@ -334,7 +342,7 @@ private fun CashbackPopOnce(p: CbPop, startBal: Long, endBal: Long, onDone: () -
 
 /** Angka saldo yang berjalan dari saldo sebelum ke saldo sesudah transaksi. */
 @Composable
-private fun BalanceChip(t: Animatable<Float>, start: Long, end: Long) {
+private fun BalanceChip(t: Animatable<Float, AnimationVector1D>, start: Long, end: Long) {
     if (start < 0L || end < 0L) return
     val s = t.value * (POP_MS / 1000f)
     if (s < 0.45f) return

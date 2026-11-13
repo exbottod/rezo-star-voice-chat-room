@@ -202,6 +202,10 @@ object GiftFx {
         var cbJp = false
         var cbMult = 0
         var cbRecv = 0L
+        // true = server menjawab (termasuk zonk). Selama server menjawab,
+        // undian lokal tidak boleh jalan supaya cashback tidak dobel.
+        var cbServerOk = false
+        var cbZonk = false
         var comboN = 0
         if (g.special) {
             comboN = try {
@@ -218,6 +222,8 @@ object GiftFx {
                     SupaRepo.giftCashback(uid, if (g.cbPrice > 0L) g.cbPrice else g.price, count, targetUid)
                 }
             } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { null }
+            cbServerOk = cb != null && cb.error == null
+            if (cbServerOk && (cb == null || cb.amount <= 0L)) cbZonk = true
             if (cb != null && cb.error == null && cb.amount > 0) {
                 cbWin = cb.amount
                 cbPecahan = if (cb.parts.isNotEmpty()) cb.parts.first() else cb.pecahan
@@ -238,10 +244,16 @@ object GiftFx {
                     )
                 } catch (e: Exception) { }
             }
+            // Zonk: tidak ada cashback, tapi bonus diamond penerima tetap dicatat
+            // supaya baris hijau di animasi tetap benar.
+            if (cb != null && cb.error == null) {
+                cbRecv = cb.recv
+                cbJp = cb.jp
+            }
         }
         // Server belum siap / belum di-deploy: undi lokal dari pengaturan panel
         // supaya animasi pecahan tetap jalan.
-        if (cbWin <= 0L && (cbParts.isBlank() || cbMult <= 0)) {
+        if (!cbServerOk) {
             val value = (if (g.cbPrice > 0L) g.cbPrice else g.price) * count
             val local = CashbackCfg.roll(value)
             if (local != null && local.parts.isNotEmpty()) {
@@ -289,6 +301,7 @@ object GiftFx {
                     "combo" to comboN,
                     "asset" to cbAsset,
                     "jp" to cbJp,
+                    "zonk" to cbZonk,
                     "ts" to System.currentTimeMillis(),
                 ),
             )

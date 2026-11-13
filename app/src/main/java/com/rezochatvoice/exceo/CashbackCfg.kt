@@ -47,7 +47,8 @@ object CashbackCfg {
             for (c in node.child("rows").children) {
                 val v = c.child("v").getValue(Long::class.java) ?: continue
                 val w = c.child("w").getValue(Double::class.java) ?: continue
-                if (v > 0 && w > 0) list.add(Pair(v.toInt(), w))
+                // v = 0 adalah zonk: tetap ikut undian, hanya tidak dapat cashback.
+                if (w > 0) list.add(Pair(v.toInt(), w))
             }
             if (list.isNotEmpty() && value >= min && min >= bestMin) {
                 rows = list
