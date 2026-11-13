@@ -3442,9 +3442,9 @@ async function kirimEmail(env, ke, subjek, isiHtml, isiTeks, kunci) {
           stafAktif = Number(r[0].rows[0]?.a ?? 0);
           peran = r[1].rows.map((x) => String(x.role) + ":" + Number(x.n));
         } catch (e) { /* tabel belum ada */ }
-        return json({ ok: 1, v: "rezo-2026-11-09-sqlite", db: 1, simpan: modeDb, email: (env.RESEND_KEY || env.RESEND_API_KEY) ? 1 : 0, staf, stafAktif, peran, node: typeof process !== "undefined" ? process.version : "?" });
+        return json({ ok: 1, v: "rezo-2026-11-13-viza", db: 1, proj: PROJ_SAH, simpan: modeDb, email: (env.RESEND_KEY || env.RESEND_API_KEY) ? 1 : 0, staf, stafAktif, peran, node: typeof process !== "undefined" ? process.version : "?" });
       } catch (e) {
-        return json({ ok: 0, v: "rezo-2026-11-09-sqlite", db: String(e?.message ?? e) }, 500);
+        return json({ ok: 0, v: "rezo-2026-11-13-viza", db: String(e?.message ?? e) }, 500);
       }
     }
     if (req.method !== "POST") return gagal("Gunakan POST");
