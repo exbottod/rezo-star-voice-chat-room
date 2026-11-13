@@ -342,7 +342,11 @@ private fun CashbackPopOnce(p: CbPop, startBal: Long, endBal: Long, onDone: () -
 
 /** Angka saldo yang berjalan dari saldo sebelum ke saldo sesudah transaksi. */
 @Composable
-private fun BalanceChip(t: Animatable<Float, AnimationVector1D>, start: Long, end: Long) {
+private fun androidx.compose.foundation.layout.BoxScope.BalanceChip(
+    t: Animatable<Float, AnimationVector1D>,
+    start: Long,
+    end: Long,
+) {
     if (start < 0L || end < 0L) return
     val s = t.value * (POP_MS / 1000f)
     if (s < 0.45f) return
