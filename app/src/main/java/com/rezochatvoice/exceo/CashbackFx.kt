@@ -95,7 +95,8 @@ fun GiftFlyOverlay(roomId: String, seatPoints: Map<Int, Offset>) {
                     mediaType = c.child("mediaType").getValue(String::class.java) ?: "",
                     mult = (c.child("mult").getValue(Long::class.java) ?: 0L).toInt(),
                     combo = (c.child("combo").getValue(Long::class.java) ?: 0L).toInt(),
-                    gname = c.child("gname").getValue(String::class.java) ?: "",
+                    gname = c.child("gname").getValue(String::class.java)
+                        ?: (c.child("gift").getValue(String::class.java) ?: ""),
                     jp = c.child("jp").getValue(Boolean::class.java) ?: false,
                     ts = ts,
                     ),
@@ -205,10 +206,13 @@ private fun GiftFlyOnce(
             FlyMedia(f)
         }
         // Pecahan disebar ke seluruh layar, bukan menumpuk di avatar.
-        f.parts.forEachIndexed { i, v -> PartPop(v, i, box) }
-        if (f.mult > 0 && f.cb > 0) MultBall(f.mult, f.cb, target)
+        // Sejak animasi kartu cashback dipasang, pecahan lama tidak diputar lagi.
+        if (CB_LEGACY_PARTS) {
+            f.parts.forEachIndexed { i, v -> PartPop(v, i, box) }
+            if (f.mult > 0 && f.cb > 0) MultBall(f.mult, f.cb, target)
+        }
     }
-    if (f.cb > 0) {
+    if (CB_LEGACY_PARTS && f.cb > 0) {
         Box(
             Modifier
                 .offset { IntOffset((target.x - 110f).toInt(), (target.y + 62f).toInt()) }

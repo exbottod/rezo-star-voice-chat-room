@@ -201,6 +201,7 @@ object GiftFx {
         var cbParts = ""
         var cbJp = false
         var cbMult = 0
+        var cbRecv = 0L
         var comboN = 0
         if (g.special) {
             comboN = try {
@@ -224,6 +225,7 @@ object GiftFx {
                 cbParts = cb.parts.joinToString(",")
                 cbJp = cb.jp
                 cbMult = cb.mult
+                cbRecv = cb.recv
                 try {
                     Rtdb.ref("cashback/$uid/total").setValue(ServerValue.increment(cbWin))
                     Rtdb.ref("cashback/$uid/log").push().setValue(
@@ -274,11 +276,13 @@ object GiftFx {
                     "toUid" to t.first,
                     "seat" to t.third.toLong(),
                     "gift" to g.name,
+                    "gname" to g.name,
                     "emoji" to g.emoji,
                     "mediaUrl" to g.mediaUrl,
                     "mediaType" to g.mediaType,
                     "price" to g.price * count,
                     "cb" to cbWin,
+                    "recv" to cbRecv,
                     "pecahan" to cbPecahan,
                     "parts" to cbParts,
                     "mult" to cbMult,

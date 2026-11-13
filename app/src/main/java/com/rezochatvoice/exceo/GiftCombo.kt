@@ -171,6 +171,7 @@ object GiftComboSend {
         var jp = false
         var parts = ""
         var pecahan = 0L
+        var recv = 0L
         try {
             val cb = kotlinx.coroutines.withTimeoutOrNull(9000L) {
                 SupaRepo.giftCashback(uid, harga, count, s.targetUid)
@@ -179,6 +180,7 @@ object GiftComboSend {
                 cbWin = cb.amount
                 mult = cb.mult
                 jp = cb.jp
+                recv = cb.recv
                 pecahan = if (cb.parts.isNotEmpty()) cb.parts.first() else cb.pecahan
                 parts = cb.parts.joinToString(",")
             }
@@ -196,11 +198,13 @@ object GiftComboSend {
                         "toUid" to t.first,
                         "seat" to t.third.toLong(),
                         "gift" to g.name,
+                        "gname" to g.name,
                         "emoji" to g.emoji,
                         "mediaUrl" to g.mediaUrl,
                         "mediaType" to g.mediaType,
                         "price" to g.price * count,
                         "cb" to cbWin,
+                        "recv" to recv,
                         "pecahan" to pecahan,
                         "parts" to parts,
                         "mult" to mult,

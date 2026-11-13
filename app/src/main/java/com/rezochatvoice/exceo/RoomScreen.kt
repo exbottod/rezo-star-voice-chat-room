@@ -967,6 +967,8 @@ fun RoomScreen(
         if (fxGiftOn) GiftFxOverlay(r.id)
         // Gift terbang ke avatar penerima lalu pecahan cashback muncul di titik itu.
         if (fxGiftOn) GiftFlyOverlay(r.id, seatPoints)
+        // Kartu cashback: gift masuk, badge CASHBACK, koin menyebar, bonus penerima.
+        if (fxGiftOn) CashbackPopOverlay(r.id, myUid)
         // Peluncuran roket 1..5 berurutan, dengan dialog hadiah bertombol Okey.
         // Build uji: dimatikan sementara untuk mencari penyebab aplikasi macet di room.
         if (ROCKET_ROOM_UI && fxRocketOn) RocketLaunchOverlay(r.id, myUid)
