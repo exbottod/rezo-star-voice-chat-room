@@ -1,73 +1,24 @@
 {
-  "status": "ok",
-  "masalah": [],
-  "versi": "1.1.149",
-  "ukuran_mb": 67.7,
-  "sha256": "6b592220e83d3d83b25913d3bbbb26633c752bf802f5df7a520acfbdd23f3560",
-  "commit": "ebe2b37",
-  "waktu": "2026-11-13T00:46:01Z",
+  "status": "gagal",
+  "masalah": [
+    "e: The daemon has terminated unexpectedly on startup attempt #1 with error code: 0. The daemon process output:",
+    "e: file:///home/runner/work/rezo-star-voice-chat-room/rezo-star-voice-chat-room/app/src/main/java/com/rezochatvoice/exceo/CashbackPop.kt:337:38 2 type arguments expected for class 'Animatable'.",
+    "e: file:///home/runner/work/rezo-star-voice-chat-room/rezo-star-voice-chat-room/app/src/main/java/com/rezochatvoice/exceo/CashbackPop.kt:339:15 Unresolved reference 'value'.",
+    "e: file:///home/runner/work/rezo-star-voice-chat-room/rezo-star-voice-chat-room/app/src/main/java/com/rezochatvoice/exceo/CashbackPop.kt:340:11 'operator' modifier is required on 'FirNamedFunctionSymb",
+    "e: file:///home/runner/work/rezo-star-voice-chat-room/rezo-star-voice-chat-room/app/src/main/java/com/rezochatvoice/exceo/CashbackPop.kt:341:17 Overload resolution ambiguity between candidates:",
+    "e: file:///home/runner/work/rezo-star-voice-chat-room/rezo-star-voice-chat-room/app/src/main/java/com/rezochatvoice/exceo/CashbackPop.kt:341:26 None of the following candidates is applicable:",
+    "e: file:///home/runner/work/rezo-star-voice-chat-room/rezo-star-voice-chat-room/app/src/main/java/com/rezochatvoice/exceo/CashbackPop.kt:346:14 Unresolved reference 'align'.",
+    "e: file:///home/runner/work/rezo-star-voice-chat-room/rezo-star-voice-chat-room/app/src/main/java/com/rezochatvoice/exceo/CashbackPop.kt:348:44 'operator' modifier is required on 'FirNamedFunctionSymb",
+    "e: file:///home/runner/work/rezo-star-voice-chat-room/rezo-star-voice-chat-room/app/src/main/java/com/rezochatvoice/exceo/CashbackPop.kt:348:66 None of the following candidates is applicable:",
+    "* What went wrong:"
+  ],
+  "versi": "1.1.150",
+  "ukuran_mb": 0,
+  "sha256": "",
+  "commit": "3eeb3f5",
+  "waktu": "2026-11-13T12:37:19Z",
   "workflow": "https://github.com/exbottod/rezo-star-voice-chat-room/actions",
-  "aset_roket": 30,
-  "aset_total": 88,
-  "fitur": [
-    {
-      "nama": "Banner cashback terpisah",
-      "ada": true
-    },
-    {
-      "nama": "Banner gift biasa",
-      "ada": true
-    },
-    {
-      "nama": "Animasi cashback di avatar",
-      "ada": true
-    },
-    {
-      "nama": "Tombol kombo cashback",
-      "ada": true
-    },
-    {
-      "nama": "Roket level 1-5 di room",
-      "ada": true
-    },
-    {
-      "nama": "Peluncuran roket cadangan",
-      "ada": true
-    },
-    {
-      "nama": "Sambung ulang suara otomatis",
-      "ada": true
-    },
-    {
-      "nama": "Tukar diamond nominal sendiri",
-      "ada": true
-    },
-    {
-      "nama": "Papan peringkat roket",
-      "ada": true
-    }
-  ],
-  "roket_level": [
-    {
-      "level": 1,
-      "ada": true
-    },
-    {
-      "level": 2,
-      "ada": true
-    },
-    {
-      "level": 3,
-      "ada": true
-    },
-    {
-      "level": 4,
-      "ada": true
-    },
-    {
-      "level": 5,
-      "ada": true
-    }
-  ],
-  "catatan": "Update error game Wave"
+  "aset_roket": 0,
+  "aset_total": 0,
+  "fitur": []
 }
