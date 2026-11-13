@@ -11,9 +11,6 @@
  */
 
 const PROJ = "arboreal-cat-511705-p6";
-// Project Firebase lain yang dipercaya (aplikasi white-label Viza memakai project sendiri).
-const PROJ_LAIN = ["my-app-e7f8c"];
-const PROJ_SAH = [PROJ, ...PROJ_LAIN];
 
 // ---------- Game Greedy King (satu berkas dengan dompet supaya update VPS
 // hanya perlu mengunduh index.js) ----------
@@ -492,8 +489,8 @@ async function sesiDariToken(token) {
     if (!ok) { sesiAlasan = "tanda tangan tidak cocok"; return null; }
     const body = JSON.parse(new TextDecoder().decode(b64d(c)));
     const now = Math.floor(Date.now() / 1000);
-    if (!PROJ_SAH.includes(String(body.aud))) { sesiAlasan = "aud beda: " + String(body.aud); return null; }
-    if (String(body.iss) !== `https://securetoken.google.com/${String(body.aud)}`) { sesiAlasan = "iss beda"; return null; }
+    if (String(body.aud) !== PROJ) { sesiAlasan = "aud beda: " + String(body.aud); return null; }
+    if (String(body.iss) !== `https://securetoken.google.com/${PROJ}`) { sesiAlasan = "iss beda"; return null; }
     if (Number(body.exp ?? 0) <= now) { sesiAlasan = "token kadaluarsa"; return null; }
     const uid = String(body.sub ?? body.user_id ?? "");
     if (!uid) return null;
@@ -1234,9 +1231,6 @@ async function wavePrepare(env, uid, p) {
 // ---------- Pengaturan dari Realtime Database (tanpa build aplikasi) ----------
 const RTDB = "https://arboreal-cat-511705-p6-default-rtdb.asia-southeast1.firebasedatabase.app";
 const ADMIN_EMAIL = "developerex100@gmail.com";
-// Email admin yang boleh memakai panel developer (Rezo dan Viza).
-const ADMIN_SEMUA = [ADMIN_EMAIL, "bangexx01@gmail.com"];
-const adalahAdmin = (s) => !!s && ADMIN_SEMUA.includes(String(s.email || "").toLowerCase());
 const cache = new Map();
 
 async function cfgRtdb(path) {
@@ -1717,7 +1711,7 @@ async function panel(env, body) {
   const uid = sesi.uid;
   const p = body.p ?? {};
   const aksi = String(body.a ?? p.a ?? p.op ?? "");
-  const dev = adalahAdmin(sesi);
+  const dev = sesi.email === ADMIN_EMAIL;
 
   if (aksi === "cek_galat") {
     if (!dev) return json({ ok: 0, e: "Hanya admin" }, 403);
@@ -1978,7 +1972,7 @@ async function panel(env, body) {
 async function admin(env, body) {
   const sesi = await sesiDariToken(body.t ?? "");
   if (!sesi) return json({ ok: 0, e: "Token tidak valid" }, 401);
-  if (!adalahAdmin(sesi)) return json({ ok: 0, e: "Hanya admin" }, 403);
+  if (sesi.email !== ADMIN_EMAIL) return json({ ok: 0, e: "Hanya admin" }, 403);
   const p = body.p ?? {};
   const op = String(p.op ?? "");
   const target = String(p.uid ?? "");
@@ -2383,7 +2377,7 @@ async function admin(env, body) {
   // Panel: hapus akun. Akun resmi/admin/owner tidak boleh ikut terhapus.
   if (op === "delete_user" || op === "delete_users") {
     const daftar = op === "delete_user" ? [target] : (Array.isArray(p.uids) ? p.uids.map(String) : []);
-    const lindungi = new Set(ADMIN_SEMUA.map((x) => String(x).toLowerCase()));
+    const lindungi = new Set([String(ADMIN_EMAIL).toLowerCase()]);
     if (Array.isArray(p.kecuali)) p.kecuali.forEach((x) => lindungi.add(String(x)));
     const hasil = [];
     for (const u of daftar) {
@@ -3209,7 +3203,7 @@ export default {
       if (url.searchParams.get("raw") === "1") {
         const sesiR = await sesiDariToken(url.searchParams.get("t") ?? "");
         if (!sesiR) return json({ ok: 0, e: "Sesi tidak sah" }, 401);
-        if (!adalahAdmin(sesiR)) return json({ ok: 0, e: "Hanya admin" }, 403);
+        if (sesiR.email !== ADMIN_EMAIL) return json({ ok: 0, e: "Hanya admin" }, 403);
         try {
           const buf = Buffer.from(await req.arrayBuffer());
           return await asetUpload(env, {
@@ -3224,7 +3218,7 @@ export default {
       if (!bA) return json({ ok: 0, e: "Body tidak valid" }, 400);
       const sesiA = await sesiDariToken(bA.t ?? "");
       if (!sesiA) return json({ ok: 0, e: "Sesi tidak sah" }, 401);
-      if (!adalahAdmin(sesiA)) return json({ ok: 0, e: "Hanya admin" }, 403);
+      if (sesiA.email !== ADMIN_EMAIL) return json({ ok: 0, e: "Hanya admin" }, 403);
       try { return await asetUpload(env, bA); }
       catch (e) { return json({ ok: 0, e: String(e?.message ?? e) }, 502); }
     }
@@ -3442,9 +3436,9 @@ async function kirimEmail(env, ke, subjek, isiHtml, isiTeks, kunci) {
           stafAktif = Number(r[0].rows[0]?.a ?? 0);
           peran = r[1].rows.map((x) => String(x.role) + ":" + Number(x.n));
         } catch (e) { /* tabel belum ada */ }
-        return json({ ok: 1, v: "rezo-2026-11-13-viza", db: 1, proj: PROJ_SAH, simpan: modeDb, email: (env.RESEND_KEY || env.RESEND_API_KEY) ? 1 : 0, staf, stafAktif, peran, node: typeof process !== "undefined" ? process.version : "?" });
+        return json({ ok: 1, v: "rezo-2026-11-09-sqlite", db: 1, simpan: modeDb, email: (env.RESEND_KEY || env.RESEND_API_KEY) ? 1 : 0, staf, stafAktif, peran, node: typeof process !== "undefined" ? process.version : "?" });
       } catch (e) {
-        return json({ ok: 0, v: "rezo-2026-11-13-viza", db: String(e?.message ?? e) }, 500);
+        return json({ ok: 0, v: "rezo-2026-11-09-sqlite", db: String(e?.message ?? e) }, 500);
       }
     }
     if (req.method !== "POST") return gagal("Gunakan POST");
