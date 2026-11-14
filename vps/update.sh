@@ -76,6 +76,36 @@ else
   echo "Halaman Greedy gagal diunduh, dilewati"
 fi
 
+# ---- Viza: dompet dan panel di server yang sama ----
+# Dipakai supaya perubahan panel Viza bisa langsung tayang tanpa menunggu
+# unggahan ke GitHub Pages.
+if [ -d /opt/viza-api ] && [ -f /opt/viza-api/index.js ]; then
+  RAW_V=https://raw.githubusercontent.com/exbottod/rezo-star-voice-chat-room/main/vps/viza
+  cp /opt/viza-api/index.js "/opt/viza-api/index.js.bak-$(date +%Y%m%d-%H%M%S)" 2>/dev/null || true
+  if curl -fsSL "$RAW_V/index.js?cb=$(date +%s)" -o /opt/viza-api/index.js.baru; then
+    if node --check /opt/viza-api/index.js.baru 2>/dev/null; then
+      mv /opt/viza-api/index.js.baru /opt/viza-api/index.js
+      echo "Viza: kode dompet diperbarui"
+    else
+      rm -f /opt/viza-api/index.js.baru
+      echo "Viza: kode baru tidak sah, dibatalkan"
+    fi
+  else
+    echo "Viza: unduh kode dompet gagal"
+  fi
+  mkdir -p /opt/viza-api/panel
+  for f in index.html app.js i18n.js styles.css manifest.webmanifest favicon.ico sw.js; do
+    curl -fsSL "$RAW_V/panel/$f?cb=$(date +%s)" -o "/opt/viza-api/panel/$f" || echo "Viza: gagal unduh $f"
+  done
+  systemctl restart viza-dompet >/dev/null 2>&1 || true
+  for i in $(seq 1 15); do
+    sleep 1
+    curl -s --max-time 3 "https://viza.43-156-99-4.sslip.io/health" | grep -q '"ok":1' && break
+  done
+  echo -n "Viza health: "; curl -s --max-time 8 "https://viza.43-156-99-4.sslip.io/health"; echo
+  echo -n "Viza panel: "; curl -s -o /dev/null -w "%{http_code}\n" --max-time 8 "https://viza.43-156-99-4.sslip.io/panel/"
+fi
+
 node --check "$DIR/index.js" || { echo "Sintaks index.js salah, layanan tidak direstart"; exit 1; }
 systemctl restart rezo-api
 for i in 1 2 3 4 5 6 7 8 9 10; do

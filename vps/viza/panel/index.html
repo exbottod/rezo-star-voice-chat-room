@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Viza Panel</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="ikon/favicon-32.png">
+<link rel="icon" type="image/png" sizes="48x48" href="ikon/favicon-48.png">
+<link rel="shortcut icon" href="ikon/favicon.ico">
+<link rel="apple-touch-icon" sizes="180x180" href="ikon/apple-touch-icon.png">
+<meta name="theme-color" content="#0d1117">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Viza">
+<meta property="og:title" content="Viza Panel">
+<meta property="og:description" content="Panel developer Viza Chat">
+<meta property="og:image" content="https://exbottod.github.io/viza-chat-voice-room/panel/admin/ikon/icon-512.png">
+<meta property="og:image:width" content="512">
+<meta property="og:image:height" content="512">
+<meta property="og:image:alt" content="Logo Viza">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Viza Panel">
+<meta name="twitter:description" content="Panel developer Viza Chat">
+<meta name="twitter:image" content="https://exbottod.github.io/viza-chat-voice-room/panel/admin/ikon/icon-512.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Viza Panel">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="stylesheet" href="styles.css?v=29">
+</head>
+<body>
+
+<!-- ============ LAYAR LOGIN ============ -->
+<div id="layarLogin" class="layarLogin">
+  <div class="kotakLogin">
+    <div class="merekLogin">
+      <div class="logoBesar">V</div>
+      <div>
+        <b>Viza Panel</b>
+        <span>Panel developer Viza Chat</span>
+      </div>
+    </div>
+
+    <label>Nama admin atau email</label>
+    <input id="loginEmail" type="text" autocomplete="username" placeholder="Boypanel atau nama@email.com">
+
+    <label>Password</label>
+    <input id="loginSandi" type="password" autocomplete="current-password" placeholder="••••••••">
+
+    <div style="text-align:right;margin-top:6px">
+      <button id="lupaSandi" class="polos" style="padding:2px 8px;font-size:12px">Lupa sandi?</button>
+    </div>
+
+    <button id="tombolMasuk" class="utama">Masuk</button>
+    <div class="atau"><span>atau</span></div>
+    <button id="tombolGoogle" class="polos">Masuk dengan Google</button>
+
+    <div id="pesanLogin" class="pesan"></div>
+    <div class="kakiLogin">Hanya akun yang terdaftar yang bisa membuka panel ini.</div>
+  </div>
+</div>
+
+<!-- ============ APLIKASI ============ -->
+<div id="aplikasi" class="aplikasi" hidden>
+  <div id="tiraiMenu" class="tiraiMenu"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="merek">
+      <div class="logo">V</div>
+      <div><b>Viza Panel</b><span id="emailSaya">—</span></div>
+    </div>
+
+    <div class="grup">HOME</div>
+    <a class="menu" href="#dashboard" data-hal="dashboard"><i>▦</i>Dashboard</a>
+
+    <div class="grup">KELOLA</div>
+    <a class="menu" href="#user" data-hal="user"><i>👥</i>User</a>
+    <a class="menu" href="#room" data-hal="room"><i>🎤</i>Room</a>
+    <a class="menu" href="#gift" data-hal="gift"><i>🎁</i>Gift</a>
+    <a class="menu" href="#frame" data-hal="frame"><i>🖼️</i>Frame &amp; banner</a>
+    <a class="menu" href="#aset" data-hal="aset"><i>✨</i>Aset &amp; VIP</a>
+    <a class="menu" href="#asetvps" data-hal="asetvps"><i>🗃️</i>Aset di VPS</a>
+    <a class="menu" href="#kirim" data-hal="kirim"><i>🎁</i>Kirim ke user</a>
+    <a class="menu" href="#staf" data-hal="staf"><i>👥</i>Staf &amp; seller</a>
+    <a class="menu" href="#cs" data-hal="cs"><i>💬</i>Customer Service</a>
+    <a class="menu" href="#wallet" data-hal="wallet"><i>🪙</i>Coin &amp; reset</a>
+    <a class="menu" href="#cekin" data-hal="cekin"><i>📅</i>Cek in harian</a>
+    <a class="menu" href="#vipharga" data-hal="vipharga"><i>💎</i>Harga VIP</a>
+
+    <div class="grup">GAME</div>
+    <a class="menu" href="#katalog" data-hal="katalog"><i>🎮</i>Katalog game</a>
+    <a class="menu" href="#pasang" data-hal="pasang"><i>🔗</i>Pasang game</a>
+    <a class="menu" href="#bet" data-hal="bet"><i>🎲</i>Bet game</a>
+
+    <div class="grup">DATA</div>
+    <a class="menu" href="#database" data-hal="database"><i>🗄️</i>Database</a>
+    <a class="menu" href="#latar" data-hal="latar"><i>🖼️</i>Background tab</a>
+    <a class="menu" href="#pengumuman" data-hal="pengumuman"><i>📢</i>Pengumuman resmi</a>
+    <a class="menu" href="#log" data-hal="log"><i>📜</i>Log admin</a>
+
+    <div class="grup">CONFIG</div>
+    <a class="menu" href="#pengaturan" data-hal="pengaturan"><i>⚙️</i>Pengaturan</a>
+
+    <div class="bawah">
+      <div class="saya">
+        <div class="ava" id="avaSaya">B</div>
+        <div><b id="namaSaya">Admin</b><span id="peranSaya">owner</span></div>
+        <button id="tombolKeluar" title="Keluar">⎋</button>
+      </div>
+    </div>
+  </aside>
+
+  <main class="isi">
+    <div class="topbar">
+      <button id="tombolMenu" class="tombolMenu" aria-label="Buka menu">☰</button>
+      <div>
+        <h1 id="judulHal">Dashboard</h1>
+        <div class="crumb" id="crumbHal">Dashboard</div>
+        <div class="ket" id="ketHal"></div>
+      </div>
+      <div class="kananTopbar" id="aksiTopbar"></div>
+    </div>
+    <div class="isiDalam" id="isiHal"></div>
+  </main>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script type="module" src="app.js?v=29"></script>
+<script src="i18n.js?v=4"></script>
+</body>
+</html>
