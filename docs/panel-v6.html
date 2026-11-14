@@ -8,52 +8,136 @@
 <meta http-equiv="Expires" content="0">
 <title>Panel Developer - REZO CHAT VOICE</title>
 <style>
-:root{--bg:#0b0b0b;--card:#161616;--line:#2a2a2a;--gold:#d4af37;--gold2:#f3d97a;--txt:#eee;--mut:#9a9a9a;--bad:#e5484d}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--txt);font-family:system-ui,sans-serif;padding:16px;max-width:720px;margin-inline:auto}
-h1{color:var(--gold2);font-size:20px;margin:6px 0 14px}
-h2{color:var(--gold2);font-size:16px;margin:0 0 10px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px}
-.btn{background:var(--gold);color:#000;border:0;border-radius:10px;padding:11px 16px;font-weight:700;font-size:14px;cursor:pointer}
-.btn.out{background:transparent;color:var(--gold2);border:1px solid var(--gold)}
-.btn.bad{background:var(--bad);color:#fff}
-.btn:disabled{opacity:.5}
-input[type=text],input[type=number]{width:100%;background:#0f0f0f;border:1px solid var(--line);color:var(--txt);border-radius:10px;padding:10px;font-size:14px;margin:4px 0 10px}
-label{font-size:12px;color:var(--mut)}
-.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-.tabs{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
-.tab{padding:8px 14px;border-radius:50px;border:1px solid var(--line);color:var(--mut);cursor:pointer;font-size:14px}
-.tab.on{border-color:var(--gold);color:var(--gold2)}
+:root{
+  --bg:#0a0d13;--bg2:#0d1117;--card:#10151e;--line:#1f2735;--line2:#1c2231;
+  --gold:#6d5efc;--gold2:#b9aeff;--ungu:#6d5efc;--ungu2:#9b4bf4;
+  --txt:#e8ecf4;--mut:#a4aebf;--mut2:#6d778a;--bad:#f87171;--ok:#4ade80;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{background:var(--bg)}
+body{
+  margin:0;background:
+    radial-gradient(circle at 50% -10%, #171b34 0%, rgba(10,13,19,0) 55%),
+    var(--bg);
+  background-attachment:fixed;
+  color:var(--txt);font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  font-size:13px;-webkit-font-smoothing:antialiased;
+  padding:0 16px 28px;max-width:720px;margin-inline:auto;min-height:100vh;
+}
+/* ---------- kepala panel ---------- */
+.atap{
+  position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:10px;
+  margin:0 -16px 14px;padding:12px 16px;background:rgba(10,13,19,.92);
+  border-bottom:1px solid var(--line2);backdrop-filter:blur(10px);
+}
+.atap .logo{
+  width:32px;height:32px;border-radius:10px;flex:none;font-weight:800;font-size:15px;color:#fff;
+  background:linear-gradient(135deg,var(--ungu),var(--ungu2));
+  display:flex;align-items:center;justify-content:center;
+}
+.merekTeks{min-width:0}
+.merekTeks b{display:block;font-size:14px;font-weight:800;letter-spacing:.2px}
+.merekTeks span{display:block;font-size:9.5px;color:var(--mut2);margin-top:1px}
+h1{color:var(--txt);font-size:17px;margin:6px 0 12px}
+h2{color:var(--txt);font-size:13.5px;font-weight:800;margin:0 0 12px;letter-spacing:.1px}
+h2 span{color:var(--mut2)!important;font-weight:500!important}
+/* ---------- kartu ---------- */
+.card{
+  background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:15px;margin-bottom:12px;
+}
+.card.row{background:#0e131c;padding:10px 12px;border-radius:12px}
+/* ---------- tombol ---------- */
+.btn{
+  background:linear-gradient(135deg,var(--ungu),var(--ungu2));color:#fff;border:0;border-radius:9px;
+  padding:11px 16px;font-weight:700;font-size:13px;cursor:pointer;width:100%;
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  box-shadow:0 6px 16px -10px rgba(109,94,252,.9);
+}
+.btn:active{transform:translateY(1px)}
+.btn.out{background:#1b2231;color:#cfd6e4;border:1px solid #2b3549;box-shadow:none}
+.btn.bad{background:rgba(248,113,113,.14);color:#fca5a5;border:1px solid rgba(248,113,113,.45);box-shadow:none}
+.btn:disabled{opacity:.45;box-shadow:none}
+.row .btn,.row2 .btn{width:auto;flex:1 1 auto}
+/* ---------- formulir ---------- */
+input[type=text],input[type=number],input[type=password],select,textarea{
+  width:100%;background:#0b1017;border:1px solid #232c3c;color:var(--txt);
+  border-radius:9px;padding:10px 12px;font-size:13px;margin:4px 0 10px;outline:none;
+  font-family:inherit;
+}
+input:focus,select:focus,textarea:focus{border-color:var(--ungu);box-shadow:0 0 0 3px rgba(109,94,252,.14)}
+label{display:block;font-size:10.5px;color:var(--mut2);margin:6px 0 0;letter-spacing:.2px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0}
+.row>label{flex:1;min-width:120px;margin:0}
+/* ---------- pil tab ---------- */
+.tabs{display:flex;gap:7px;margin-bottom:12px;flex-wrap:wrap}
+.tab{padding:7px 13px;border-radius:50px;border:1px solid var(--line);color:var(--mut);cursor:pointer;font-size:12px}
+.tab.on{border-color:rgba(109,94,252,.7);color:var(--gold2);background:#1b1836}
+/* ---------- pratinjau gambar ---------- */
 #prev{aspect-ratio:3/1 !important}
-.prev{width:100%;aspect-ratio:5/2;border-radius:12px;border:1px dashed var(--gold);background:#0f0f0f;display:flex;align-items:center;justify-content:center;color:var(--mut);font-size:13px;overflow:hidden;cursor:pointer}
+.prev{
+  width:100%;aspect-ratio:5/2;border-radius:12px;border:1px dashed rgba(109,94,252,.55);
+  background:#0b1017;display:flex;align-items:center;justify-content:center;
+  color:var(--mut2);font-size:12px;text-align:center;padding:10px;overflow:hidden;cursor:pointer;
+}
 .prev img{width:100%;height:100%;object-fit:cover}
-.item{display:flex;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+/* ---------- baris item ---------- */
+.item{display:flex;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line2)}
+.item:first-child{border-top:0}
 .item img{width:110px;aspect-ratio:5/2;object-fit:cover;border-radius:8px;flex:none}
-.item .info{flex:1;min-width:0;font-size:13px}
-.item .info .t{font-weight:600;color:#fff}
-.item .info .s{color:#9a9a9a;font-size:12px}
-.item .del{background:#2a2a2a;border:1px solid var(--line);border-radius:8px;padding:8px 10px;cursor:pointer}
+.item .info{flex:1;min-width:0;font-size:12.5px}
+.item .info .t{font-weight:700;color:#fff}
+.item .info .s{color:var(--mut2);font-size:11.5px}
+.item .del{background:#1b2231;border:1px solid #2b3549;border-radius:8px;padding:8px 10px;cursor:pointer;color:#ddd}
 .item .info b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .item input[type=number]{width:64px;margin:0;padding:6px}
-.muted{color:var(--mut);font-size:13px}
+.muted{color:var(--mut);font-size:12.5px;line-height:1.5}
 .hide{display:none!important}
-#msg{position:fixed;left:12px;right:12px;bottom:14px;background:#222;border:1px solid var(--gold);padding:10px 14px;border-radius:12px;text-align:center;font-size:14px}
-.u{display:flex;gap:10px;align-items:center;margin:10px 0}.u img,.u .ph{width:48px;height:48px;border-radius:50%;object-fit:cover;background:#263238;flex:none;display:flex;align-items:center;justify-content:center;color:var(--gold2);font-weight:700}.u b{display:block}/* ---------- Tampilan daftar panel (kartu) ---------- */
+/* ---------- pesan bawah ---------- */
+#msg{
+  position:fixed;left:12px;right:12px;bottom:16px;z-index:60;max-width:688px;margin-inline:auto;
+  background:#141a25;border:1px solid rgba(109,94,252,.6);color:#fff;
+  padding:11px 14px;border-radius:12px;text-align:center;font-size:13px;
+  box-shadow:0 14px 30px -14px #000;
+}
+/* ---------- kartu user ---------- */
+.u{display:flex;gap:10px;align-items:center;margin:10px 0}
+.u img,.u .ph{
+  width:44px;height:44px;border-radius:50%;object-fit:cover;background:#1e1a3a;color:var(--gold2);
+  flex:none;display:flex;align-items:center;justify-content:center;font-weight:700;
+}
+.u b{display:block;font-size:12.5px}
+.u span{font-size:11px;color:var(--mut2)}
+/* ---------- daftar panel (kartu) ---------- */
 .tabs{display:none!important}
-.homegrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 14px}
-.hcard{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 11px;cursor:pointer;display:flex;flex-direction:column;gap:7px;transition:border-color .15s}
-.hcard:active{border-color:var(--gold)}
-.hcard.on{border-color:var(--gold);background:#1d1c16}
+.homegrid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:0 0 14px}
+.hcard{
+  background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 11px;
+  cursor:pointer;display:flex;flex-direction:column;gap:8px;transition:border-color .15s,background .15s;
+}
+.hcard:active,.hcard:hover{border-color:rgba(109,94,252,.55);background:#131a26}
+.hcard.on{border-color:var(--ungu);background:#1a1730}
 .hrow{display:flex;align-items:center;gap:9px;min-width:0}
-.hico{width:32px;height:32px;border-radius:10px;background:#242018;display:flex;align-items:center;justify-content:center;font-size:16px;flex:none}
-.htitle{font-size:13.5px;font-weight:700;color:#fff;line-height:1.15}
-.hsub{font-size:11px;color:var(--mut);line-height:1.35}
-#backbar{display:none;align-items:center;gap:7px;margin:0 0 12px;color:var(--gold2);font-size:14px;font-weight:700;cursor:pointer}
-#backbar.on{display:flex}
-#secttitle{display:none;color:var(--gold2);font-size:15px;font-weight:700;margin:0 0 10px}
+.hico{
+  width:32px;height:32px;border-radius:10px;background:#1e1a3a;color:var(--gold2);
+  display:flex;align-items:center;justify-content:center;font-size:15px;flex:none;
+}
+.htitle{font-size:13px;font-weight:700;color:#fff;line-height:1.2;min-width:0}
+.hsub{font-size:10.5px;color:var(--mut2);line-height:1.4}
+#backbar{
+  display:none;align-items:center;gap:7px;margin:0 0 10px;color:var(--gold2);
+  font-size:12.5px;font-weight:700;cursor:pointer;width:fit-content;
+  background:#141a25;border:1px solid var(--line);border-radius:50px;padding:7px 13px;
+}
+#backbar.on{display:inline-flex}
+#secttitle{display:none;color:#fff;font-size:15px;font-weight:800;margin:2px 0 12px;letter-spacing:.1px}
 #secttitle.on{display:block}
+#verstamp{color:var(--mut2)!important;font-size:10.5px!important}
 </style></head><body>
-<h1>⚙️ Panel Developer</h1>
+<header class="atap">
+  <div class="logo">R</div>
+  <div class="merekTeks"><b>REZO Panel</b><span>Panel developer REZO Chat Voice</span></div>
+</header>
 
 <div id="login" class="card hide">
   <h2>Masuk</h2>
@@ -97,7 +181,7 @@ label{font-size:12px;color:var(--mut)}
     <input type="number" id="order" value="1">
     <button class="btn" id="btnTes" style="margin-bottom:8px;background:#0d2a1a;color:#8ef0b0;border:1px solid #2e7d51">Tes: login, database, Cloudinary</button>
     <button class="btn" id="btnSync" style="margin-bottom:8px;background:#12233a;color:#9ec9ff;border:1px solid #3a6ea5">Sinkronkan banner tersimpan ke APK lama</button>
-    <button class="btn" id="btnMig" style="margin-bottom:8px;background:#2a2a2a;color:#f3d97a;border:1px solid #d4af37">Opsional sekali pakai: ambil banner lama dari Firestore</button>
+    <button class="btn" id="btnMig" style="margin-bottom:8px;background:#1b2231;color:#cfd6e4;border:1px solid #2b3549">Opsional sekali pakai: ambil banner lama dari Firestore</button>
     <div id="bstatus" style="color:#c8a15a;font-size:13px;margin:10px 0;line-height:1.4">Siap. Ketuk kotak gambar di atas untuk memilih foto banner.</div>
     <button class="btn" id="btnSave">Simpan banner</button>
   </div>
@@ -1583,7 +1667,7 @@ function annRender(){
     d.className = "card";
     d.style.marginBottom = "10px";
     const tgl = a.at ? new Date(a.at).toLocaleString("id-ID") : "-";
-    d.innerHTML = '<div style="font-weight:700;color:#f3d97a">' + (a.pinned ? "📌 " : "") + escHtml(a.title || "Pengumuman") + '</div>' +
+    d.innerHTML = '<div style="font-weight:700;color:#b9aeff">' + (a.pinned ? "📌 " : "") + escHtml(a.title || "Pengumuman") + '</div>' +
       '<div style="font-size:11px;color:#9a9a9a;margin:2px 0 6px">' + escHtml(tgl) + (a.active === false ? " · nonaktif" : "") + '</div>' +
       '<div style="white-space:pre-wrap;font-size:13px;line-height:1.5">' + escHtml(a.body || "") + '</div>' +
       '<div class="row" style="margin-top:8px">' +
