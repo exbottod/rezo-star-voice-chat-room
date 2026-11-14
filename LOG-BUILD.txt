@@ -99,3 +99,6 @@ w: file:///home/runner/work/rezo-star-voice-chat-room/rezo-star-voice-chat-room/
 > Task :app:mergeReleaseJavaResource
 > Task :app:mergeDexRelease
 > Task :app:compileReleaseArtProfile
+> Task :app:packageRelease
+> Task :app:createReleaseApkListingFileRedirect
+> Task :app:assembleRelease
