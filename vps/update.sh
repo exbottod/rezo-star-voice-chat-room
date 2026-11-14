@@ -85,12 +85,12 @@ if [ -d /opt/viza-api ] && [ -f /opt/viza-api/index.js ]; then
   # Berkas sementara harus berakhiran .mjs: Node menolak memeriksa ekstensi lain.
   SEMENTARA=/opt/viza-api/.index-baru-$$.mjs
   if curl -fsSL "$RAW_V/index.js?cb=$(date +%s)" -o "$SEMENTARA"; then
-    if node --check "$SEMENTARA" 2>/dev/null; then
+    if GALAT=$(node --check "$SEMENTARA" 2>&1); then
       mv "$SEMENTARA" /opt/viza-api/index.js
       echo "Viza: kode dompet diperbarui"
     else
+      echo "Viza: kode baru tidak sah -> $(echo "$GALAT" | head -3 | tr '\n' ' ')"
       rm -f "$SEMENTARA"
-      echo "Viza: kode baru tidak sah, dibatalkan"
     fi
   else
     echo "Viza: unduh kode dompet gagal"
