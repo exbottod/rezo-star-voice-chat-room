@@ -1086,9 +1086,13 @@ fun StoreScreen(uid: String, wallet: Wallet, onOpenVip: () -> Unit, onBack: () -
                 // (tampil emoji kosong) dan item yang sudah expired tidak ditampilkan.
                 // Item milik VIP Center punya id vipt_/vipf_/vipb_/vipe_/vipbn_ dan
                 // hanya tampil di tab Item VIP, tidak lagi bercampur di kategori Store.
+                // Termasuk item SVIP (svf_/sve_/svbn_/svb_/svbd_/svm_): dulu lolos dari
+                // filter ini sehingga bingkai SVIP muncul dobel di tab Bingkai avatar.
                 val isVipId = { i: String ->
                     i.startsWith("vipt_") || i.startsWith("vipf_") || i.startsWith("vipb_") ||
-                        i.startsWith("vipe_") || i.startsWith("vipbn_") || i.startsWith("vipm_")
+                        i.startsWith("vipe_") || i.startsWith("vipbn_") || i.startsWith("vipm_") ||
+                        i.startsWith("svf_") || i.startsWith("sve_") || i.startsWith("svbn_") ||
+                        i.startsWith("svb_") || i.startsWith("svbd_") || i.startsWith("svm_")
                 }
                 val vipLevelOf = { i: String -> i.substringAfter("_").toIntOrNull() ?: 0 }
                 val mineAll = wallet.inv.filter { it.value > now }
