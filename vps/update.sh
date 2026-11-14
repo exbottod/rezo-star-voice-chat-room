@@ -100,13 +100,12 @@ if [ -d /opt/viza-api ] && [ -f /opt/viza-api/index.js ]; then
     curl -fsSL "$RAW_V/panel/$f?cb=$(date +%s)" -o "/opt/viza-api/panel/$f" || echo "Viza: gagal unduh $f"
   done
   # Panel yang dipakai Caddy ada di folder lain lagi: /opt/viza-panel/admin.
-  if [ -d /opt/viza-panel/admin ]; then
-    RAW_P=https://raw.githubusercontent.com/exbottod/viza-chat-voice-room/main/docs/panel/admin
-    for f in index.html app.js i18n.js styles.css manifest.webmanifest favicon.ico sw.js; do
-      curl -fsSL "$RAW_P/$f?cb=$(date +%s)" -o "/opt/viza-panel/admin/$f" || echo "Panel: gagal unduh $f"
-    done
-    echo "Panel Viza diperbarui di /opt/viza-panel/admin"
-  fi
+  RAW_P=https://raw.githubusercontent.com/exbottod/viza-chat-voice-room/main/docs/panel/admin
+  mkdir -p /opt/viza-panel/admin
+  for f in index.html app.js i18n.js styles.css manifest.webmanifest favicon.ico sw.js; do
+    curl -fsSL "$RAW_P/$f?cb=$(date +%s)" -o "/opt/viza-panel/admin/$f" || echo "Panel: gagal unduh $f"
+  done
+  echo "Panel Viza diperbarui: $(du -sh /opt/viza-panel/admin | cut -f1)"
   systemctl restart viza-dompet >/dev/null 2>&1 || true
   for i in $(seq 1 15); do
     sleep 1
