@@ -79,12 +79,23 @@ fi
 # ---- Viza: dompet dan panel di server yang sama ----
 # Dipakai supaya perubahan panel Viza bisa langsung tayang tanpa menunggu
 # unggahan ke GitHub Pages.
+
+# Unduh berkas dari repo. raw.githubusercontent menyimpan cache sampai beberapa
+# menit, jadi perubahan terbaru bisa tertinggal; API GitHub selalu segar.
+unduh_repo() {  # $1=repo $2=jalur $3=tujuan
+  if curl -fsSL -H "Accept: application/vnd.github.raw" \
+      "https://api.github.com/repos/$1/contents/$2?ref=main" -o "$3" 2>/dev/null \
+      && [ -s "$3" ]; then
+    return 0
+  fi
+  curl -fsSL "https://raw.githubusercontent.com/$1/main/$2?cb=$(date +%s%N)" -o "$3"
+}
+
 if [ -d /opt/viza-api ] && [ -f /opt/viza-api/index.js ]; then
-  RAW_V=https://raw.githubusercontent.com/exbottod/viza-chat-voice-room/main/wallet
-  cp /opt/viza-api/index.js "/opt/viza-api/index.js.bak-$(date +%Y%m%d-%H%M%S)" 2>/dev/null || true
+    cp /opt/viza-api/index.js "/opt/viza-api/index.js.bak-$(date +%Y%m%d-%H%M%S)" 2>/dev/null || true
   # Berkas sementara harus berakhiran .mjs: Node menolak memeriksa ekstensi lain.
   SEMENTARA=/opt/viza-api/.index-baru-$$.mjs
-  if curl -fsSL "$RAW_V/index.js?cb=$(date +%s)" -o "$SEMENTARA"; then
+  if unduh_repo exbottod/viza-chat-voice-room wallet/index.js "$SEMENTARA"; then
     if GALAT=$(node --check "$SEMENTARA" 2>&1); then
       mv "$SEMENTARA" /opt/viza-api/index.js
       echo "Viza: kode dompet diperbarui"
@@ -97,13 +108,12 @@ if [ -d /opt/viza-api ] && [ -f /opt/viza-api/index.js ]; then
   fi
   mkdir -p /opt/viza-api/panel
   for f in index.html app.js i18n.js styles.css manifest.webmanifest favicon.ico sw.js; do
-    curl -fsSL "https://raw.githubusercontent.com/exbottod/viza-chat-voice-room/main/docs/panel/admin/$f?cb=$(date +%s)" -o "/opt/viza-api/panel/$f" || echo "Viza: gagal unduh $f"
+    unduh_repo exbottod/viza-chat-voice-room "docs/panel/admin/$f" "/opt/viza-api/panel/$f" || echo "Viza: gagal unduh $f"
   done
   # Panel yang dipakai Caddy ada di folder lain lagi: /opt/viza-panel/admin.
-  RAW_P=https://raw.githubusercontent.com/exbottod/viza-chat-voice-room/main/docs/panel/admin
   mkdir -p /opt/viza-panel/admin
   for f in index.html app.js i18n.js styles.css manifest.webmanifest favicon.ico sw.js; do
-    curl -fsSL "$RAW_P/$f?cb=$(date +%s)" -o "/opt/viza-panel/admin/$f" || echo "Panel: gagal unduh $f"
+    unduh_repo exbottod/viza-chat-voice-room "docs/panel/admin/$f" "/opt/viza-panel/admin/$f" || echo "Panel: gagal unduh $f"
   done
   echo "Panel Viza diperbarui: $(du -sh /opt/viza-panel/admin | cut -f1)"
   systemctl restart viza-dompet >/dev/null 2>&1 || true
