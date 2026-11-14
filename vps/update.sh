@@ -82,12 +82,14 @@ fi
 if [ -d /opt/viza-api ] && [ -f /opt/viza-api/index.js ]; then
   RAW_V=https://raw.githubusercontent.com/exbottod/rezo-star-voice-chat-room/main/vps/viza
   cp /opt/viza-api/index.js "/opt/viza-api/index.js.bak-$(date +%Y%m%d-%H%M%S)" 2>/dev/null || true
-  if curl -fsSL "$RAW_V/index.js?cb=$(date +%s)" -o /opt/viza-api/index.js.baru; then
-    if node --check /opt/viza-api/index.js.baru 2>/dev/null; then
-      mv /opt/viza-api/index.js.baru /opt/viza-api/index.js
+  # Berkas sementara harus berakhiran .mjs: Node menolak memeriksa ekstensi lain.
+  SEMENTARA=/opt/viza-api/.index-baru-$$.mjs
+  if curl -fsSL "$RAW_V/index.js?cb=$(date +%s)" -o "$SEMENTARA"; then
+    if node --check "$SEMENTARA" 2>/dev/null; then
+      mv "$SEMENTARA" /opt/viza-api/index.js
       echo "Viza: kode dompet diperbarui"
     else
-      rm -f /opt/viza-api/index.js.baru
+      rm -f "$SEMENTARA"
       echo "Viza: kode baru tidak sah, dibatalkan"
     fi
   else
