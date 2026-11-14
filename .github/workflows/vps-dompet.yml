@@ -17,7 +17,7 @@ jobs:
           ALAMAT=43.156.99.4
           OPSI="-o StrictHostKeyChecking=no -o ConnectTimeout=25 -o PreferredAuthentications=password -o PubkeyAuthentication=no"
           B64=$(printf '%s' "$SA" | base64 -w0)
-          sshpass -p "$PASS" ssh $OPSI root@$ALAMAT "mkdir -p /opt/viza-api && echo $B64 | base64 -d > /opt/viza-api/firebase-sa.json && chmod 600 /opt/viza-api/firebase-sa.json && echo 'kunci terpasang:' \$(wc -c < /opt/viza-api/firebase-sa.json) 'bita"
+          sshpass -p "$PASS" ssh $OPSI root@$ALAMAT "mkdir -p /opt/viza-api && echo $B64 | base64 -d > /opt/viza-api/firebase-sa.json && chmod 600 /opt/viza-api/firebase-sa.json && wc -c /opt/viza-api/firebase-sa.json"
 
       - name: Sambung ke VPS dan jalankan update.sh
         env:
