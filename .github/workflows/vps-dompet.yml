@@ -5,6 +5,20 @@ jobs:
   perbarui:
     runs-on: ubuntu-latest
     steps:
+      - name: Pasang kunci layanan Firebase Viza
+        env:
+          PASS: ${{ secrets.VPS_PASSWORD || secrets.VPS_PASSWORDS || secrets.VPS_PASS || secrets.VPS_ROOT_PASSWORD }}
+          SA: ${{ secrets.VIZA_FIREBASE_SA }}
+        run: |
+          set -u
+          if [ -z "${SA:-}" ]; then echo "::warning::Kunci Firebase Viza belum ada di secrets, dilewati"; exit 0; fi
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          ALAMAT=43.156.99.4
+          OPSI="-o StrictHostKeyChecking=no -o ConnectTimeout=25 -o PreferredAuthentications=password -o PubkeyAuthentication=no"
+          B64=$(printf '%s' "$SA" | base64 -w0)
+          sshpass -p "$PASS" ssh $OPSI root@$ALAMAT "mkdir -p /opt/viza-api && echo $B64 | base64 -d > /opt/viza-api/firebase-sa.json && chmod 600 /opt/viza-api/firebase-sa.json && echo 'kunci terpasang:' \$(wc -c < /opt/viza-api/firebase-sa.json) 'bita"
+
       - name: Sambung ke VPS dan jalankan update.sh
         env:
           PASS: ${{ secrets.VPS_PASSWORD || secrets.VPS_PASSWORDS || secrets.VPS_PASS || secrets.VPS_ROOT_PASSWORD }}
