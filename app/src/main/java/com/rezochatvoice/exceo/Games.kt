@@ -33,6 +33,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -94,6 +95,21 @@ private fun fmtG(n: Long): String {
 fun GamesHub(myUid: String, roomId: String, myName: String = "", myAvatarB64: String = "", onClose: () -> Unit) {
     var open by remember { mutableStateOf("") }
     var balance by remember { mutableStateOf(0L) }
+    val skopSaldo = rememberCoroutineScope()
+    // Coin dari kemenangan game sudah masuk ke dompet di server, tapi angka di
+    // panel game masih angka lama sampai aplikasi dimuat ulang. Saldo disegarkan
+    // setiap kali sebuah game ditutup, supaya pemain langsung melihat hasilnya.
+    val segarkanSaldo: () -> Unit = {
+        skopSaldo.launch {
+            try {
+                balance = SupaRepo.get(myUid, fresh = true).wallet?.coins ?: balance
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                android.util.Log.w("GamesHub", "saldo sesudah game: " + (e.message ?: "gagal"))
+            }
+        }
+    }
     // Daftar game WaveGames diambil dari katalog, jadi game baru ikut tampil.
     var waveGames by remember { mutableStateOf<List<WaveGames.Game>>(emptyList()) }
     // true kalau daftar terbaru dari server berhasil diambil.
@@ -144,11 +160,11 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", myAvatarB64: St
     }
 
     when {
-        bukaSlotZeus -> SlotGameScreen(onClose = { open = "" })
+        bukaSlotZeus -> SlotGameScreen(onClose = { open = ""; segarkanSaldo() })
         bukaGreedyRezo -> GreedyKingScreen(
             myUid = myUid,
             myName = myName.ifBlank { "Player" },
-            onClose = { open = "" },
+            onClose = { open = ""; segarkanSaldo() },
         )
         else -> Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
             // Bottom sheet "Game Center": area atas tembus pandang, sheet coklat di bawah.

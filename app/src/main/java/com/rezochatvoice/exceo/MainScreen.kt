@@ -221,6 +221,19 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
         activeRoom = null
         minimized = false
         scope.launch { RoomRepo.leave(r.id, uid) }
+        // Saldo bisa berubah selama di dalam room (gift, game, hadiah). Angka di
+        // layar utama disegarkan saat keluar room supaya tidak tertinggal angka lama.
+        refreshScope.launch {
+            try {
+                val w = kotlinx.coroutines.withTimeoutOrNull(15000L) { SupaRepo.get(uid, fresh = true).wallet }
+                if (w != null) {
+                    wallet = w
+                    WalletCache.save(uid, w)
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) { }
+        }
     }
 
     // Deep link "bagikan room" (rezo://room/<id>): otomatis masuk room
