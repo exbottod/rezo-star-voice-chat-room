@@ -10,8 +10,21 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -32,15 +45,16 @@ import kotlin.coroutines.resume
 import android.graphics.Color as AColor
 
 /**
- * Greedy King milik REZO.
+ * Greedy King milik REZO, tampilannya sama dengan versi di Viza Chat.
  *
- * Halaman game diambil dari internet (GitHub Pages), jadi perbaikan game bisa
- * langsung berlaku tanpa membangun APK baru. Alamatnya bisa diganti dari
- * Realtime Database (appCfg/greedyUrl).
+ * Halaman game disajikan dari salinan di dalam APK (aset/greedy) lewat alamat
+ * https lokal, jadi game tetap jalan walau jaringan lemah. Permintaan uang
+ * (init, bet, settle, daftar pemenang) dikerjakan app lewat jembatan
+ * RezoBridge ke dompet REZO di VPS: server yang sama dengan dompet aplikasi,
+ * jadi saldo coin yang dipakai main adalah saldo asli, bukan saldo terpisah.
  *
- * Penting: kalau halaman gagal dimuat (jaringan putus) atau halaman terbuka
- * tapi tidak menghasilkan apa pun (layar hitam), app otomatis pindah ke
- * salinan di dalam aset APK. Dulu app berhenti di layar hitam tanpa pesan.
+ * Game tampil sebagai sheet dari bawah (93% layar), bukan menutupi seluruh
+ * layar, sehingga room di belakangnya masih terlihat sedikit.
  */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
@@ -53,6 +67,8 @@ fun GreedyKingScreen(
     var siap by remember { mutableStateOf(false) }
     var token by remember { mutableStateOf("") }
     var chips by remember { mutableStateOf("[]") }
+    // Foto profil dipakai menggantikan huruf awal nama di panel saldo game.
+    var foto by remember { mutableStateOf("") }
     var alamat by remember { mutableStateOf(GREEDY_BAWAAN) }
     // Pegangan WebView dipakai untuk mematikan game (termasuk suaranya) saat
     // layar ditutup.
@@ -63,9 +79,22 @@ fun GreedyKingScreen(
         catch (e: Exception) { listOf(100L, 500L, 1000L, 5000L, 50000L) }
         chips = daftar.joinToString(",", "[", "]")
         token = try {
-            // Paksa segarkan token: token lama yang kedaluwarsa ditolak server
-            // ("Sesi tidak sah") dan game berhenti di layar muat.
-            FirebaseAuth.getInstance().currentUser?.getIdToken(true)?.await()?.token.orEmpty()
+            FirebaseAuth.getInstance().currentUser?.getIdToken(false)?.await()?.token.orEmpty()
+        } catch (e: Exception) { "" }
+        // Foto profil utama disimpan sebagai base64 di pub/{uid}/av; "photo" hanya
+        // tautan akun Google dan sering kosong. Dulu hanya "photo" yang dibaca,
+        // jadi game tetap menampilkan huruf awal nama.
+        foto = try {
+            val snap = Rtdb.ref("pub/$myUid").get().await()
+            val av = snap.child("av").getValue(String::class.java)?.trim().orEmpty()
+            val url = snap.child("photo").getValue(String::class.java)?.trim().orEmpty()
+            when {
+                av.startsWith("data:image/") || av.startsWith("http") -> av
+                av.length > 100 -> "data:image/jpeg;base64," + av.replace("\n", "").replace("\r", "")
+                else -> url
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) { "" }
         alamat = try { alamatGreedy() } catch (e: Exception) { GREEDY_BAWAAN }
         siap = true
@@ -86,11 +115,40 @@ fun GreedyKingScreen(
         }
     }
 
-    Box(Modifier.fillMaxSize().background(Color(0xFF0A0F1E))) {
-        WebDiagBar(alamat)
-        if (siap) {
-            AndroidView(
-                modifier = Modifier.fillMaxSize(),
+    // Foto profil biasanya baru terbaca setelah halaman tampil, jadi disuntik ulang.
+    LaunchedEffect(foto) {
+        if (foto.isNotBlank()) {
+            try { wvPegang.value?.evaluateJavascript(skripFoto(foto), null) } catch (e: Exception) { }
+        }
+    }
+
+    // Game tampil sebagai sheet dari bawah, bukan menutupi seluruh layar.
+    Box(
+        Modifier.fillMaxSize().background(Color.Transparent).clickable(
+            indication = null,
+            interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+        ) { onClose() },
+    ) {
+        Column(
+            Modifier.align(Alignment.BottomCenter).fillMaxWidth().fillMaxHeight(PECAHAN_SHEET)
+                .navigationBarsPadding()
+                .clip(RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp))
+                .background(Color(0xFF0A0F1E))
+                .border(1.dp, Color(0xFF2A3550), RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp))
+                .clickable(
+                    indication = null,
+                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                ) { },
+        ) {
+            // Gagang sheet: garis pendek di tengah atas.
+            Box(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 6.dp), contentAlignment = Alignment.Center) {
+                Box(Modifier.width(44.dp).height(4.dp).clip(RoundedCornerShape(2.dp)).background(Color(0xFF3A4763)))
+            }
+            Box(Modifier.fillMaxWidth().weight(1f)) {
+                WebDiagBar(alamat)
+                if (siap) {
+                    AndroidView(
+                        modifier = Modifier.fillMaxSize(),
                 factory = { c ->
                     val namaAman = myName.ifBlank { "Player" }
                     val jatuhKeAset = booleanArrayOf(false)
@@ -100,18 +158,17 @@ fun GreedyKingScreen(
                     fun pakaiAset() {
                         if (jatuhKeAset[0]) return
                         jatuhKeAset[0] = true
-                        // Token, uid, dan nama tetap dibawa ke salinan di aset.
-                        // Dulu alamat aset dibuka tanpa parameter, sehingga kalau
-                        // jembatan JS belum siap game berhenti di 6% "Connecting"
-                        // karena tidak punya sesi.
-                        wv?.loadUrl(denganToken(GREEDY_LOKAL, token, myUid, namaAman))
+                        wv?.loadUrl(GREEDY_LOKAL)
                     }
 
                     fun pakaiJaringan() {
-                        // Halaman internet dipakai lagi sebagai cadangan: perbaikan
-                        // game di sana langsung terpakai tanpa APK baru.
+                        // Alamat cadangan hanya dipakai kalau memang berbeda dari
+                        // halaman lokal. Kalau keduanya sama, memuat ulang halaman
+                        // yang sama tidak ada gunanya dan hanya membuat game
+                        // berkedip lalu dimuat dari awal.
                         if (jatuhKeJaringan[0]) return
                         jatuhKeJaringan[0] = true
+                        if (GREEDY_BAWAAN == GREEDY_LOKAL) return
                         wv?.loadUrl(denganToken(GREEDY_BAWAAN, token, myUid, namaAman))
                     }
 
@@ -134,10 +191,15 @@ fun GreedyKingScreen(
                             "(KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
                         addJavascriptInterface(
                             object {
+                                // Tinggi layar nyata (px CSS) dari sisi native, untuk WebView yang
+                                // menganggap 100dvh dan innerHeight bernilai 0.
+                                @JavascriptInterface fun tinggi(): Int =
+                                    (c.resources.displayMetrics.heightPixels / c.resources.displayMetrics.density).toInt()
                                 @JavascriptInterface fun api() = GREEDY_API
                                 @JavascriptInterface fun token() = token
                                 @JavascriptInterface fun uid() = myUid
                                 @JavascriptInterface fun nama() = namaAman
+                                @JavascriptInterface fun foto() = foto
                                 @JavascriptInterface fun chips() = chips
                                 // Permintaan ke server dompet dikerjakan app, bukan
                                 // WebView. Di sebagian HP permintaan dari halaman
@@ -189,6 +251,7 @@ fun GreedyKingScreen(
                                 super.onPageFinished(view, url)
                                 // Segarkan token di halaman supaya tombol coba lagi
                                 // memakai sesi yang benar.
+                                if (foto.isNotBlank()) view.evaluateJavascript(skripFoto(foto), null)
                                 val tAman = token.replace("'", "")
                                 view.evaluateJavascript(
                                     "window.__GREEDY_TOKEN__='" + tAman + "';" +
@@ -213,81 +276,45 @@ fun GreedyKingScreen(
                             this.evaluateJavascript(SKRIP_UKUR, null)
                         }, 13000)
                         wvPegang.value = this
-                        // Timer di dalam halaman bisa berhenti (mis. karena WebView
-                        // lain memanggil pauseTimers). Akibatnya animasi loading dan
-                        // permintaan data diam di 6% "Connecting" selamanya.
-                        resumeTimers()
-                        Handler(Looper.getMainLooper()).postDelayed({
-                            try { resumeTimers() } catch (e: Exception) { }
-                        }, 3000)
                         // Token ikut di alamat: jembatan JS kadang terlambat siap
                         // sehingga halaman memulai permainan tanpa token.
                         loadUrl(denganToken(alamat, token, myUid, namaAman))
-                        // Pengawas kemacetan dari sisi app. Memakai Handler dan
-                        // evaluateJavascript, jadi tetap berjalan walaupun timer di
-                        // halaman berhenti. Kalau angka "LOADING n%" tidak bergerak,
-                        // halaman dimuat ulang; kalau tetap macet, penyebabnya
-                        // ditampilkan supaya tidak mentok di 6% tanpa keterangan.
-                        var sudahUlang = 0
-                        var angkaTerakhir = -2
-                        var diam = 0
-                        val cekMacet = "(function(){var r=document.getElementById('root');" +
-                            "var t=((r&&r.innerText)||'').replace(/\\s+/g,' ');" +
-                            "var m=t.match(/LOADING\\s*(\\d+)\\s*%/i);" +
-                            "var e=document.getElementById('gksebab');" +
-                            "var p=m?parseInt(m[1]):-1;" +
-                            "var s=!!(e&&e.style.display==='block');" +
-                            "return p+'|'+(s?1:0)+'|'+t.slice(-70);})()"
-                        val pengawasMacet = object : Runnable {
-                            var putaran = 0
-                            override fun run() {
-                                putaran++
-                                val aktif = wvPegang.value ?: return
-                                aktif.evaluateJavascript(cekMacet) { hasil ->
-                                    val nilai = try {
-                                        org.json.JSONTokener(hasil ?: "\"\"").nextValue() as String
-                                    } catch (e: Exception) {
-                                        ""
-                                    }
-                                    val bagi = nilai.split("|", limit = 3)
-                                    val persen = bagi.getOrNull(0)?.toIntOrNull() ?: -1
-                                    val panel = bagi.getOrNull(1) == "1"
-                                    if (persen < 0 || persen >= 100 || panel) {
-                                        diam = 0
-                                    } else if (persen == angkaTerakhir) {
-                                        diam++
-                                    } else {
-                                        diam = 0
-                                        angkaTerakhir = persen
-                                    }
-                                    if (diam >= 3 && sudahUlang < 2) {
-                                        sudahUlang++
-                                        diam = 0
-                                        angkaTerakhir = -2
-                                        val sasaran = if (jatuhKeAset[0]) GREEDY_LOKAL else alamat
-                                        aktif.loadUrl(denganToken(sasaran, token, myUid, namaAman))
-                                    } else if (diam >= 8) {
-                                        val alasan = "Game berhenti di " + persen +
-                                            "% setelah " + (putaran * 2500 / 1000) +
-                                            " detik. Tutup lalu buka ulang menu Greedy King; " +
-                                            "kalau masih berhenti, kirim gambar layar ini."
-                                        aktif.evaluateJavascript(
-                                            "window.__gkSebab&&window.__gkSebab(" +
-                                                org.json.JSONObject.quote(alasan) + ")", null,
-                                        )
-                                    }
-                                }
-                                if (putaran < 24) {
-                                    Handler(Looper.getMainLooper()).postDelayed(this, 2500)
-                                }
-                            }
-                        }
-                        Handler(Looper.getMainLooper()).postDelayed(pengawasMacet, 5000)
                     }
                 },
-            )
+                    )
+                }
+            }
         }
     }
+}
+
+/**
+ * Tinggi sheet game dibanding layar. 0,93 = 93% layar.
+ *
+ * Dulu 0,78: pola hasil ronde dan tombol bawah terpotong, jadi pemain tidak
+ * melihat makanan apa yang keluar. Dengan 93% seluruh papan permainan masuk,
+ * sementara pita tipis di atas masih memperlihatkan room di belakangnya.
+ */
+private const val PECAHAN_SHEET = 0.93f
+
+/**
+ * Ganti kotak huruf awal nama di panel saldo game (dan di lembar profil game)
+ * dengan foto profil user. Dipasang lewat CSS dari sisi aplikasi, jadi bundel
+ * game tidak perlu diubah.
+ */
+private fun skripFoto(url: String): String {
+    val bersih = url.trim()
+    val sah = bersih.startsWith("https://") || bersih.startsWith("http://") || bersih.startsWith("data:image/")
+    if (!sah) return ""
+    // Kutip dan garis miring dibuang supaya tidak bisa memutus string JS/CSS.
+    val aman = bersih.replace("\\", "").replace("'", "").replace("\"", "").replace("\n", "")
+    return "(function(){try{" +
+        "var id='rezoFoto',st=document.getElementById(id);" +
+        "if(!st){st=document.createElement('style');st.id=id;(document.head||document.documentElement).appendChild(st);}" +
+        "st.textContent=\"div.h-11.w-11.shrink-0.bg-card,div.h-20.w-20.bg-cream{background-image:url('" + aman + "')!important;" +
+        "background-size:cover!important;background-position:center!important;background-repeat:no-repeat!important;" +
+        "color:transparent!important;font-size:0!important}\";" +
+        "}catch(e){}})()"
 }
 
 /** Tambahkan token, uid, dan nama ke alamat halaman game. */
@@ -371,17 +398,9 @@ private const val SKRIP_UKUR = """
   try {
     var d = document.documentElement, b = document.body;
     var r = document.getElementById("root");
-    var vh = window.innerHeight || d.clientHeight || 0;
-    if (vh > 100) d.style.setProperty("--gk-h", vh + "px");
-    var st = document.getElementById("gkPaksa");
-    if (!st) {
-      st = document.createElement("style");
-      st.id = "gkPaksa";
-      st.textContent = "html,body,#root{height:100vh!important;min-height:100vh!important}" +
-        ".h-dvh{height:100vh!important}.min-h-dvh{min-height:100vh!important}" +
-        ".aspect-square{position:relative}";
-      document.head.appendChild(st);
-    }
+    // Jangan memasang tinggi di sini. Dulu skrip ini memaksa 100vh yang di sebagian
+    // WebView bernilai 0, sehingga game yang sudah tampil runtuh jadi layar coklat
+    // beberapa detik kemudian. Tinggi sudah dipasang di index.html (piksel nyata).
     setTimeout(function () {
       var rr = r ? r.getBoundingClientRect() : null;
       var dots = document.querySelector(".bg-dots");
@@ -456,6 +475,6 @@ private fun mintaDompet(metode: String, jalur: String, isi: String, token: Strin
 }
 
 private const val GREEDY_API = "https://43-156-99-4.sslip.io/greedy"
-private const val GREEDY_BAWAAN = "https://exbottod.github.io/rezo-star-voice-chat-room/greedy/"
+private const val GREEDY_BAWAAN = "https://appassets.androidplatform.net/assets/greedy/index.html"
 private const val GREEDY_LOKAL = "https://appassets.androidplatform.net/assets/greedy/index.html"
-private const val GREEDY_SERVER = "https://43-156-99-4.sslip.io/greedy-play/index.html"
+private const val GREEDY_SERVER = "https://appassets.androidplatform.net/assets/greedy/index.html"

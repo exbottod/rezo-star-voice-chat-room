@@ -123,14 +123,14 @@ async function greedyPlay(req, env, h) {
         { sql: `select uid id, nama display_name, win from greedy_menang
                 where round = ? order by win desc limit ?`, args: [I(round), I(batas)] },
       ]);
-      return json(r[0].rows.map((x) => ({ id: x.id, display_name: x.display_name, win: Number(x.win) })));
+      return json(await profilPemenang(env, r[0].rows));
     }
     const sejak = Number(new Date(url.searchParams.get("since") || 0)) || 0;
     const r = await pipe(env, [
       { sql: `select uid id, nama display_name, sum(win) win from greedy_menang
               where at >= ? group by uid order by win desc limit ?`, args: [I(sejak), I(batas)] },
     ]);
-    return json(r[0].rows.map((x) => ({ id: x.id, display_name: x.display_name, win: Number(x.win) })));
+    return json(await profilPemenang(env, r[0].rows));
   }
 
   if (req.method !== "POST") return gagal("Gunakan POST");
@@ -191,7 +191,14 @@ async function greedyPlay(req, env, h) {
     await siap();
     const round = Math.trunc(Number(b.round || 0));
     if (!(round > 0)) return gagal("Nomor putaran tidak valid");
-    if (round >= roundKini) return gagal("Putaran belum selesai");
+    // Aplikasi meminta hasil saat fase hasil (detik 33-40 pada ronde yang sama),
+    // jadi ronde berjalan harus boleh diselesaikan begitu taruhan ditutup.
+    // Dulu syaratnya round >= roundKini selalu ditolak, akibatnya dialog
+    // kemenangan dan pola hasil tidak pernah muncul.
+    const dalamHasil = (sekarang % ROUND_MS) >= 33000;
+    if (round > roundKini || (round === roundKini && !dalamHasil)) {
+      return gagal("Putaran belum selesai");
+    }
 
     const ada = await pipe(env, [
       { sql: "select result from greedy_settle where round = ?", args: [I(round)] },
@@ -1232,6 +1239,105 @@ async function wavePrepare(env, uid, p) {
 const RTDB = "https://arboreal-cat-511705-p6-default-rtdb.asia-southeast1.firebasedatabase.app";
 const ADMIN_EMAIL = "developerex100@gmail.com";
 const cache = new Map();
+
+/**
+ * Token service account Firebase (RS256), dipakai server untuk membaca
+ * pub/{uid} yang tertutup untuk umum. Kuncinya dari FIREBASE_SA_JSON atau
+ * berkas /opt/rezo-api/firebase-sa.json. Kalau tidak ada, hasilnya kosong dan
+ * pemanggil memakai nama dari tabel apa adanya.
+ */
+let saCache = { kunci: "", token: "", exp: 0 };
+
+async function tokenLayanan(env) {
+  let mentah = String((env && env.FIREBASE_SA_JSON) || "").trim();
+  if (!mentah) {
+    try {
+      const fs = await import("node:fs/promises");
+      mentah = String(await fs.readFile("/opt/rezo-api/firebase-sa.json", "utf8")).trim();
+    } catch (e) {
+      mentah = "";
+    }
+  }
+  if (!mentah) return "";
+  if (saCache.kunci === mentah && saCache.token && Date.now() < saCache.exp - 60000) return saCache.token;
+  let sa;
+  try { sa = JSON.parse(mentah); } catch (e) { return ""; }
+  if (!sa.client_email || !sa.private_key) return "";
+  const b64u = (buf) =>
+    Buffer.from(buf).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const kepala = b64u(JSON.stringify({ alg: "RS256", typ: "JWT", kid: sa.private_key_id || undefined }));
+  const kini = Math.floor(Date.now() / 1000);
+  const isi = b64u(JSON.stringify({
+    iss: sa.client_email,
+    scope: "https://www.googleapis.com/auth/firebase.database https://www.googleapis.com/auth/userinfo.email",
+    aud: "https://oauth2.googleapis.com/token",
+    iat: kini,
+    exp: kini + 3600,
+  }));
+  const data = kepala + "." + isi;
+  try {
+    const kunci = await crypto.subtle.importKey(
+      "pkcs8",
+      Buffer.from(sa.private_key.replace(/-----[^-]+-----/g, "").replace(/\s+/g, ""), "base64"),
+      { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+      false,
+      ["sign"],
+    );
+    const ttd = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", kunci, new TextEncoder().encode(data));
+    const jwt = data + "." + b64u(new Uint8Array(ttd));
+    const r = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: "grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=" + encodeURIComponent(jwt),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!j.access_token) return "";
+    saCache = { kunci: mentah, token: j.access_token, exp: Date.now() + Number(j.expires_in || 3600) * 1000 };
+    return j.access_token;
+  } catch (e) {
+    return "";
+  }
+}
+
+/**
+ * Lengkapi daftar pemenang dengan nama dan foto profil terbaru dari pub/{uid}.
+ * Tanpa kunci layanan, nama dari tabel dipakai apa adanya (tanpa foto), jadi
+ * daftar pemenang tetap tampil.
+ */
+async function profilPemenang(env, baris) {
+  const dasar = baris.map((x) => ({
+    id: x.id,
+    display_name: String(x.display_name || "Player"),
+    win: Number(x.win),
+  }));
+  const tok = await tokenLayanan(env);
+  if (!tok) return dasar;
+  return Promise.all(
+    dasar.map(async (x) => {
+      let nama = x.display_name;
+      let foto = "";
+      try {
+        const r = await fetch(
+          `${RTDB}/pub/${encodeURIComponent(String(x.id))}.json?access_token=${encodeURIComponent(tok)}`,
+          { headers: { accept: "application/json" } },
+        );
+        if (r.ok) {
+          const d = await r.json();
+          if (d && typeof d === "object") {
+            const n = String(d.name ?? d.nama ?? "").trim();
+            if (n) nama = n;
+            const av = String(d.av ?? "").trim();
+            const url = String(d.photo ?? "").trim();
+            if (av.startsWith("data:image/") || av.startsWith("http")) foto = av;
+            else if (av.length > 100) foto = "data:image/jpeg;base64," + av.replace(/\s+/g, "");
+            else foto = url;
+          }
+        }
+      } catch (e) { /* pakai nama dari tabel */ }
+      return { id: x.id, display_name: nama || "Player", avatar_url: foto, win: x.win };
+    }),
+  );
+}
 
 async function cfgRtdb(path) {
   const now = Date.now();

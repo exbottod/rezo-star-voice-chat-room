@@ -107,11 +107,25 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", myAvatarB64: St
         daftarDariServer = segar.isNotEmpty()
     }
 
+    // Semua panggilan jaringan dibungkus: kalau server atau data user bermasalah,
+    // tab game tetap terbuka, bukan menutup aplikasi.
     LaunchedEffect(Unit) {
-        GameCfg.start()
-        // Nama + foto asli akun REZO supaya ranking game menampilkan pemain yang benar.
-        SupaRepo.wavePrepare(myName.ifBlank { "Player" }.take(30), myAvatarB64)
-        balance = SupaRepo.get(myUid).wallet?.coins ?: 0L
+        try { GameCfg.start() } catch (e: Exception) { }
+        try {
+            // Nama + foto asli akun supaya ranking game menampilkan pemain yang benar.
+            SupaRepo.wavePrepare(myName.ifBlank { "Player" }.take(30), myAvatarB64)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            android.util.Log.w("GamesHub", "wavePrepare: " + (e.message ?: "gagal"))
+        }
+        try {
+            balance = SupaRepo.get(myUid).wallet?.coins ?: 0L
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            android.util.Log.w("GamesHub", "saldo game: " + (e.message ?: "gagal"))
+        }
     }
 
     // Kotak "Game Rezo" membuka game Greedy Rezo sendiri (dompet VPS).
@@ -308,11 +322,20 @@ private fun _GcTile(g: GcItem, tile: Dp, onPick: (String) -> Unit) {
                     model = g.iconUrl, contentDescription = g.name,
                     contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize(),
                 )
-            } else {
+            } else if (g.icon != 0) {
+                // painterResource(0) langsung menutup aplikasi, jadi id 0 tidak boleh dipakai.
                 Image(
                     painterResource(g.icon), contentDescription = g.name,
                     contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize(),
                 )
+            } else {
+                // Game yang belum punya ikon: pakai huruf pertama namanya.
+                Box(Modifier.fillMaxSize().background(Color(0xFF3E2A19)), contentAlignment = Alignment.Center) {
+                    Text(
+                        g.name.take(1).uppercase(), color = Color(0xFFE0B54A),
+                        fontSize = 20.sp, fontWeight = FontWeight.Bold,
+                    )
+                }
             }
         }
         Spacer(Modifier.height(4.dp))

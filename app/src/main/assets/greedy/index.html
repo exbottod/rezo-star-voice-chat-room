@@ -1,326 +1,69 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-<script>
-(function(){
-  // Tinggi layar nyata dalam piksel. Dipasang langsung ke html, body, #root
-  // dan pembungkus game, karena di sebagian WebView 100dvh bernilai 0 sehingga
-  // seluruh isi game tingginya nol dan yang terlihat cuma latar kuning.
-  function tinggi(){
-    var h = window.innerHeight || document.documentElement.clientHeight || screen.height || 0;
-    if (h < 100) return;
-    var px = h + "px";
-    var d = document.documentElement, b = document.body;
-    d.style.setProperty("--gk-h", px);
-    d.style.height = px;
-    if (b) { b.style.height = px; b.style.minHeight = px; }
-    var r = document.getElementById("root");
-    if (r) { r.style.height = px; r.style.minHeight = px; }
-    var iso = document.querySelectorAll(".h-dvh,.min-h-dvh");
-    for (var i = 0; i < iso.length; i++) {
-      iso[i].style.height = px; iso[i].style.minHeight = px;
-    }
-  }
-  tinggi();
-  window.addEventListener("resize", tinggi);
-  window.addEventListener("orientationchange", tinggi);
-  document.addEventListener("DOMContentLoaded", tinggi);
-  // React menggambar belakangan, jadi diulang sampai elemennya ada.
-  var n = 0;
-  var ulang = setInterval(function(){ tinggi(); if (++n > 80) clearInterval(ulang); }, 150);
-  var mo = new MutationObserver(tinggi);
-  document.addEventListener("DOMContentLoaded", function(){
-    var r = document.getElementById("root");
-    if (r) mo.observe(r, {childList:true, subtree:true});
-  });
-})();
-</script>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-<title>Greedy King</title>
-<script>
-(function () {
-  var b = window.RezoBridge;
-  function ambil(fn) { try { return b && b[fn] ? b[fn]() : ""; } catch (e) { return ""; } }
-  // Parameter di alamat adalah sumber utama; jembatan RezoBridge hanya cadangan.
-  // Dulu token dari jembatan bisa kosong sehingga server menolak sesi.
-  var q = {};
-  try {
-    (location.search || "").replace(/^\?/, "").split("&").forEach(function (pasangan) {
-      if (!pasangan) return;
-      var i = pasangan.indexOf("=");
-      var k = i < 0 ? pasangan : pasangan.slice(0, i);
-      var v = i < 0 ? "" : pasangan.slice(i + 1);
-      q[decodeURIComponent(k)] = decodeURIComponent(v);
-    });
-  } catch (e) {}
-  window.__GREEDY_API__ = "https://43-156-99-4.sslip.io/greedy";
-  window.__GREEDY_TOKEN__ = q.t || ambil("token") || window.__GREEDY_TOKEN__ || "";
-  var uid = q.u || ambil("uid"), nama = q.n || ambil("nama");
-  if (uid) window.__GREEDY_USER__ = { id: String(uid), name: String(nama || "Player") };
-  var chip = ambil("chips"); if (chip) { try { window.__GREEDY_CHIPS__ = JSON.parse(chip); } catch (e) {} }
-})();
-</script>
-<script>
-(function(){
-  // Permintaan ke server dompet dikerjakan app lewat jembatan Android, karena
-  // di sebagian HP permintaan dari halaman lokal tidak pernah sampai. Jawaban
-  // dikirim balik tanpa menunggu, supaya animasi loading tetap berjalan.
-  var asli = window.fetch;
-  var DASAR = "https://43-156-99-4.sslip.io";
-  var urut = 0;
-  var tunggu = {};
-  window.__gkBalas = function (id, teks) {
-    var selesai = tunggu[id];
-    delete tunggu[id];
-    if (selesai) selesai(teks);
-  };
-  window.fetch = function (alamat, opsi) {
-    try {
-      var url = typeof alamat === "string" ? alamat : (alamat && alamat.url) || "";
-      var jembatan = window.RezoBridge;
-      // Kalau halaman ini sudah dilayani dari server yang sama, pakai jalur
-      // biasa; jembatan hanya dipakai untuk halaman yang dibuka dari dalam APK.
-      var sesamaAsal = location.host && DASAR.indexOf(location.host) > -1;
-      if (!sesamaAsal && url.indexOf(DASAR) === 0 && jembatan && jembatan.mintaAsync) {
-        var metode = (opsi && opsi.method) || "GET";
-        var isi = (opsi && opsi.body) ? String(opsi.body) : "";
-        var jalur = url.slice(DASAR.length) || "/";
-        return new Promise(function (selesai) {
-          var id = String(++urut);
-          tunggu[id] = function (teks) {
-            selesai(new Response(teks || "{}", {
-              status: 200,
-              headers: { "Content-Type": "application/json" }
-            }));
-          };
-          try {
-            jembatan.mintaAsync(id, metode, jalur, isi);
-          } catch (e) {
-            delete tunggu[id];
-            selesai(new Response('{"ok":0,"error":"jembatan gagal"}', { status: 200 }));
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="./assets/images/icon.png" />
+    <link rel="apple-touch-icon" href="./assets/images/icon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#C0392B" />
+    <title>Greedy King</title>
+    <script>
+      // Di WebView Android, 100dvh/100vh kadang bernilai 0 sehingga seluruh isi
+      // game tingginya nol dan yang terlihat hanya latar kuning. Tinggi layar
+      // nyata dipasang langsung sebagai piksel lewat gaya inline.
+      // Penting: tidak memakai MutationObserver. Mengubah elemen dari dalam
+      // observer memicu observer itu lagi tanpa henti dan membekukan halaman.
+      (function () {
+        function paksa(el, h) {
+          if (!el || !el.style) return;
+          var v = h + "px";
+          // Tulis hanya kalau berubah, supaya tidak memicu penggambaran ulang terus-menerus.
+          if (el.style.getPropertyValue("height") !== v) {
+            el.style.setProperty("height", v, "important");
+            el.style.setProperty("min-height", v, "important");
           }
-        });
-      }
-    } catch (e) { }
-    return asli.apply(this, arguments);
-  };
-})();
-</script>
-  <script defer src="./assets/index-BJNBfRFH.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-DX08ztSK.css">
-</head>
-<body>
-<div id="boot" style="position:fixed;inset:0;z-index:2147483647;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:#0a0f1e;color:#f3f6ff;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;text-align:center;padding:22px">
-  <style>
-    #gkRoda{position:relative;width:210px;height:210px}
-    #gkCakram{position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 50% 45%,#ffe98a 0%,#f2b53c 55%,#c98a1e 100%);border:7px solid #fff6d0;box-shadow:0 8px 20px rgba(120,70,0,.28),inset 0 0 22px rgba(150,90,0,.25);animation:gkPutar 7s linear infinite}
-    #gkCakram img{position:absolute;width:52px;height:52px;left:50%;top:50%;margin:-26px 0 0 -26px;object-fit:contain;filter:drop-shadow(0 3px 4px rgba(0,0,0,.22))}
-    #gkTunjuk{position:absolute;left:50%;top:-14px;transform:translateX(-50%);width:0;height:0;border-left:14px solid transparent;border-right:14px solid transparent;border-top:26px solid #b81f33;filter:drop-shadow(0 2px 3px rgba(0,0,0,.3));z-index:2}
-    #gkAngka{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:92px;height:92px;border-radius:50%;background:rgba(255,250,225,.92);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:22px;color:#8a4a00;box-shadow:inset 0 0 10px rgba(120,70,0,.25)}
-    @keyframes gkPutar{from{transform:rotate(0)}to{transform:rotate(360deg)}}
-  </style>
-  <div id="gkRoda">
-    <div id="gkTunjuk"></div>
-    <div id="gkCakram"></div>
-    <div id="gkAngka">0%</div>
-  </div>
-  <div style="font-weight:800;font-size:19px;letter-spacing:.5px">GREEDY KING</div>
-  <div id="bootmsg" style="font-size:13px;opacity:.8;max-width:280px;line-height:1.5">Menyiapkan game...</div>
-  <div id="booterr" style="display:none;font-size:11px;line-height:1.5;background:#fff;border:2px solid #b81f33;border-radius:12px;padding:10px 12px;max-width:100%;word-break:break-word;text-align:left"></div>
-</div>
-<script>
-(function () {
-  // Roda berisi gambar makanan asli, sama seperti tampilan game.
-  var makanan = ["cabbage","carrot","corn","drumstick","hotdog","pizza","salad","skewer","steak","tomato"];
-  var cakram = document.getElementById("gkCakram");
-  if (cakram) {
-    for (var i = 0; i < makanan.length; i++) {
-      var img = document.createElement("img");
-      img.src = "./assets/images/" + makanan[i] + ".png";
-      img.onerror = function () { this.style.display = "none"; };
-      var sudut = (360 / makanan.length) * i;
-      img.style.transform = "rotate(" + sudut + "deg) translateY(-74px) rotate(" + (-sudut) + "deg)";
-      cakram.appendChild(img);
-    }
-  }
-  var angka = document.getElementById("gkAngka");
-  var n = 0;
-  var naik = setInterval(function () {
-    if (n < 88) { n += 2; if (angka) angka.textContent = n + "%"; }
-  }, 90);
-  window.__gkNaik = naik;
-  window.__gkAngka = function (v) {
-    if (angka) angka.textContent = v + "%";
-  };
-})();
-</script>
-<script>
-(function () {
-  var msg = document.getElementById("bootmsg");
-  var box = document.getElementById("booterr");
-  window.__reactJalan = false;
-  function tampilErr(t) {
-    if (!box) return;
-    box.style.display = "block";
-    box.textContent = String(t).slice(0, 600);
-  }
-  window.__bootErr = tampilErr;
-  // Layar muat hanya dicabut kalau game benar-benar sudah menggambar sesuatu.
-  // Kalau dicabut terlalu cepat, layar jadi kuning kosong tanpa penjelasan.
-  window.__bootSelesai = function () {
-    var b = document.getElementById("boot");
-    if (b) b.remove();
-  };
-  // Begitu game menggambar apa pun, layar muat dicabut sendiri. Jangan menunggu
-  // panggilan dari dalam game, karena kalau game berhenti, layar muat menutupi
-  // pesan aslinya dan yang terlihat cuma kuning.
-  // Game dianggap benar-benar tampil hanya kalau ada kotak yang terlihat.
-  // Kalau React sempat menempel tapi isinya kosong, layar muat DIBIARKAN,
-  // supaya tidak pernah lagi jadi kuning polos tanpa tulisan.
-  function sudahTampil() {
-    var r = document.getElementById("root");
-    if (!r) return false;
-    // Dianggap tampil hanya kalau ada isi nyata: tulisan, gambar, atau kanvas.
-    // Kotak kosong berukuran besar tidak dihitung, supaya layar tidak pernah
-    // berubah jadi kuning polos tanpa tulisan.
-    if ((r.innerText || "").trim().length > 15) return true;
-    var nyata = r.querySelectorAll("canvas,img,svg,button");
-    for (var i = 0; i < nyata.length; i++) {
-      var q = nyata[i].getBoundingClientRect();
-      if (q.width > 24 && q.height > 24) return true;
-    }
-    return false;
-  }
-  var cek = setInterval(function () {
-    if (sudahTampil()) {
-      clearInterval(cek);
-      window.__gkSudahTampil = true;
-      var b = document.getElementById("boot");
-      if (b) b.remove();
-    }
-  }, 300);
-  window.onerror = function (m, src, l, c, e) {
-    tampilErr("Error: " + m + "\n" + (src || "") + ":" + (l || 0) + "\n" + ((e && e.stack) || ""));
-  };
-  window.addEventListener("unhandledrejection", function (ev) {
-    var r = ev.reason;
-    tampilErr("Gagal: " + ((r && (r.message || r)) || "tidak diketahui"));
-  });
-  setTimeout(function () {
-    if (!window.__reactJalan && msg) msg.textContent = "Masih memuat kode game... (" + location.host + ")";
-  }, 4000);
-  setTimeout(function () {
-    if (!window.__reactJalan && msg) msg.textContent = "Kode game belum jalan. Halaman: " + location.href.slice(0, 90);
-  }, 10000);
-  // Jaring pengaman terakhir: kalau sampai 8 detik game belum menggambar,
-  // tampilkan sebabnya, jangan biarkan layar kuning tanpa penjelasan.
-  setTimeout(function () {
-    if (!window.__gkSudahTampil && window.__gkSebab) { try { window.__gkSebab(""); } catch (e) {} }
-  }, 8000);
-})();
-</script>
-
-
-<div id="gksebab" style="display:none;position:fixed;inset:0;z-index:2147483647;background:#fbdb2e;color:#3a2b12;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;padding:22px;overflow:auto">
-  <div style="font-size:22px;font-weight:800;margin-bottom:10px">Game belum bisa jalan</div>
-  <div id="gksebabisi" style="font-size:12px;line-height:1.6;background:#fff;border:2px solid #b81f33;border-radius:12px;padding:12px;word-break:break-word;white-space:pre-wrap"></div>
-  <button id="gkcobaLagi" style="margin-top:14px;width:100%;padding:14px;border:0;border-radius:12px;background:#b81f33;color:#fff;font-size:15px;font-weight:700">Coba lagi</button>
-</div>
-<script>
-(function () {
-  var panel = document.getElementById("gksebab");
-  var isi = document.getElementById("gksebabisi");
-  var pesanAkhir = "";
-  function catat(t) { pesanAkhir = String(t || "").slice(0, 400); }
-  window.addEventListener("error", function (e) { catat("Error: " + (e.message || "") ); });
-  window.addEventListener("unhandledrejection", function (e) {
-    var r = e.reason; catat("Gagal: " + ((r && (r.message || r)) || "tidak diketahui"));
-  });
-  function tampilSebab(asli) {
-    var b = window.RezoBridge;
-    function ambil(fn) { try { return b && b[fn] ? b[fn]() : null; } catch (e) { return "gagal"; } }
-    var uid = ambil("uid"), tok = ambil("token");
-    var baris = [
-      "Penyebab: " + (asli || pesanAkhir || "kode game berhenti tanpa pesan"),
-      "Layar game: " + (function () {
-        var r = document.getElementById("root");
-        var t = ((r && r.innerText) || "").replace(/\s+/g, " ").trim();
-        return t ? t.slice(-70) : "(kosong)";
-      })(),
-
-      "",
-      "Alamat halaman: " + location.href.slice(0, 90),
-      "Jembatan app (RezoBridge): " + (b ? "ada" : "tidak ada"),
-      "ID pemain: " + (uid ? "ada (" + String(uid).slice(0, 12) + ")" : "kosong"),
-      "Token: " + (tok ? "ada (" + String(tok).length + " huruf)" : "kosong"),
-      "Isi layar: " + (document.getElementById("root") ? document.getElementById("root").children.length + " bagian" : "tidak ada"),
-    ];
-    isi.textContent = baris.join("\n");
-    panel.style.display = "block";
-    var boot = document.getElementById("boot");
-    if (boot) boot.remove();
-  }
-  window.__gkSebab = tampilSebab;
-  document.getElementById("gkcobaLagi").onclick = function () { location.reload(); };
-  // Kalau game tidak menggambar apa pun, tampilkan penyebabnya, bukan layar kuning kosong.
-  setTimeout(function () {
-    if (!window.__gkSudahTampil) {
-      tampilSebab(pesanAkhir || "kode game berhenti sebelum menggambar apa pun (12 detik)");
-    }
-  }, 12000);
-})();
-</script>
-
-<div id="root"></div>
-<script>
-/* Jaring pengaman: layar loading tidak boleh menutupi game selamanya. */
-(function () {
-  function tutup() {
-    var b = document.getElementById("boot");
-    if (b && document.getElementById("root") && document.getElementById("root").children.length > 0) {
-      b.style.display = "none";
-    }
-  }
-  setInterval(tutup, 400);
-  window.addEventListener("error", function (e) {
-    var t = document.getElementById("booterr");
-    if (t) { t.style.display = "block"; t.textContent = "Galat: " + ((e && e.message) || "tidak diketahui"); }
-  });
-})();
-</script>
-<script>
-/* Pengawas kemacetan (cadangan).
-   Tulisan "LOADING 6%" berasal dari React, jadi kalau angkanya tidak naik
-   berarti timer halaman berhenti. Pengawas utama ada di sisi app (Kotlin)
-   karena tidak ikut berhenti; skrip ini hanya menampilkan penyebabnya supaya
-   layar tidak mentok di 6% tanpa keterangan. */
-(function () {
-  var mulai = Date.now();
-  var selesai = false;
-  function teks() {
-    var r = document.getElementById("root");
-    return ((r && r.innerText) || "").replace(/\s+/g, " ").trim();
-  }
-  function persen(t) {
-    var m = t.match(/LOADING\s*(\d+)\s*%/i);
-    return m ? parseInt(m[1], 10) : -1;
-  }
-  setInterval(function () {
-    if (selesai) return;
-    var t = teks(), p = persen(t);
-    if (p < 0 || p >= 100) return;
-    var detik = Math.round((Date.now() - mulai) / 1000);
-    if (detik < 15) return;
-    selesai = true;
-    try {
-      window.__gkSebab && window.__gkSebab(
-        "Game berhenti di " + p + "% setelah " + detik + " detik. Status: " +
-        t.slice(-60) + " | Token: " + String((window.__GREEDY_TOKEN__ || "").length) + " huruf"
-      );
-    } catch (e) {}
-  }, 2000);
-})();
-</script>
-</body>
+        }
+        function tinggi() {
+          var h = window.innerHeight || document.documentElement.clientHeight || 0;
+          try { if (h < 100 && window.RezoBridge && window.RezoBridge.tinggi) h = Number(window.RezoBridge.tinggi()) || 0; } catch (e) {}
+          if (h < 100) h = screen.height || 0;
+          return h;
+        }
+        function pasang() {
+          var h = tinggi();
+          if (h < 100) return;
+          paksa(document.documentElement, h);
+          paksa(document.body, h);
+          var akar = document.getElementById("root");
+          paksa(akar, h);
+          if (akar && akar.firstElementChild) paksa(akar.firstElementChild, h);
+          var st = document.getElementById("gkTinggi");
+          if (!st) {
+            st = document.createElement("style");
+            st.id = "gkTinggi";
+            (document.head || document.documentElement).appendChild(st);
+          }
+          var css =
+            "html,body,#root{height:" + h + "px!important;min-height:" + h + "px!important}" +
+            ".h-dvh,.h-svh,.h-screen{height:" + h + "px!important}" +
+            ".min-h-dvh,.min-h-svh,.min-h-screen{min-height:" + h + "px!important}";
+          if (st.textContent !== css) st.textContent = css;
+        }
+        try { pasang(); } catch (e) {}
+        // Ulangi beberapa detik pertama (React memasang isi setelah skrip ini), lalu berhenti.
+        var n = 0;
+        var ulang = setInterval(function () {
+          try { pasang(); } catch (e) {}
+          if (++n > 40) clearInterval(ulang);
+        }, 250);
+        window.addEventListener("resize", function () { try { pasang(); } catch (e) {} });
+        window.addEventListener("load", function () { try { pasang(); } catch (e) {} });
+      })();
+    </script>
+    <script type="module" crossorigin src="./assets/index-DYdSTxI1.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-C6zMQ3Ai.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
 </html>
