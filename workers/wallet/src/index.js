@@ -1603,15 +1603,121 @@ const CB_DEFAULT = {
   jpMin: 1000,
 };
 
+// ===== Model nominal tetap (sama seperti panel Viza Chat) =====
+// Dua lapis undian: satu angka acak memilih kelompok, lalu nominalnya diundi
+// RATA di dalam rentang kelompok itu. Nominal TIDAK dikali harga gift, jadi
+// gift 1.000 dan gift 1.000.000 bisa dapat cashback yang sama.
+// Semua angka diatur dari panel developer: pub/_cashbackCfg -> tiers,
+// zonkPct (peluang zonk), dan boostJumlah (peluang per jumlah kirim).
+const CB_NOMINAL_BAWAAN = [
+  { p: 70, min: 1000, max: 5000 },
+  { p: 25, min: 10000, max: 20000 },
+  { p: 5, min: 50000, max: 50000 },
+];
+
+/** Kelompok cashback nominal dari panel; kalau panel kosong pakai bawaan. */
+function tierNominal(cfg) {
+  const sumber = Array.isArray(cfg?.tiers) ? cfg.tiers : [];
+  const bersih = sumber
+    .map((r) => ({
+      p: Math.max(0, Number(r?.p ?? 0)),
+      min: Math.max(0, Math.floor(Number(r?.min ?? 0))),
+      max: Math.max(0, Math.floor(Number(r?.max ?? 0))),
+    }))
+    .filter((r) => r.p > 0 && r.max > 0 && r.max >= r.min);
+  return bersih.length ? bersih : CB_NOMINAL_BAWAAN;
+}
+
+/**
+ * Peluang dapat cashback menurut JUMLAH yang dikirim sekali kirim.
+ * Contoh panel: 1:70 lalu 520:78 berarti kirim 1-519 dapat peluang 70%,
+ * kirim 520 ke atas 78%. Sisanya zonk. Angka 100% tetap menyisakan peluang
+ * zonk kecil sesuai isian "Peluang zonk (%)".
+ */
+function peluangNominal(cfg, jumlah) {
+  const sumber = Array.isArray(cfg?.boostJumlah) ? cfg.boostJumlah : [];
+  const baris = sumber
+    .map((r) => ({
+      min: Math.max(0, Math.floor(Number(r?.min ?? 0))),
+      p: Math.max(0, Math.min(100, Number(r?.p ?? 0))),
+    }))
+    .filter((r) => r.p > 0)
+    .sort((x, y) => x.min - y.min);
+  const zonkPct = Math.max(0, Math.min(90, Math.floor(Number(cfg?.zonkPct ?? 8))));
+  const kena = baris.filter((r) => jumlah >= r.min);
+  const dasar = kena.length ? kena[kena.length - 1].p : 100;
+  return dasar >= 100 ? Math.max(1, 100 - zonkPct) : dasar;
+}
+
+/** Undian dua lapis: kena/zonk dulu, lalu kelompok nominal, lalu angka di rentang. */
+function undiNominal(cfg, jumlah) {
+  const tier = tierNominal(cfg);
+  const total = tier.reduce((a, b) => a + b.p, 0);
+  if (!(total > 0)) return { nominal: 0, jackpot: 0, kelompok: -1, peluang: 0 };
+  const peluang = peluangNominal(cfg, jumlah);
+  if (Math.random() * 100 >= peluang) {
+    return { nominal: 0, jackpot: 0, kelompok: -1, zonk: 1, peluang };
+  }
+  let acak = Math.random() * total;
+  let pilih = tier.length - 1;
+  for (let i = 0; i < tier.length; i++) {
+    acak -= tier[i].p;
+    if (acak <= 0) { pilih = i; break; }
+  }
+  const t = tier[pilih];
+  const nominal = t.min + Math.floor(Math.random() * (t.max - t.min + 1));
+  return { nominal, jackpot: pilih === tier.length - 1 ? 1 : 0, kelompok: pilih, zonk: 0, peluang };
+}
+
+/** Cashback model nominal: pengirim dapat nominal, penerima dapat diamond persen. */
+async function cashbackNominal(env, uid, p, cfg, nilai, count) {
+  const undian = undiNominal(cfg, count);
+  const untung = Math.max(0, Math.floor(undian.nominal));
+  const parts = pecahCashback(untung);
+  const paid = untung > 0 ? await beriCoin(env, uid, untung, "cashback", null) : 0;
+
+  const pct = Math.max(0, Math.min(100, Number(cfg.recvPct ?? 5)));
+  const to = String(p.to ?? "").trim();
+  const bonus = to && to !== uid ? Math.floor((nilai * pct) / 100) : 0;
+  const recv = bonus > 0 ? await beriDiamond(env, to, bonus, "cashback_recv") : 0;
+
+  const jpMin = Math.max(0, Math.floor(Number(cfg.jpMin ?? 1000)));
+  const jp = undian.jackpot || paid >= jpMin ? 1 : 0;
+  // mult = 0: aplikasi menampilkan pecahan angka saja, tanpa bola "x N Times".
+  return json({
+    ok: 1,
+    amount: paid,
+    mult: 0,
+    parts: parts.slice(0, 5),
+    pecahan: parts[0] ?? 0,
+    recv,
+    jp,
+    zonk: paid <= 0 ? 1 : 0,
+    nominal: 1,
+    peluang: undian.peluang,
+    asset: "",
+  });
+}
+
 async function cashbackGift(env, uid, p) {
   let cfg = await cfgRtdb("pub/_cashbackCfg");
   const adaTier = ["t1", "t2", "t3", "t4"].some((k) => cfg && typeof cfg[k] === "object" && cfg[k]);
-  if (!adaTier) cfg = CB_DEFAULT;
+  // Pengaturan model nominal hanya berisi tiers/zonkPct, tanpa t1..t4. Dulu
+  // apa pun yang tidak punya t1..t4 langsung diganti bawaan, jadi pengaturan
+  // nominal dari panel tidak pernah terpakai.
+  const adaNominal = Array.isArray(cfg?.tiers) && cfg.tiers.length > 0;
+  if (!adaTier && !adaNominal) cfg = CB_DEFAULT;
   if (cfg.on === false) return json({ ok: 1, amount: 0, off: 1 });
   const price = Math.max(0, Math.floor(Number(p.price ?? 0)));
   const count = Math.max(1, Math.min(999, Math.floor(Number(p.count ?? 1))));
   const nilai = price * count;
   if (nilai <= 0) return gagal("Nilai gift tidak valid");
+
+  // Panel developer bisa memilih model cashback: "nominal" (ala Viza Chat)
+  // atau pengali (bawaan REZO). Bawaannya pengali supaya pengaturan lama tetap.
+  if (String(cfg.model || "") === "nominal") {
+    return cashbackNominal(env, uid, p, cfg, nilai, count);
+  }
 
   const baris = undiBaris(barisTier(cfg, nilai));
   // 0 = zonk (tidak dapat cashback). 100x = JP, 1000x = JP MAX.
@@ -3573,9 +3679,9 @@ async function kirimEmail(env, ke, subjek, isiHtml, isiTeks, kunci) {
           stafAktif = Number(r[0].rows[0]?.a ?? 0);
           peran = r[1].rows.map((x) => String(x.role) + ":" + Number(x.n));
         } catch (e) { /* tabel belum ada */ }
-        return json({ ok: 1, v: "rezo-2026-11-15-greedy", db: 1, simpan: modeDb, email: (env.RESEND_KEY || env.RESEND_API_KEY) ? 1 : 0, staf, stafAktif, peran, node: typeof process !== "undefined" ? process.version : "?" });
+        return json({ ok: 1, v: "rezo-2026-11-15-cb", db: 1, simpan: modeDb, email: (env.RESEND_KEY || env.RESEND_API_KEY) ? 1 : 0, staf, stafAktif, peran, node: typeof process !== "undefined" ? process.version : "?" });
       } catch (e) {
-        return json({ ok: 0, v: "rezo-2026-11-15-greedy", db: String(e?.message ?? e) }, 500);
+        return json({ ok: 0, v: "rezo-2026-11-15-cb", db: String(e?.message ?? e) }, 500);
       }
     }
     if (req.method !== "POST") return gagal("Gunakan POST");

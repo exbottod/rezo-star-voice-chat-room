@@ -518,6 +518,30 @@ label{display:block;font-size:10.5px;color:var(--mut2);margin:6px 0 0;letter-spa
   </div>
 
   <div class="card">
+    <h2>Model & kurva cashback</h2>
+    <p class="muted">Ada dua model. <b>Pengali</b>: cashback = harga gift x pengali yang keluar (diatur di tabel pengali di bawah).
+      <b>Nominal</b>: seperti panel Viza Chat, cashback berupa nominal tetap yang diundi dari rentang, tidak dikali harga gift,
+      jadi gift murah dan gift mahal bisa dapat cashback yang sama. Pilih modelnya di sini.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <button class="btn" id="cbModeMulti">Model pengali</button>
+      <button class="btn" id="cbModeNominal">Model nominal (Viza)</button>
+      <span class="muted" id="cbModeNow">Memuat...</span>
+    </div>
+    <label>Peluang zonk (%)</label>
+    <input type="number" id="cbZonk" min="0" max="90" step="1" value="8">
+    <label>Kurva nominal (satu baris satu kelompok: peluang% : nominal min : nominal max)</label>
+    <textarea id="cbNomTiers" rows="4" style="width:100%;font-family:monospace">70:1000:5000
+25:10000:20000
+5:50000:50000</textarea>
+    <label>Peluang menurut jumlah kirim (minimal:peluang%, satu baris satu aturan)</label>
+    <textarea id="cbBoost" rows="3" style="width:100%;font-family:monospace">1:100
+520:100</textarea>
+    <div class="muted" id="cbNomRin" style="margin-top:8px"></div>
+    <button class="btn" id="cbNomSave" style="margin-top:8px">Simpan kurva nominal</button>
+    <div class="muted" id="cbNomMsg" style="margin-top:8px"></div>
+  </div>
+
+  <div class="card">
     <h2>Tabel pengali</h2>
     <p class="muted">Isi bobot untuk tiap pengali. Pengali besar = cashback besar tapi jarang.
       Total cashback = harga gift x pengali yang keluar, lalu dipecah jadi angka-angka kecil
@@ -581,7 +605,7 @@ label{display:block;font-size:10.5px;color:var(--mut2);margin:6px 0 0;letter-spa
   <div class="card">
     <h2>Nilai taruhan game</h2>
     <p class="muted">Atur nominal chip taruhan tiap game. Isi dengan angka dipisah koma, urut dari kecil ke besar,
-      maksimal 6 chip. Contoh: 1000, 10000, 100000, 1000000. Perubahan langsung dipakai game saat dibuka berikutnya.</p>
+      maksimal 8 chip. Contoh: 1000, 10000, 100000, 1000000. Perubahan langsung dipakai game saat dibuka berikutnya.</p>
     <div id="betGames" style="margin-top:12px"></div>
     <button class="btn" id="betSave" style="margin-top:14px">Simpan nilai taruhan</button>
     <div class="muted" id="betMsg" style="margin-top:8px"></div>
@@ -2501,12 +2525,116 @@ function cbStart(){
   cbOff = () => ref.off("value", cb);
 }
 function cbTier(){ return cbCfg[cbSel] || {}; }
+/** Baca teks "peluang:min:maks" per baris jadi daftar kelompok cashback nominal. */
+function cbNomRead(){
+  const teks = String(($("cbNomTiers") && $("cbNomTiers").value) || "");
+  const out = [];
+  teks.split(/\n+/).forEach(baris => {
+    const t = baris.trim();
+    if (!t || t.startsWith("#")) return;
+    const bagian = t.split(/[:;|]+/).map(x => Number(String(x).replace(/[^0-9.]/g, "")));
+    if (bagian.length < 3) return;
+    const p = Math.max(0, Math.min(100, bagian[0]));
+    const min = Math.max(0, Math.floor(bagian[1]));
+    const max = Math.max(0, Math.floor(bagian[2]));
+    if (p > 0 && max > 0 && max >= min) out.push({ p: p, min: min, max: max });
+  });
+  return out.slice(0, 8);
+}
+
+/** Baca teks "minimal:peluang%" untuk peluang menurut jumlah kirim. */
+function cbBoostRead(){
+  const teks = String(($("cbBoost") && $("cbBoost").value) || "");
+  const out = [];
+  teks.split(/\n+/).forEach(baris => {
+    const t = baris.trim();
+    if (!t || t.startsWith("#")) return;
+    const bagian = t.split(/[:;|]+/).map(x => Number(String(x).replace(/[^0-9.]/g, "")));
+    if (bagian.length < 2) return;
+    const min = Math.max(0, Math.floor(bagian[0]));
+    const p = Math.max(0, Math.min(100, bagian[1]));
+    if (p > 0) out.push({ min: min, p: p });
+  });
+  return out.sort((a, b) => a.min - b.min).slice(0, 8);
+}
+
+/** Ringkasan kurva nominal: rata-rata nominal per kiriman dan RTP relatif. */
+function cbNomRingkas(){
+  const el = $("cbNomRin");
+  if (!el) return;
+  const tiers = cbNomRead();
+  const zonk = Math.max(0, Math.min(90, Number(($("cbZonk") && $("cbZonk").value) || 0)));
+  const boost = cbBoostRead();
+  const peluang = boost.length ? Math.min(100, boost[boost.length - 1].p) : 100;
+  const kena = Math.max(1, peluang >= 100 ? 100 - zonk : peluang);
+  const total = tiers.reduce((a, b) => a + b.p, 0);
+  if (!total) { el.textContent = "Isi kurva dulu: peluang%:nominal min:nominal maks."; return; }
+  const rata = tiers.reduce((a, b) => a + b.p * ((b.min + b.max) / 2), 0) / total;
+  const harapan = Math.round(rata * (kena / 100));
+  const maks = tiers.reduce((a, b) => Math.max(a, b.max), 0);
+  el.innerHTML = "Peluang dapat cashback <b>" + kena + "%</b> (zonk " + zonk + "%), " +
+    "rata-rata <b>" + harapan.toLocaleString("id-ID") + " coin</b> per kiriman, " +
+    "kelompok terbesar <b>" + maks.toLocaleString("id-ID") + "</b> coin (jackpot). " +
+    "Nominal tidak dikali harga gift.";
+}
+
+function cbNomTampil(){
+  const c = cbCfg || {};
+  const now = $("cbModeNow");
+  if (now) now.textContent = c.model === "nominal" ? "Model aktif: nominal (Viza)" : "Model aktif: pengali";
+  const z = $("cbZonk");
+  if (z) z.value = c.zonkPct != null ? c.zonkPct : 8;
+  const t = $("cbNomTiers");
+  if (t && Array.isArray(c.tiers) && c.tiers.length) {
+    t.value = c.tiers.map(r => [Number(r.p) || 0, Number(r.min) || 0, Number(r.max) || 0].join(":")).join("\n");
+  }
+  const b = $("cbBoost");
+  if (b && Array.isArray(c.boostJumlah) && c.boostJumlah.length) {
+    b.value = c.boostJumlah.map(r => [Number(r.min) || 0, Number(r.p) || 0].join(":")).join("\n");
+  }
+  cbNomRingkas();
+}
+
+function cbNomPasang(){
+  const z = $("cbZonk"), t = $("cbNomTiers"), b = $("cbBoost");
+  if (z) z.oninput = cbNomRingkas;
+  if (t) t.oninput = cbNomRingkas;
+  if (b) b.oninput = cbNomRingkas;
+  const mm = $("cbModeMulti"), mn = $("cbModeNominal"), simpan = $("cbNomSave");
+  if (mm) mm.onclick = async () => {
+    try { await cbSave("cashbackCfg/model", "multi"); cbCfg.model = "multi"; cbNomTampil(); cbMsg("cbNomMsg", "Model pengali ✓ tersimpan"); }
+    catch (e) { cbMsg("cbNomMsg", "Gagal: " + e.message); }
+  };
+  if (mn) mn.onclick = async () => {
+    try { await cbSave("cashbackCfg/model", "nominal"); cbCfg.model = "nominal"; cbNomTampil(); cbMsg("cbNomMsg", "Model nominal ✓ tersimpan"); }
+    catch (e) { cbMsg("cbNomMsg", "Gagal: " + e.message); }
+  };
+  if (simpan) simpan.onclick = async () => {
+    try {
+      const tiers = cbNomRead();
+      if (!tiers.length) { cbMsg("cbNomMsg", "Kurva masih kosong atau formatnya salah"); return; }
+      const boost = cbBoostRead();
+      await cbSave("cashbackCfg/zonkPct", Math.max(0, Math.min(90, Number(($("cbZonk") && $("cbZonk").value) || 0))));
+      await cbSave("cashbackCfg/tiers", tiers);
+      await cbSave("cashbackCfg/boostJumlah", boost);
+      await cbSave("cashbackCfg/model", "nominal");
+      cbCfg.zonkPct = Number(($("cbZonk") && $("cbZonk").value) || 0);
+      cbCfg.tiers = tiers;
+      cbCfg.boostJumlah = boost;
+      cbCfg.model = "nominal";
+      cbNomTampil();
+      cbMsg("cbNomMsg", "Kurva cashback nominal ✓ tersimpan dan langsung dipakai server");
+    } catch (e) { cbMsg("cbNomMsg", "Gagal: " + e.message); }
+  };
+}
+
 function cbRender(){
   const now = $("cbNow");
   if (now) now.textContent = cbCfg.on === false ? "Sedang dimatikan" : "Sedang aktif";
   const rv = $("cbRecv"); if (rv) rv.value = cbCfg.recvPct != null ? cbCfg.recvPct : 5;
   const jp = $("cbJp"); if (jp) jp.value = cbCfg.jpMin != null ? cbCfg.jpMin : 1000;
   const rtp = $("cbRtp"); if (rtp) rtp.value = cbCfg.rtp != null ? cbCfg.rtp : 75;
+  cbNomTampil();
 
   const tiers = $("cbTiers");
   if (tiers) {
@@ -2620,6 +2748,7 @@ function cbStartOnce(){
   if (up) up.onclick = cbUploadAll;
 }
 document.addEventListener("DOMContentLoaded", cbStartOnce);
+document.addEventListener("DOMContentLoaded", cbNomPasang);
 
 /* ---------- Catatan dialog pembaruan (rocketCfg/updateNote) ---------- */
 function upNoteMsg(t){ const e = $("upNoteStatus"); if (e) e.textContent = t; }

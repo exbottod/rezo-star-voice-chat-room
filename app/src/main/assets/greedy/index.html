@@ -60,6 +60,37 @@
         window.addEventListener("load", function () { try { pasang(); } catch (e) {} });
       })();
     </script>
+    <script>
+      // Nominal chip taruhan Greedy King diatur dari panel developer
+      // (betCfg/greedyking/chips). Aplikasi menitipkan nilainya lewat jembatan
+      // RezoBridge.chips(); parameter ?bet= dipakai sebagai cadangan. Nilai ini
+      // harus siap sebelum bundel game jalan, jadi dipasang di sini.
+      (function () {
+        try {
+          var mentah = "";
+          try {
+            if (window.RezoBridge && window.RezoBridge.chips) mentah = String(window.RezoBridge.chips() || "");
+          } catch (e) {}
+          if (!mentah) {
+            var m = /[?&]bet=([^&]*)/.exec(location.search || "");
+            if (m) mentah = decodeURIComponent(m[1]);
+          }
+          var isi = mentah.trim();
+          var daftar = [];
+          if (isi.charAt(0) === "[") {
+            try { daftar = JSON.parse(isi) || []; } catch (e) { daftar = []; }
+          } else if (isi) {
+            daftar = isi.split(",");
+          }
+          var bersih = [];
+          for (var i = 0; i < daftar.length && bersih.length < 8; i++) {
+            var n = Math.trunc(Number(daftar[i]));
+            if (n > 0 && bersih.indexOf(n) < 0) bersih.push(n);
+          }
+          if (bersih.length) window.__GREEDY_BET__ = bersih;
+        } catch (e) {}
+      })();
+    </script>
     <script type="module" crossorigin src="./assets/index-DYdSTxI1.js"></script>
     <link rel="stylesheet" crossorigin href="./assets/index-C6zMQ3Ai.css">
   </head>
