@@ -2161,7 +2161,20 @@ async function panel(env, body) {
     // Kalau panel mengirim slot (mis. "uid" atau "badge"), item langsung dipakai
     // oleh akun itu tanpa perlu dibeli dulu: ini dipakai item Unique ID custom.
     const slotPakai = String(p.equip ?? "").trim();
-    const eqBaru = { ...w0.equip, ...(slotPakai ? { [slotPakai]: itemId } : {}) };
+    const eqBaru = { ...w0.equip };
+    if (slotPakai === "badge" || slotPakai === "medals" || slotPakai === "medal") {
+      // Slot lencana & medali menyimpan DAFTAR id dipisah koma, bukan satu id.
+      // Dulu kirim lencana dari panel (opsi "langsung dipakai") MENIMPA seluruh
+      // daftar lencana user jadi satu, jadi semua lencana lain hilang. Sekarang
+      // item baru hanya ditambahkan, daftar lama tetap.
+      const kunci = slotPakai === "badge" ? "badge" : "medals";
+      const daftar = String(eqBaru[kunci] || "")
+        .split(",").map((x) => x.trim()).filter(Boolean);
+      if (!daftar.includes(itemId)) daftar.push(itemId);
+      eqBaru[kunci] = daftar.slice(0, 12).join(",");
+    } else if (slotPakai) {
+      eqBaru[slotPakai] = itemId;
+    }
     const langkah = [
       { sql: "update wallets set inv = ?, updated_at = ? where uid = ?", args: [T(JSON.stringify(inv)), I(Date.now()), T(target)] },
     ];
