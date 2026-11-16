@@ -1112,10 +1112,29 @@ fun StoreScreen(uid: String, wallet: Wallet, onOpenVip: () -> Unit, onBack: () -
                     // Item kiriman panel (sx_) selalu tampil. Item bawaan yang belum punya
                 // gambar tetap disembunyikan supaya tidak muncul ikon kosong.
                 .filter { it.first.id.startsWith("sx_") || run { val a = it.first.asset; a != null && (a.url.isNotBlank() || a.hasData) } }
+                // VIP dan SVIP memakai gambar yang sama (vipCfg/{n}_{slot}), jadi di
+                // tab Item VIP muncul dua kartu kembar: "Bingkai eksklusif VIP4" dan
+                // "Bingkai eksklusif SVIP4", termasuk efek masuk, banner, gelembung,
+                // medali dan lencana. Sekarang yang tampil hanya versi SVIP; kartu
+                // berlabel VIP untuk slot & tingkat yang sama dibuang. Gelar VIP
+                // tetap tampil karena SVIP tidak punya slot gelar.
+                val svipPerSlot = mineAll.filter { it.first.id.startsWith("sv") }
+                    .associate { (vipAssetSlot(it.first.id, it.first.slot) to (it.first.vip ?: 0)) to it.first.id }
+                // kembaranVip: id SVIP -> id VIP yang gambarnya sama, supaya status
+                // "Memakai" tetap benar kalau sebelumnya user memasang item VIP.
+                val kembaranVip = HashMap<String, String>()
+                mineAll.forEach { (item, _) ->
+                    if (item.id.startsWith("vip")) {
+                        svipPerSlot[vipAssetSlot(item.id, item.slot) to (item.vip ?: 0)]
+                            ?.let { kembaranVip[it] = item.id }
+                    }
+                }
+                val idVipKembar = kembaranVip.values.toSet()
+                val mineUnik = mineAll.filterNot { (item, _) -> item.id in idVipKembar }
                 // Tab "Item VIP" memisahkan aset dari VIP Center (bingkai, lencana
                 // glory, efek masuk, gelembung, gelar, kartu profil) dari item Store.
                 val bagCats = listOf(Triple("vip", "Item VIP", "\uD83D\uDC51")) + STORE_CATS.filter { it.first != "medal" }
-                val mineCat = mineAll.filter { it.first.slot == cat }
+                val mineCat = mineUnik.filter { it.first.slot == cat }
                     .sortedWith(compareBy<Pair<StoreItem, Long>>({ it.first.id }))
                 Row(Modifier.weight(1f)) {
                     Column(
@@ -1145,10 +1164,10 @@ fun StoreScreen(uid: String, wallet: Wallet, onOpenVip: () -> Unit, onBack: () -
                         Spacer(Modifier.height(8.dp))
                         val shownCat = if (cat == "medal") "frame" else cat
                         val list = if (shownCat == "vip") {
-                            mineAll.filter { isVipId(it.first.id) }
+                            mineUnik.filter { isVipId(it.first.id) }
                                 .sortedWith(compareBy<Pair<StoreItem, Long>>({ vipLevelOf(it.first.id) }, { it.first.slot }))
                         } else {
-                            mineAll.filter { it.first.slot == shownCat && !isVipId(it.first.id) }.sortedBy { it.first.id }
+                            mineUnik.filter { it.first.slot == shownCat && !isVipId(it.first.id) }.sortedBy { it.first.id }
                         }
                         if (shownCat == "vip") {
                             // Kartu profil VIP ikut ditampilkan di sini. Tidak perlu
@@ -1256,7 +1275,14 @@ fun StoreScreen(uid: String, wallet: Wallet, onOpenVip: () -> Unit, onBack: () -
                         list.chunked(2).forEach { row ->
                             Row(Modifier.fillMaxWidth().padding(bottom = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                 row.forEach { (item, exp) ->
-                                    val used = itemTerpakai(wallet, item.slot, item.id)
+                                    // Kembaran VIP dari kartu ini mungkin yang sedang
+                                    // terpasang, jadi status pakai ikut dihitung.
+                                    val kembar = kembaranVip[item.id]
+                                    val pakaiKembar = kembar != null &&
+                                        itemTerpakai(wallet, item.slot, kembar) &&
+                                        !itemTerpakai(wallet, item.slot, item.id)
+                                    val idPakai = if (pakaiKembar) kembar!! else item.id
+                                    val used = pakaiKembar || itemTerpakai(wallet, item.slot, item.id)
                                     Column(
                                         Modifier.weight(1f).clip(RoundedCornerShape(16.dp)).background(Color(0xFF0C7F7B))
                                             .border(if (used) 3.dp else 2.dp, if (used) Color(0xFFFFC107) else Color(0xFF39D3C3), RoundedCornerShape(16.dp)),
@@ -1288,7 +1314,7 @@ fun StoreScreen(uid: String, wallet: Wallet, onOpenVip: () -> Unit, onBack: () -
                                         ) {
                                             GoldPill(if (used) "Lepas" else "Memakai") {
                                                 AppScope.scope.launch {
-                                                    val err = LvRepo.equip(uid, item.slot, equipBaru(wallet, item.slot, item.id))
+                                                    val err = LvRepo.equip(uid, item.slot, equipBaru(wallet, item.slot, idPakai))
                                                     if (err == null) PublicSync.push(uid)
                                                     Toast.makeText(context, err ?: if (used) "Dilepas" else "Dipakai", Toast.LENGTH_SHORT).show()
                                                 }
