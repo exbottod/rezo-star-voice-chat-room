@@ -782,7 +782,20 @@ object SvipInv {
         setSlot("frame", "svf_$tier", listOf("vipf_", "svf_"))
         setSlot("entry", "sve_$tier", listOf("vipe_", "sve_"))
         setSlot("banner", "svbn_$tier", listOf("vipbn_", "svbn_"))
-        setSlot("badge", "svbd_$tier", listOf("svbd_"))
+        // FIX lencana hilang: slot "badge" menyimpan DAFTAR id (dipisah koma),
+        // bukan satu id. Dulu baris setSlot di atas menimpa seluruh daftar
+        // lencana user menjadi satu lencana SVIP saja, jadi begitu SVIP dibeli
+        // atau diperpanjang semua lencana lain lenyap. Sekarang lencana SVIP
+        // hanya ditambahkan (menggantikan lencana SVIP lama), sisanya tetap.
+        run {
+            val kini = medalIdList(eq["badge"])
+            val baru = kini.filterNot { it.startsWith("svbd_") } + "svbd_$tier"
+            val teks = baru.joinToString(",")
+            if (teks != (eq["badge"] ?: "")) {
+                eq["badge"] = teks
+                changed = true
+            }
+        }
         if (!changed) return
         try {
             kotlinx.coroutines.withTimeoutOrNull(6000L) {

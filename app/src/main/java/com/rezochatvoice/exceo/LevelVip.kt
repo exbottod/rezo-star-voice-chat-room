@@ -171,10 +171,30 @@ fun activeEquip(w: Wallet, slot: String): String {
     // menampung satu id, jadi memasang lencana kedua otomatis melepas yang lama.
     if (slot == "badge") {
         val now = System.currentTimeMillis()
-        return medalIdList(raw).filter { (w.inv[it] ?: 0L) > now }.joinToString(",")
+        return medalIdList(raw).filter { itemTerpasangSah(w, it, now) }.joinToString(",")
     }
     val id = raw
-    return if ((w.inv[id] ?: 0L) > System.currentTimeMillis()) id else ""
+    return if (itemTerpasangSah(w, id, System.currentTimeMillis())) id else ""
+}
+
+/**
+ * Item yang sedang dipasang masih sah?
+ *
+ * FIX lencana hilang: dulu satu-satunya syaratnya catatan inv di dompet. Kalau
+ * catatan itu tidak terbaca (dompet dibaca ulang dari server, item kiriman
+ * panel tanpa catatan inv, atau cache baru), semua lencana yang dipasang
+ * langsung dibuang dari profil walau id-nya masih tersimpan di equip.
+ * Sekarang item yang masih dikenal katalog tetap dianggap sah, sama seperti
+ * aturan medalValid(). Masa aktif hanya dipakai kalau catatannya memang ada.
+ */
+fun itemTerpasangSah(w: Wallet, id: String, now: Long): Boolean {
+    if (id.isBlank()) return false
+    val exp = w.inv[id]
+    if (exp != null) return exp > now
+    // Tanpa catatan inv: item yang masih dikenal katalog tetap sah. Item panel
+    // (sx_) dan SVIP (sv*) juga tetap sah walau katalog belum sempat termuat,
+    // supaya lencana tidak sempat hilang sesaat setelah aplikasi dibuka.
+    return findItem(id) != null || id.startsWith("sx_") || id.startsWith("sv")
 }
 
 /** Item ini sedang dipakai? Lencana dicek satu per satu karena bisa banyak. */
@@ -1509,7 +1529,10 @@ object PublicSync {
             // Dompet kini di Supabase (cache dulu, lalu server); Firestore tidak dibaca lagi.
             // Selalu ambil dari server (bukan cache lokal): exp/VIP/coin yang diubah lewat
             // panel developer harus ikut ke profil publik, jadi cache lama tidak boleh dipakai.
-            val w0 = SupaRepo.get(uid, fresh = true).wallet?.also { WalletCache.save(uid, it) }
+            // Lencana yang masih terpasang di perangkat dipakai lagi kalau server
+            // mengirim daftar kosong, supaya profil publik tidak ikut kehilangan.
+            val w0 = SupaRepo.get(uid, fresh = true).wallet
+                ?.let { lencanaAman(uid, it).also { a -> WalletCache.save(uid, a) } }
                 ?: WalletCache.load(uid)
             if (w0 == null) { pushFromCache(uid); return }
             // Medal SVIP ada di pub/{uid}/svipInv; gabungkan agar ikut terkirim ke publik.

@@ -153,6 +153,19 @@ object StatusDompet {
     var terakhir by androidx.compose.runtime.mutableStateOf(0L)
 }
 
+/**
+ * Lencana yang sedang dipasang tidak boleh hilang hanya karena dompet dibaca
+ * ulang dari server dan daftar lencananya ikut kosong. Kalau server mengirim
+ * daftar kosong tetapi di perangkat masih tersimpan, daftar itu dipakai lagi.
+ */
+fun lencanaAman(uid: String, w: Wallet): Wallet {
+    if (medalIdList(w.equip["badge"]).isNotEmpty()) return w
+    val lama = WalletCache.load(uid) ?: return w
+    val daftar = medalIdList(lama.equip["badge"])
+    if (daftar.isEmpty()) return w
+    return w.copy(equip = w.equip + ("badge" to daftar.joinToString(",")))
+}
+
 object WalletRepo {
     private val backupCbs = java.util.concurrent.CopyOnWriteArrayList<(String, Wallet) -> Unit>()
     private fun db() = FirebaseFirestore.getInstance()
@@ -197,7 +210,7 @@ object WalletRepo {
                     val legacy = readLegacy(uid) ?: Wallet()
                     res = SupaRepo.migrate(uid, legacy)
                 }
-                res.wallet?.let { emitBackup(uid, it) }
+                res.wallet?.let { emitBackup(uid, lencanaAman(uid, it)) }
                 StatusDompet.galat = res.error ?: ""
                 if (res.wallet != null) StatusDompet.terakhir = System.currentTimeMillis()
                 // Saat aplikasi sedang dibuka, saldo diperbarui tiap 15 detik
