@@ -1937,6 +1937,25 @@ async function bkCariAkun(teks){
   }
 }
 
+/** Lencana yang baru dipasang langsung ditulis ke profil publik (RTDB pub/{uid}/badge).
+ *  Tanpa ini, lencana baru hanya ada di dompet server: tampil di Ransel, tapi belum
+ *  muncul di profil, room, atau kursi sampai HP pemiliknya membuka aplikasi lagi. */
+async function pushLencanaPub(uidT, itemId){
+  if (!uidT || !itemId) return false;
+  try {
+    const jalur = "pub/" + uidT + "/badge";
+    const lama = String((await rtdb.ref(jalur).get()).val() || "");
+    const daftar = lama.split(",").map((x) => x.trim()).filter(Boolean);
+    if (!daftar.includes(itemId)) daftar.unshift(itemId);
+    await rtSet(jalur, daftar.slice(0, 60).join(","));
+    toast("Lencana dipasang di profil publik");
+    return true;
+  } catch (e) {
+    console.warn("push lencana pub", e);
+    return false;
+  }
+}
+
 async function bkKirim(){
   const btn = $("bkSend"), st = $("bkStatus");
   if (!bkUid) return toast("Cari lalu pilih akun dulu");
@@ -1974,6 +1993,8 @@ async function bkKirim(){
     }
     st.textContent = "Mengirim ke ID " + bkPilih + "…";
     await kirimItem(bkUid, "sx_" + id, days, $("bkPakai").checked ? "badge" : "");
+    // Pastikan lencana langsung terlihat di profil/room, bukan cuma di Ransel.
+    if ($("bkPakai").checked) await pushLencanaPub(bkUid, "sx_" + id);
     let bkUser = { id: bkPilih, name: "Pengguna" };
     try { bkUser = await lookup(bkPilih); } catch (e) { }
     await kirimNotifItem(bkUid, bkUser, "badge", name || "Lencana Resmi");
@@ -4587,6 +4608,7 @@ async function storeSave(c, el, btn){
         // ID custom (mis. 1000) didaftarkan sebagai alias supaya bisa dicari di app.
         try { await rtSet("uidCustom/" + stUidPilih, { uid: targetUid, itemId: "sx_" + id, at: Date.now() }); } catch (e) { }
         await kirimItem(targetUid, "sx_" + id, 3650, slot);
+        if (slot === "badge") await pushLencanaPub(targetUid, "sx_" + id);
         await kirimNotifItem(targetUid, { id: stUidPilih, name: name }, slot, name || "Item Resmi");
         toast("Tersimpan ✅ dan langsung dipasang ke ID " + stUidPilih);
       } catch (e) {
