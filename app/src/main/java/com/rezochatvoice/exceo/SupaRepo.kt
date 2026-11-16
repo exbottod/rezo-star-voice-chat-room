@@ -915,7 +915,7 @@ object SupaRepo {
         if (uid.isBlank()) return null
         return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             try {
-                val alamat = Array(VPS, WAL, WAL2).toList().ifEmpty { listOf(VPS) }
+                val alamat = listOf(VPS, WAL, WAL2)
                 for (dasar in alamat) {
                     val url = java.net.URL("$dasar/lencana?uid=" + java.net.URLEncoder.encode(uid, "UTF-8"))
                     val c = url.openConnection() as java.net.HttpURLConnection
