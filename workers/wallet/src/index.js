@@ -3494,6 +3494,45 @@ export default {
         return new Response("aset tidak ditemukan: " + String(e?.message ?? e), { status: 404 });
       }
     }
+    // Pindahkan aset lama (mis. tautan Cloudinary yang mulai mati) ke VPS.
+    // Diambil server-side supaya tidak kena blokir CORS di browser panel.
+    if (url.pathname.toLowerCase() === "/aset-pindah") {
+      const bP = await req.json().catch(() => null);
+      if (!bP) return json({ ok: 0, e: "Body tidak valid" }, 400);
+      const sesiP = await sesiDariToken(bP.t ?? "");
+      if (!sesiP) return json({ ok: 0, e: "Sesi tidak sah" }, 401);
+      if (String(sesiP.email || "").toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+        return json({ ok: 0, e: "Hanya admin yang bisa memindahkan aset" }, 403);
+      }
+      const asal = String(bP.url || "");
+      if (!/^https?:\/\//i.test(asal)) return json({ ok: 0, e: "URL sumber tidak sah" }, 400);
+      try {
+        let rS;
+        try {
+          rS = await fetch(asal, { headers: { "User-Agent": "rezo-panel/1.0" } });
+        } catch (eJ) {
+          return json({ ok: 0, e: "Sumber tidak terjangkau: " + String(eJ?.message ?? eJ) }, 502);
+        }
+        if (!rS.ok) return json({ ok: 0, e: "Sumber menolak (" + rS.status + "), file aslinya sudah tidak bisa diambil" }, 400);
+        const buf = await rS.arrayBuffer();
+        if (!buf || buf.byteLength === 0) return json({ ok: 0, e: "File sumber kosong" }, 400);
+        // Base64 dibagi per potong supaya file besar tidak merusak stack.
+        const u8 = new Uint8Array(buf);
+        let bin = "";
+        for (let i = 0; i < u8.length; i += 0x8000) {
+          bin += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000));
+        }
+        const b64 = btoa(bin);
+        const ext = (asal.split("?")[0].split(".").pop() || "png").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 5) || "png";
+        const nama = (String(bP.name || "aset").toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 40) || "aset");
+        const hasil = await asetUpload(env, { b64, ext, name: nama, gh: String(bP.gh || "") });
+        const o = await hasil.json();
+        if (!o.ok) return json({ ok: 0, e: String(o.e || "Gagal menyimpan di VPS") }, 400);
+        return json({ ok: 1, url: o.url, dari: asal });
+      } catch (e) {
+        return json({ ok: 0, e: String(e?.message ?? e) }, 500);
+      }
+    }
     if (url.pathname.toLowerCase() === "/aset-upload") {
       // Jalur cepat: biner mentah (tanpa base64), parameter lewat query string.
       if (url.searchParams.get("raw") === "1") {
