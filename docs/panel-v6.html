@@ -6033,6 +6033,130 @@ $("pstReloadStock").onclick = async () => {
 
 /* ---- Pemeriksa aset mati: cari aset yang tautannya masih ke Cloudinary (sekarang 401) ---- */
 (function(){
+  // Pindahkan aset lama yang masih menunjuk Cloudinary ke VPS.
+  // Cloudinary sudah kehabisan kuota / diblokir, jadi bingkai, banner, dan lencana
+  // yang diunggah ke sana tampil kosong. Tombol ini mengambil file sumbernya lewat
+  // server VPS (bebas CORS), menyimpannya di VPS, lalu mengubah tautan di database.
+  const AKAR = ["vipCfg", "store", "items", "frames", "lencana", "badges", "gifts", "emote", "emotes", "tabbg", "banner", "efek"];
+  const b = document.createElement("button");
+  b.textContent = "Pindahkan Aset ke VPS";
+  b.style.cssText = "position:fixed;right:12px;bottom:132px;z-index:99999;padding:10px 14px;border-radius:22px;" +
+    "background:#1565c0;color:#fff;font-weight:700;border:0;box-shadow:0 3px 10px rgba(0,0,0,.4);font-size:13px";
+  document.body.appendChild(b);
+
+  function layar(judul, baris) {
+    let box = document.getElementById("boxPindahAset");
+    if (!box) {
+      box = document.createElement("div");
+      box.id = "boxPindahAset";
+      box.style.cssText = "position:fixed;inset:0;z-index:100001;background:rgba(0,0,0,.92);color:#fff;" +
+        "padding:14px;overflow:auto;font:12px/1.55 monospace";
+      document.body.appendChild(box);
+    }
+    box.innerHTML = "";
+    const h = document.createElement("div");
+    h.style.cssText = "font:700 15px/1.4 system-ui;margin-bottom:10px";
+    h.textContent = judul;
+    box.appendChild(h);
+    const pre = document.createElement("div");
+    pre.style.cssText = "white-space:pre-wrap;word-break:break-word";
+    pre.textContent = baris.join("\n");
+    box.appendChild(pre);
+    const t = document.createElement("button");
+    t.textContent = "Tutup";
+    t.style.cssText = "margin-top:14px;padding:9px 16px;border-radius:18px;border:0;font-weight:700";
+    t.onclick = () => box.remove();
+    box.appendChild(t);
+  }
+
+  // Kumpulkan semua alamat gambar ber-Cloudinary dari beberapa cabang database.
+  async function kumpulkan() {
+    const hasil = [];
+    for (const akar of AKAR) {
+      let snap;
+      try { snap = await rtdb.ref(akar).once("value"); } catch (e) { continue; }
+      if (!snap.exists()) continue;
+      const jalan = (nilai, jalur, dalam) => {
+        if (hasil.length > 400 || dalam > 4) return;
+        if (typeof nilai === "string") {
+          if (/cloudinary\.com/i.test(nilai)) hasil.push({ jalur: jalur, url: nilai });
+          return;
+        }
+        if (!nilai || typeof nilai !== "object") return;
+        Object.keys(nilai).forEach((k) => jalan(nilai[k], jalur + "/" + k, dalam + 1));
+      };
+      jalan(snap.val(), akar, 0);
+    }
+    return hasil;
+  }
+
+  async function pindahSatu(t, tj) {
+    const dasar = ["https://43-156-99-4.sslip.io", "https://rezo-wallet.bangexx01.workers.dev"];
+    let pesan = "";
+    for (const d of dasar) {
+      try {
+        const r = await fetch(d + "/aset-pindah", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ t: t, url: tj.url, name: "pindah" }),
+        });
+        const o = await r.json().catch(() => ({}));
+        if (o && o.ok && o.url) return o.url;
+        pesan = (o && o.e) || ("HTTP " + r.status);
+        if (/sumber menolak|tidak bisa diambil|Sesi tidak sah|Hanya admin/i.test(pesan)) break;
+      } catch (e) {
+        pesan = String((e && e.message) || e);
+      }
+    }
+    throw new Error(pesan || "gagal");
+  }
+
+  b.onclick = async () => {
+    const u = auth.currentUser;
+    if (!u) { layar("Belum login", ["Login dulu sebagai pemilik (developerex100@gmail.com)."]); return; }
+    b.disabled = true;
+    b.textContent = "Mencari aset...";
+    const baris = [];
+    try {
+      const t = await u.getIdToken();
+      const daftar = await kumpulkan();
+      if (!daftar.length) {
+        layar("Tidak ada aset Cloudinary", ["Semua tautan aset sudah memakai VPS."]);
+        return;
+      }
+      baris.push("Ditemukan " + daftar.length + " tautan Cloudinary.");
+      let beres = 0;
+      const gagal = [];
+      for (let i = 0; i < daftar.length; i++) {
+        const tj = daftar[i];
+        b.textContent = "Memindahkan " + (i + 1) + "/" + daftar.length;
+        try {
+          const baru = await pindahSatu(t, tj);
+          await rtdb.ref(tj.jalur).set(baru);
+          beres++;
+        } catch (e) {
+          gagal.push(tj.jalur + " -> " + String((e && e.message) || e));
+        }
+      }
+      baris.push("Berhasil dipindah ke VPS: " + beres);
+      baris.push("Gagal: " + gagal.length);
+      if (gagal.length) {
+        baris.push("");
+        baris.push("Yang gagal harus diunggah ulang dari panel (file aslinya sudah tidak bisa diambil):");
+        gagal.slice(0, 40).forEach((g) => baris.push("• " + g));
+      }
+      layar("Selesai memindahkan aset", baris);
+    } catch (e) {
+      baris.push("Error: " + String((e && e.message) || e));
+      layar("Gagal", baris);
+    } finally {
+      b.disabled = false;
+      b.textContent = "Pindahkan Aset ke VPS";
+    }
+  };
+})();
+
+(function(){
   const b = document.createElement("button");
   b.textContent = "Cek Aset Mati";
   b.style.cssText = "position:fixed;right:12px;bottom:80px;z-index:99999;padding:10px 14px;border-radius:22px;" +
