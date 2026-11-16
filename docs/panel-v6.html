@@ -2000,7 +2000,8 @@ async function bkKirim(){
     await kirimNotifItem(bkUid, bkUser, "badge", name || "Lencana Resmi");
     logAction({ type: "sendBadge", targetId: bkPilih, uid: bkUid, itemId: id, days: days });
     st.textContent = "Selesai. Lencana terkirim ke ID " + bkPilih + " selama " + days + " hari"
-      + ($("bkPakai").checked ? ", dan sudah dipakai di profilnya." : ". User bisa memakainya dari My Item.");
+      + ($("bkPakai").checked ? ", dan sudah dipakai di profilnya." : ". User bisa memakainya dari My Item.")
+      + "\nGambar: " + finalUrl.slice(0, 60);
     toast("Lencana terkirim \u2705");
     $("bkName").value = ""; $("bkUrl").value = ""; $("bkFile").value = "";
     const box = $("bkPrev"); stopPrev(box); box.textContent = "Pratinjau";
@@ -4142,6 +4143,19 @@ function tolakAsetMati(u){
   }
   return u;
 }
+/** Cek cepat apakah file hasil upload benar-benar bisa dibuka.
+ *  Cloudinary yang kuotanya habis tetap memberi tautan, tapi tautannya 401,
+ *  sehingga item tampak "tidak sampai" di aplikasi. Kalau hasil cek jelas
+ *  gagal, unggahan ditolak sekarang, bukan setelah item terkirim ke user. */
+async function asetHidup(u){
+  try {
+    const r = await fetch(u, { method: "GET", headers: { Range: "bytes=0-0" }, cache: "no-store" });
+    return r.status >= 400 ? r.status : 0;
+  } catch (e) {
+    return 0; // diblokir CORS/jaringan: tidak bisa dipastikan, jangan menghalangi
+  }
+}
+
 async function cldUpload(file, name){
   const u = auth.currentUser;
   if (!u) throw new Error("Belum login");
@@ -4153,7 +4167,11 @@ async function cldUpload(file, name){
   // HANYA GitHub/jsDelivr. Cloudinary tidak dipakai lagi: akun v6ttvgah diblokir
   // dan semua tautannya menjawab 401, jadi aset yang diunggah ke sana pasti mati.
   try {
-    return tolakAsetMati(await ghUpload(file, name));
+    const url = tolakAsetMati(await ghUpload(file, name));
+    const kode = await asetHidup(url);
+    if (kode) throw new Error("File sudah terunggah tapi tidak bisa dibuka (HTTP " + kode + "). Unggah ulang filenya.");
+    toast(url.indexOf("/berkas/") >= 0 ? "Tersimpan di VPS \u2705" : "Tersimpan (cadangan GitHub) \u2705");
+    return url;
   } catch (e) {
     // Teruskan alasan aslinya apa adanya. Dulu semua error dibungkus teks soal
     // token dan Cloudinary sehingga penyebab sebenarnya tidak kelihatan.
