@@ -2168,10 +2168,14 @@ async function panel(env, body) {
       // daftar lencana user jadi satu, jadi semua lencana lain hilang. Sekarang
       // item baru hanya ditambahkan, daftar lama tetap.
       const kunci = slotPakai === "badge" ? "badge" : "medals";
+      // Lencana baru ditaruh di DEPAN dan batasnya longgar. Dulu lencana baru
+      // ditambahkan di belakang lalu dipotong 12: akun yang sudah punya 12
+      // lencana tidak pernah menerima lencana baru walau panel bilang terkirim.
       const daftar = String(eqBaru[kunci] || "")
-        .split(",").map((x) => x.trim()).filter(Boolean);
-      if (!daftar.includes(itemId)) daftar.push(itemId);
-      eqBaru[kunci] = daftar.slice(0, 12).join(",");
+        .split(",").map((x) => x.trim()).filter(Boolean)
+        .filter((x) => x !== itemId);
+      daftar.unshift(itemId);
+      eqBaru[kunci] = daftar.slice(0, 60).join(",");
     } else if (slotPakai) {
       eqBaru[slotPakai] = itemId;
     }
