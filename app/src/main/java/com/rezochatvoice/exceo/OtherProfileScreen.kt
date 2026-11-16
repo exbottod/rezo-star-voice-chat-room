@@ -155,6 +155,23 @@ fun OtherProfileScreen(
                     val csv = s.child("svip").getValue(String::class.java) ?: ""
                     user = u3.copy(svip = csv)
                 }
+                // FIX lencana kiriman panel tidak tampil di profil orang lain:
+                // panel menulis lencana ke dompet server dan ke pub/{uid}/badge, tapi
+                // profil ini dibaca dari users/{uid} (Firestore) yang bisa tertinggal.
+                // Sekarang nilai pub dipakai kalau ada, jadi lencana baru langsung tampil.
+                if (s != null && s.exists()) {
+                    fun pub(k: String): String? =
+                        if (s.hasChild(k)) s.child(k).getValue(String::class.java) else null
+                    val u4 = (user ?: u3)
+                    user = u4.copy(
+                        badge = pub("badge") ?: u4.badge,
+                        medals = pub("medals") ?: u4.medals,
+                        frame = pub("frame") ?: u4.frame,
+                        bubble = pub("bubble") ?: u4.bubble,
+                        cardbg = pub("cardbg") ?: u4.cardbg,
+                        uidItem = pub("uidItem") ?: u4.uidItem,
+                    )
+                }
             }
         } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
         loading = false

@@ -3403,6 +3403,46 @@ export default {
   async fetch(req, env) {
     const url = new URL(req.url);
     if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
+    // Lencana publik: disimpan dan dilayani dari VPS sendiri.
+    // Dipakai profil orang lain, room, dan ranking supaya lencana kiriman panel
+    // langsung tampil tanpa menunggu Firestore/RTDB tersinkron.
+    if (url.pathname.toLowerCase() === "/lencana") {
+      try {
+        const uidL = String((req.method === "GET" ? url.searchParams.get("uid") : "") || "");
+        if (!uidL) return json({ ok: 0, e: "uid kosong" }, 400);
+        const rL = await saldo(env, uidL);
+        const wL = rapikan(rL[0].rows[0]);
+        const kini = Date.now();
+        // Item tanpa catatan masa aktif tetap tampil kalau berasal dari panel (sx_) atau SVIP.
+        const bersih = (csv) =>
+          String(csv || "")
+            .split(",")
+            .map((x) => x.trim())
+            .filter(Boolean)
+            .filter((id) => {
+              const e = wL.inv?.[id];
+              if (e == null) return id.startsWith("sx_") || id.startsWith("sv");
+              return Number(e) > kini;
+            })
+            .join(",");
+        if (!wL) {
+          return json({ ok: 1, uid: uidL, ada: 0, badge: "", medals: "", frame: "", bubble: "", cardbg: "", uidItem: "" });
+        }
+        return json({
+          ok: 1,
+          uid: uidL,
+          ada: 1,
+          badge: bersih(wL.equip?.badge),
+          medals: bersih(wL.equip?.medals),
+          frame: String(wL.equip?.frame || ""),
+          bubble: String(wL.equip?.bubble || ""),
+          cardbg: String(wL.equip?.cardbg || ""),
+          uidItem: String(wL.equip?.uid || ""),
+        });
+      } catch (e) {
+        return json({ ok: 0, e: String(e?.message ?? e) }, 500);
+      }
+    }
     if (url.pathname === "/panel") {
       const b = await req.json().catch(() => null);
       if (!b) return json({ ok: 0, e: "Body tidak valid" }, 400);
