@@ -1,73 +1,26 @@
 {
-  "status": "ok",
-  "masalah": [],
-  "versi": "1.1.169",
-  "ukuran_mb": 67.7,
-  "sha256": "25f90c5a004f23dc1a6a860e488d5a4b057c1180f81572dff8794a299c6435e5",
-  "commit": "a7fdc13",
-  "waktu": "2026-11-16T05:08:58Z",
+  "status": "gagal",
+  "masalah": [
+    "e: file:///home/runner/work/rezo-star-voice-chat-room/rezo-star-voice-chat-room/app/src/main/java/com/rezochatvoice/exceo/SupaRepo.kt:918:30 Cannot infer type for this parameter. Please specify it exp",
+    "e: file:///home/runner/work/rezo-star-voice-chat-room/rezo-star-voice-chat-room/app/src/main/java/com/rezochatvoice/exceo/SupaRepo.kt:918:36 Argument type mismatch: actual type is 'kotlin.String', but",
+    "e: file:///home/runner/work/rezo-star-voice-chat-room/rezo-star-voice-chat-room/app/src/main/java/com/rezochatvoice/exceo/SupaRepo.kt:918:41 Argument type mismatch: actual type is 'kotlin.String', but",
+    "e: file:///home/runner/work/rezo-star-voice-chat-room/rezo-star-voice-chat-room/app/src/main/java/com/rezochatvoice/exceo/SupaRepo.kt:918:46 Too many arguments for 'constructor<T>(size: Int, init: (In",
+    "e: file:///home/runner/work/rezo-star-voice-chat-room/rezo-star-voice-chat-room/app/src/main/java/com/rezochatvoice/exceo/SupaRepo.kt:918:52 Cannot infer type for this parameter. Please specify it exp",
+    "e: file:///home/runner/work/rezo-star-voice-chat-room/rezo-star-voice-chat-room/app/src/main/java/com/rezochatvoice/exceo/SupaRepo.kt:918:52 Not enough information to infer type argument for 'T'.",
+    "e: file:///home/runner/work/rezo-star-voice-chat-room/rezo-star-voice-chat-room/app/src/main/java/com/rezochatvoice/exceo/SupaRepo.kt:918:61 Cannot infer type for this parameter. Please specify it exp",
+    "e: file:///home/runner/work/rezo-star-voice-chat-room/rezo-star-voice-chat-room/app/src/main/java/com/rezochatvoice/exceo/SupaRepo.kt:918:61 Not enough information to infer type argument for 'C'.",
+    "e: file:///home/runner/work/rezo-star-voice-chat-room/rezo-star-voice-chat-room/app/src/main/java/com/rezochatvoice/exceo/SupaRepo.kt:918:61 Not enough information to infer type argument for 'R'.",
+    "e: file:///home/runner/work/rezo-star-voice-chat-room/rezo-star-voice-chat-room/app/src/main/java/com/rezochatvoice/exceo/SupaRepo.kt:918:69 Cannot infer type for this parameter. Please specify it exp",
+    "e: file:///home/runner/work/rezo-star-voice-chat-room/rezo-star-voice-chat-room/app/src/main/java/com/rezochatvoice/exceo/SupaRepo.kt:919:31 Method 'iterator()' is ambiguous for this expression. Appli",
+    "* What went wrong:"
+  ],
+  "versi": "1.1.170",
+  "ukuran_mb": 0,
+  "sha256": "",
+  "commit": "f54c10c",
+  "waktu": "2026-11-16T11:02:45Z",
   "workflow": "https://github.com/exbottod/rezo-star-voice-chat-room/actions",
-  "aset_roket": 30,
-  "aset_total": 87,
-  "fitur": [
-    {
-      "nama": "Banner cashback terpisah",
-      "ada": true
-    },
-    {
-      "nama": "Banner gift biasa",
-      "ada": true
-    },
-    {
-      "nama": "Animasi cashback di avatar",
-      "ada": true
-    },
-    {
-      "nama": "Tombol kombo cashback",
-      "ada": true
-    },
-    {
-      "nama": "Roket level 1-5 di room",
-      "ada": true
-    },
-    {
-      "nama": "Peluncuran roket cadangan",
-      "ada": true
-    },
-    {
-      "nama": "Sambung ulang suara otomatis",
-      "ada": true
-    },
-    {
-      "nama": "Tukar diamond nominal sendiri",
-      "ada": true
-    },
-    {
-      "nama": "Papan peringkat roket",
-      "ada": true
-    }
-  ],
-  "roket_level": [
-    {
-      "level": 1,
-      "ada": true
-    },
-    {
-      "level": 2,
-      "ada": true
-    },
-    {
-      "level": 3,
-      "ada": true
-    },
-    {
-      "level": 4,
-      "ada": true
-    },
-    {
-      "level": 5,
-      "ada": true
-    }
-  ],
-  "catatan": "Update error game Wave"
+  "aset_roket": 0,
+  "aset_total": 0,
+  "fitur": []
 }
