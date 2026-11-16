@@ -393,6 +393,17 @@ object AgoraVoice {
         return try {
             stopMusic()
             val mp = MediaPlayer()
+            // Atribut musik: keluar lewat speaker media, bukan jalur panggilan
+            // yang membuat suara kecil dan gepeng. Dipakai hanya sebagai jalan
+            // darurat kalau musik bersama tidak bisa disiarkan.
+            try {
+                mp.setAudioAttributes(
+                    android.media.AudioAttributes.Builder()
+                        .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+                        .setContentType(android.media.AudioAttributes.CONTENT_TYPE_MUSIC)
+                        .build(),
+                )
+            } catch (e: Exception) { }
             mp.setDataSource(path)
             mp.isLooping = loop
             mp.setVolume(musicVol / 100f, musicVol / 100f)

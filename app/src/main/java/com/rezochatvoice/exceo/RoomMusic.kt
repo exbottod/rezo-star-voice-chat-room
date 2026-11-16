@@ -58,8 +58,10 @@ data class MusicTrack(val title: String, val path: String)
 
 /**
  * Playlist & state pemutar musik room.
- * Musik diputar lewat Agora audio mixing dari perangkat DJ (yang naik mic),
- * dicampur dengan suara mic dan dikirim ke channel, jadi terdengar oleh semua pengguna di room.
+ * Lagu diunggah sekali, lalu SEMUA HP di room memutar berkas yang sama dengan
+ * posisi yang diselaraskan dari jam server (lihat RoomMusicShare). Suara musik
+ * tidak lagi lewat speaker pemutar lalu ditangkap mic, jadi di HP pendengar
+ * terdengar jernih seperti file aslinya.
  * Playlist disimpan lokal di perangkat DJ.
  */
 object MusicEngine {
@@ -77,6 +79,12 @@ object MusicEngine {
 
     /** Pesan galat saat lagu gagal dibagikan ke room. */
     var galatMusik by mutableStateOf("")
+
+    /** true selama lagu disiapkan (diproses/diunggah) sebelum room bisa memutarnya. */
+    var menyiapkan by mutableStateOf(false)
+    var persen by mutableStateOf(0)
+
+    private var terakhirLanjut = 0L
 
     /** Salin lagu dari URI (file picker) ke cache agar bisa diputar Agora. Return jumlah sukses. */
     suspend fun importFromUris(context: android.content.Context, uris: List<android.net.Uri>): Int =
@@ -109,38 +117,85 @@ object MusicEngine {
     fun play(index: Int): Boolean {
         if (index !in playlist.indices) return false
         val lagu = playlist[index]
-        // Putar lokal dulu supaya pemutar sendiri langsung dengar suara,
-        // lalu unggah dan siarkan supaya semua orang di room ikut dengar.
-        if (AgoraVoice.startMusic(lagu.path, looping)) {
-            current = index
-            playing = true
-            AgoraVoice.setMusicVolume(volume)
-        }
+        current = index
+        playing = true
+        galatMusik = ""
+        menyiapkan = true
+        persen = 0
+        // Musik tidak diputar lewat speaker lagi: speaker DJ ditangkap mic
+        // dengan kualitas buruk (pelan, gepeng, tertinggal), itu penyebab
+        // pendengar tidak mendengar musik dengan jelas.
+        try { AgoraVoice.stopMusic() } catch (e: Exception) { }
         scope.launch {
-            val berkas = try { File(lagu.path) } catch (e: Exception) { null } ?: return@launch
-            val (url, err) = RoomMusicShare.unggah(berkas)
+            val berkas = try { File(lagu.path) } catch (e: Exception) { null }
+            if (berkas == null || !berkas.exists()) {
+                menyiapkan = false
+                playing = false
+                galatMusik = "Berkas lagu tidak ditemukan"
+                return@launch
+            }
+            val (url, err) = RoomMusicShare.unggah(berkas) { p -> persen = p }
             if (url.isNullOrBlank()) {
+                menyiapkan = false
                 galatMusik = err ?: "Gagal membagikan musik ke room"
+                // Jalan terakhir: putar lewat speaker DJ supaya room tetap punya musik,
+                // walau kualitasnya lebih rendah.
+                if (AgoraVoice.startMusic(lagu.path, looping)) {
+                    AgoraVoice.setMusicVolume(volume)
+                    galatMusik = "Musik darurat lewat speaker, kualitas menurun"
+                } else {
+                    playing = false
+                }
                 return@launch
             }
             tautanAktif = url
             judulAktif = lagu.title
-            current = index
-            playing = true
-            // Setelah tautan siap, pemutar lokal dimatikan dan semua HP
-            // (termasuk pemutar sendiri) memakai pemutar bersama.
-            try { AgoraVoice.stopMusic() } catch (e: Exception) { }
+            // Pemutar sendiri tidak perlu mengunduh ulang berkas yang sudah ada di HP ini.
+            RoomMusicShare.pakaiBerkasLokal(url, berkas)
+            RoomMusicShare.setVolume(volume)
             RoomMusicShare.siarkan(roomId, url, lagu.title, true, 0L)
+
+            // Kalau siaran tidak sampai ke HP ini (mis. RTDB bermasalah), baru pakai speaker.
+            var masuk = false
+            var tunggu = 0
+            while (tunggu < 16) {
+                delay(500)
+                if (RoomMusicShare.adaLagu()) { masuk = true; break }
+                tunggu++
+            }
+            menyiapkan = false
+            if (!masuk && !RoomMusicShare.sibuk() && !RoomMusicShare.aktif()) {
+                if (AgoraVoice.startMusic(lagu.path, looping)) {
+                    AgoraVoice.setMusicVolume(volume)
+                    galatMusik = "Musik darurat lewat speaker, kualitas menurun"
+                } else {
+                    playing = false
+                }
+            }
         }
         return true
     }
 
+    /** Dipanggil saat lagu selesai: ulang kalau loop, lanjut kalau ada lagu berikutnya. */
+    fun lanjutOtomatis() {
+        val now = System.currentTimeMillis()
+        if (now - terakhirLanjut < 2000L) return
+        terakhirLanjut = now
+        if (!playing) return
+        if (looping && current >= 0) {
+            play(current)
+        } else if (current < playlist.size - 1) {
+            next()
+        } else {
+            stop()
+        }
+    }
+
     fun resume() {
         playing = true
-        if (tautanAktif.isNotBlank()) {
-            scope.launch {
-                RoomMusicShare.siarkan(roomId, tautanAktif, judulAktif, true, RoomMusicShare.posisiMs().toLong())
-            }
+        if (RoomMusicShare.adaLagu()) {
+            val pos = RoomMusicShare.posisiMs().toLong()
+            scope.launch { RoomMusicShare.siarkan(roomId, tautanAktif, judulAktif, true, pos) }
         } else {
             AgoraVoice.resumeMusic()
         }
@@ -148,10 +203,9 @@ object MusicEngine {
 
     fun pause() {
         playing = false
-        if (tautanAktif.isNotBlank()) {
-            scope.launch {
-                RoomMusicShare.siarkan(roomId, tautanAktif, judulAktif, false, RoomMusicShare.posisiMs().toLong())
-            }
+        if (RoomMusicShare.adaLagu()) {
+            val pos = RoomMusicShare.posisiMs().toLong()
+            scope.launch { RoomMusicShare.siarkan(roomId, tautanAktif, judulAktif, false, pos) }
         } else {
             AgoraVoice.pauseMusic()
         }
@@ -186,6 +240,7 @@ object MusicEngine {
     fun stop() {
         AgoraVoice.stopMusic()
         playing = false
+        menyiapkan = false
         current = -1
         tautanAktif = ""
         judulAktif = ""
@@ -197,6 +252,7 @@ object MusicEngine {
     fun reset() {
         AgoraVoice.stopMusic()
         playing = false
+        menyiapkan = false
         current = -1
         tautanAktif = ""
         judulAktif = ""
@@ -207,7 +263,7 @@ object MusicEngine {
         val d = AgoraVoice.musicDurationMs()
         if (d <= 0) return
         val target = (f * d).toLong()
-        if (tautanAktif.isNotBlank()) {
+        if (RoomMusicShare.adaLagu()) {
             // Musik bersama: posisi baru disiarkan supaya semua HP ikut geser.
             scope.launch { RoomMusicShare.geser(roomId, tautanAktif, judulAktif, playing, target) }
         } else {
@@ -272,10 +328,8 @@ fun MusicSheet(
             if (MusicEngine.playing) {
                 pos = AgoraVoice.musicPositionMs()
                 dur = AgoraVoice.musicDurationMs()
-                if (dur > 0 && pos >= dur - 250 && !MusicEngine.looping) {
-                    if (MusicEngine.current < MusicEngine.playlist.size - 1) MusicEngine.next()
-                    else MusicEngine.stop()
-                }
+                // Lagu hampir habis: pemutar (DJ) yang memutuskan ulang/lanjut.
+                if (dur > 0 && pos >= dur - 400) MusicEngine.lanjutOtomatis()
             }
             delay(400)
         }
@@ -307,6 +361,21 @@ fun MusicSheet(
                 )
                 Spacer(Modifier.width(8.dp))
                 Text("✕", color = Color(0xFF9A9A9A), modifier = Modifier.clickable(onClick = onDismiss).padding(4.dp))
+            }
+            if (MusicEngine.menyiapkan) {
+                Text(
+                    "Menyiapkan musik untuk room... ${MusicEngine.persen}%",
+                    color = MusicTeal,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            } else if (MusicEngine.galatMusik.isNotBlank()) {
+                Text(
+                    MusicEngine.galatMusik,
+                    color = Color(0xFFFF8A80),
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
             }
             Spacer(Modifier.height(10.dp))
 
