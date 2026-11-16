@@ -908,6 +908,38 @@ object SupaRepo {
         return call("buy_item", p)
     }
 
+    /** Lencana/frame milik akun lain, dibaca dari server dompet (VPS).
+     *  Sumber paling baru: panel menulis lencana ke dompet server, jadi yang tampil
+     *  di profil orang lain tidak lagi bergantung pada Firestore atau RTDB. */
+    suspend fun lencanaVps(uid: String): org.json.JSONObject? {
+        if (uid.isBlank()) return null
+        return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                val alamat = Array(VPS, WAL, WAL2).toList().ifEmpty { listOf(VPS) }
+                for (dasar in alamat) {
+                    val url = java.net.URL("$dasar/lencana?uid=" + java.net.URLEncoder.encode(uid, "UTF-8"))
+                    val c = url.openConnection() as java.net.HttpURLConnection
+                    c.requestMethod = "GET"
+                    c.connectTimeout = 7000
+                    c.readTimeout = 9000
+                    try {
+                        if (c.responseCode !in 200..299) continue
+                        val teks = c.inputStream.bufferedReader().use { it.readText() }
+                        val o = org.json.JSONObject(teks)
+                        if (o.optInt("ok") == 1) return@withContext o
+                    } catch (e: Exception) {
+                        // coba alamat berikutnya
+                    } finally {
+                        try { c.disconnect() } catch (e: Exception) { }
+                    }
+                }
+                null
+            } catch (e: Exception) {
+                null
+            }
+        }
+    }
+
     suspend fun equip(uid: String, slot: String, id: String): Res {
         val p = uidJson(uid).put("slot", slot).put("id", id)
         return call("equip", p)

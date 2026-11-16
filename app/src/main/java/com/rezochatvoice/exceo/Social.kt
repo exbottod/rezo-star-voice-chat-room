@@ -680,6 +680,26 @@ fun UserProfileSheet(
             }
         }
         user = UserCache.byUid(uid) ?: user
+        // Lencana dari server dompet (VPS): sumber paling baru, tidak menunggu Firestore.
+        if (!isMe) {
+            try {
+                val lc = kotlinx.coroutines.withTimeoutOrNull(5000L) { SupaRepo.lencanaVps(uid) }
+                if (lc != null && lc.optInt("ok") == 1) {
+                    val u0 = user
+                    if (u0 != null) {
+                        fun vps(k: String): String? = if (lc.has(k)) lc.optString(k) else null
+                        user = u0.copy(
+                            badge = vps("badge") ?: u0.badge,
+                            medals = vps("medals") ?: u0.medals,
+                            frame = vps("frame") ?: u0.frame,
+                            bubble = vps("bubble") ?: u0.bubble,
+                        )
+                    }
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) { }
+        }
         loading = false
         if (!isMe) {
             try {
