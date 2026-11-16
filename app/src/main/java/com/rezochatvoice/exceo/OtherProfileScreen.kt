@@ -172,6 +172,26 @@ fun OtherProfileScreen(
                         uidItem = pub("uidItem") ?: u4.uidItem,
                     )
                 }
+                // SUMBER UTAMA LENCANA: server dompet (VPS). Panel menulis lencana ke
+                // sana, jadi lencana kiriman baru tampil di profil ini tanpa menunggu
+                // Firestore/RTDB. Kalau server tidak terjangkau, nilai di atas tetap dipakai.
+                try {
+                    val lc = kotlinx.coroutines.withTimeoutOrNull(6000L) { SupaRepo.lencanaVps(uid) }
+                    if (lc != null && lc.optInt("ok") == 1) {
+                        fun vps(k: String): String? = if (lc.has(k)) lc.optString(k) else null
+                        val u5 = user ?: u3
+                        user = u5.copy(
+                            badge = vps("badge") ?: u5.badge,
+                            medals = vps("medals") ?: u5.medals,
+                            frame = vps("frame") ?: u5.frame,
+                            bubble = vps("bubble") ?: u5.bubble,
+                            cardbg = vps("cardbg") ?: u5.cardbg,
+                            uidItem = vps("uidItem") ?: u5.uidItem,
+                        )
+                    }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) { }
             }
         } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
         loading = false
