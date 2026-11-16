@@ -979,6 +979,11 @@ fun StoreScreen(uid: String, wallet: Wallet, onOpenVip: () -> Unit, onBack: () -
     var previewItem by remember { mutableStateOf<StoreItem?>(null) }
     val now = System.currentTimeMillis()
     LaunchedEffect(Unit) { StoreCatalog.start() }
+    // Lencana/frame kiriman panel diambil langsung dari server VPS saat halaman ini
+    // dibuka, supaya item baru langsung muncul tanpa menunggu sinkronisasi dompet.
+    LaunchedEffect(uid) {
+        try { WalletRepo.sinkronMilikPanel(uid) } catch (e: Exception) { }
+    }
     // Frame dan lencana bawaan tidak dijual lagi: store hanya menampilkan item
     // yang diunggah sendiri lewat panel. Gelembung bawaan tetap tampil.
     val shopItems = StoreCatalog.bySlot(cat, uid).map { it.toStoreItem() } +

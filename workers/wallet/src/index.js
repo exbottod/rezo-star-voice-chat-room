@@ -3432,10 +3432,18 @@ export default {
         if (!wL) {
           return json({ ok: 1, uid: uidL, ada: 0, badge: "", medals: "", frame: "", bubble: "", cardbg: "", uidItem: "" });
         }
+        // Semua item kiriman panel (sx_) yang masih aktif. Dipakai HP untuk
+        // memasukkan item ke Ransel walau sinkronisasi dompet di HP itu belum
+        // jalan, jadi lencana kiriman panel tidak lagi "hilang" di aplikasi.
+        const invL = wL.inv || {};
+        const milik = Object.keys(invL)
+          .filter((id) => id.startsWith("sx_") && Number(invL[id]) > kini)
+          .map((id) => ({ id: id, exp: Number(invL[id]) }));
         return json({
           ok: 1,
           uid: uidL,
           ada: 1,
+          milik: milik,
           badge: bersih(wL.equip?.badge),
           medals: bersih(wL.equip?.medals),
           frame: String(wL.equip?.frame || ""),

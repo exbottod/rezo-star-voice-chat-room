@@ -1991,6 +1991,12 @@ async function bkKirim(){
     if (!cek.exists() || !(cek.val() || {}).url) {
       throw new Error("Lencana gagal disimpan ke database (catatannya tidak ada). Coba lagi.");
     }
+    // Daftarkan lencana ini ke stok panel sendiri. Tanpa ini, server menolak
+    // pengiriman dengan "Item ini tidak ada di stok panel Anda" dan lencana
+    // tidak pernah sampai ke akun tujuan.
+    try {
+      await walletAdmin({ op: "panel_stock_add", uid: auth.currentUser.uid, itemId: "sx_" + id, kind: vipKind(finalUrl), name: name, days: days });
+    } catch (e) { }
     st.textContent = "Mengirim ke ID " + bkPilih + "…";
     await kirimItem(bkUid, "sx_" + id, days, $("bkPakai").checked ? "badge" : "");
     // Pastikan lencana langsung terlihat di profil/room, bukan cuma di Ransel.

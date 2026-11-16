@@ -237,6 +237,39 @@ object WalletRepo {
         }
     }
 
+    /**
+     * Ambil item kiriman panel (`sx_...`) langsung dari server VPS, lalu gabungkan
+     * ke dompet lokal. Ini jalur paling pasti supaya lencana/frame yang baru
+     * dikirim panel tetap masuk Ransel walau sinkronisasi dompet di HP ini
+     * belum/tidak jalan (mis. server Firestore/VPS sedang lambat merespons).
+     */
+    suspend fun sinkronMilikPanel(uid: String) {
+        if (uid.isBlank()) return
+        try {
+            val o = SupaRepo.lencanaVps(uid) ?: return
+            if (o.optInt("ok") != 1) return
+            val arr = o.optJSONArray("milik") ?: return
+            if (arr.length() == 0) return
+            val dasar = WalletCache.load(uid) ?: return
+            val kini = System.currentTimeMillis()
+            val inv = dasar.inv.toMutableMap()
+            var berubah = false
+            for (i in 0 until arr.length()) {
+                val it = arr.optJSONObject(i) ?: continue
+                val id = it.optString("id")
+                val exp = it.optLong("exp")
+                if (id.isBlank() || exp <= kini) continue
+                if ((inv[id] ?: 0L) < exp) {
+                    inv[id] = exp
+                    berubah = true
+                }
+            }
+            if (berubah) emitBackup(uid, dasar.copy(inv = inv))
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+    }
+
     /** Isi coin (mode uji gratis; saat pembayaran nyata, ini jadi hasil pembayaran). */
     suspend fun topUp(uid: String, coins: Long): String? {
         val r = SupaRepo.topUp(uid, coins)
